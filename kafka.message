@@ -1,0 +1,4 @@
+Someone make {{.operation}} for{{if .object}}
+{{if eq .kind "Pod"}}{{.object.status.phase}}{{end}}
+{{ range $key, $value := .object.metadata.labels }}{{ $key}}=>{{ $value }}{{end}}{{end}}
+{{.kind}}:{{.location}}

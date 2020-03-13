@@ -1,0 +1,5 @@
+{{- define "render"}}{{$url := getVar "TELEGRAM_URL"}}{{printf $url (index . 0) (index . 1)}}{{"\n"}}{{end}}
+{{- define "rules"}}
+  {{- if .location | regexMatch ".*"}}{{$a := getEnv "TELEGRAM_BOT_PLATFORM" | split "="}}{{template "render" $a}}{{end}}
+{{- end}}
+{{- define "selector"}}{{template "rules" .}}{{end}}

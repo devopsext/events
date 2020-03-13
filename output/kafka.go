@@ -17,12 +17,24 @@ var kafkaOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Help: "Count of all kafka output count",
 }, []string{"kafka_output_brokers", "kafka_output_topic"})
 
+type KafkaOutputOptions struct {
+	ClientID           string
+	Template           string
+	Brokers            string
+	Topic              string
+	FlushFrequency     int
+	FlushMaxMessages   int
+	NetMaxOpenRequests int
+	NetDialTimeout     int
+	NetReadTimeout     int
+	NetWriteTimeout    int
+}
+
 type KafkaOutput struct {
 	wg       *sync.WaitGroup
-	brokers  string
-	topic    string
 	producer *sarama.AsyncProducer
 	template *render.TextTemplate
+	options  KafkaOutputOptions
 }
 
 func (k *KafkaOutput) Send(o interface{}) {
@@ -53,11 +65,11 @@ func (k *KafkaOutput) Send(o interface{}) {
 		log.Debug("Message to Kafka => %s", message)
 
 		(*k.producer).Input() <- &sarama.ProducerMessage{
-			Topic: k.topic,
+			Topic: k.options.Topic,
 			Value: sarama.ByteEncoder(b.Bytes()),
 		}
 
-		kafkaOutputCount.WithLabelValues(k.brokers, k.topic).Inc()
+		kafkaOutputCount.WithLabelValues(k.options.Brokers, k.options.Topic).Inc()
 	}()
 }
 
@@ -87,33 +99,30 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 	return &producer
 }
 
-func NewKafkaOutput(wg *sync.WaitGroup, clientID string, template string, brokers string, topic string,
-	flushFrequency int, flushMaxMessages int, netMaxOpenRequests int, netDialTimeout int,
-	netReadTimeout int, netWriteTimeout int) *KafkaOutput {
+func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
 
-	if !common.IsEmpty(clientID) {
-		config.ClientID = clientID
+	if !common.IsEmpty(options.ClientID) {
+		config.ClientID = options.ClientID
 	}
 
 	config.Producer.Return.Successes = true
 	config.Producer.Return.Errors = true
-	config.Producer.Flush.Frequency = time.Second * time.Duration(flushFrequency)
-	config.Producer.Flush.MaxMessages = flushMaxMessages
+	config.Producer.Flush.Frequency = time.Second * time.Duration(options.FlushFrequency)
+	config.Producer.Flush.MaxMessages = options.FlushMaxMessages
 
-	config.Net.MaxOpenRequests = netMaxOpenRequests
-	config.Net.DialTimeout = time.Second * time.Duration(netDialTimeout)
-	config.Net.ReadTimeout = time.Second * time.Duration(netReadTimeout)
-	config.Net.WriteTimeout = time.Second * time.Duration(netWriteTimeout)
+	config.Net.MaxOpenRequests = options.NetMaxOpenRequests
+	config.Net.DialTimeout = time.Second * time.Duration(options.NetDialTimeout)
+	config.Net.ReadTimeout = time.Second * time.Duration(options.NetReadTimeout)
+	config.Net.WriteTimeout = time.Second * time.Duration(options.NetWriteTimeout)
 
 	return &KafkaOutput{
 		wg:       wg,
-		brokers:  brokers,
-		topic:    topic,
-		producer: makeKafkaProducer(wg, brokers, topic, config),
-		//template: render.NewTextTemplate("kafka", template),
+		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config),
+		template: render.NewTextTemplate("kafka", options.Template, templateOptions, options),
+		options:  options,
 	}
 }
 
