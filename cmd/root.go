@@ -6,10 +6,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	//"reflect"
+	"reflect"
+
 	"sync"
 	"syscall"
 
+	"github.com/devopsext/events/common"
+	"github.com/devopsext/events/input"
+	"github.com/devopsext/events/output"
+	"github.com/devopsext/events/render"
 	utils "github.com/devopsext/utils"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -37,6 +42,29 @@ var rootOpts = rootOptions{
 
 	PrometheusURL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
 	PrometheusListen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
+}
+
+var textTemplateOptions = render.TextTemplateOptions{
+
+	TimeFormat: env.Get("EVENTS_TEMPLATE_TIME_FORMAT", "2006-01-02T15:04:05.999Z").(string),
+	Layout:     env.Get("EVENTS_TEMPLATE_LAYOUT", "").(string),
+}
+
+var httpInputOptions = input.HttpInputOptions{
+
+	K8sURL:     env.Get("EVENTS_HTTP_K8S_URL", "").(string),
+	RancherURL: env.Get("EVENTS_HTTP_RANCHER_URL", "").(string),
+	Listen:     env.Get("EVENTS_HTTP_LISTEN", ":80").(string),
+	Tls:        env.Get("EVENTS_HTTP_TLS", false).(bool),
+	Cert:       env.Get("EVENTS_HTTP_CERT", "").(string),
+	Key:        env.Get("EVENTS_HTTP_KEY", "").(string),
+	Chain:      env.Get("EVENTS_HTTP_CHAIN", "").(string),
+}
+
+var collectorOutputOptions = output.CollectorOutputOptions{
+
+	Address:  env.Get("EVENTS_COLLECTOR_ADDRESS", "").(string),
+	Template: env.Get("EVENTS_COLLECTOR_MESSAGE_TEMPLATE", "").(string),
 }
 
 func startMetrics(wg *sync.WaitGroup) {
@@ -96,8 +124,9 @@ func Execute() {
 
 			startMetrics(&wg)
 
-			/*var httpInput common.Input = input.NewHttpInput(httpInputOptions, processorOptions)
+			//render.SetTextTemplateConfig(vars, vars.TEMPLATE_TIME_FORMAT, vars.TEMPLATE_LAYOUT)
 
+			var httpInput common.Input = input.NewHttpInput(httpInputOptions)
 			if reflect.ValueOf(httpInput).IsNil() {
 				log.Panic("Http input is invalid. Terminating...")
 			}
@@ -105,17 +134,35 @@ func Execute() {
 			inputs := common.NewInputs()
 			inputs.Add(&httpInput)
 
-			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, kafkaOutputTopicsV1)
-
-			if reflect.ValueOf(kafkaOutput).IsNil() {
-				log.Panic("Kafka output is invalid. Terminating...")
+			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions)
+			if reflect.ValueOf(collectorOutput).IsNil() {
+				log.Warn("Collector input is invalid. Skipping...")
 			}
 
-			outputs := common.NewOutputs()
-			outputs.Add(&kafkaOutput)
+			/*var kafkaOutput common.Output = output.NewKafkaOutput(&wg, vars.KAFKA_CLIENT_ID, vars.KAFKA_MESSAGE_TEMPLATE, vars.KAFKA_BROKERS, vars.KAFKA_TOPIC,
+				vars.KAFKA_PRODUCER_FLUSH_FREQUENCY, vars.KAFKA_PRODUCER_FLUSH_MAX_MESSAGES,
+				vars.KAFKA_NET_MAX_OPEN_REQUESTS, vars.KAFKA_NET_DIAL_TIMEOUT, vars.KAFKA_NET_READ_TIMEOUT, vars.KAFKA_NET_WRITE_TIMEOUT)
+			var telegramOutput common.Output = output.NewTelegramOutput(&wg, vars.TELEGRAM_CLIENT_ID, vars.TELEGRAM_MESSAGE_TEMPLATE, vars.TELEGRAM_SELECTOR_TEMPLATE,
+				vars.TELEGRAM_URL, vars.TELEGRAM_TIMEOUT)*/
 
-			inputs.Start(&wg, outputs)
-       */
+			outputs := common.NewOutputs(textTemplateOptions.TimeFormat)
+			outputs.Add(&collectorOutput)
+			//outputs.Add(&kafkaOutput)
+			//outputs.Add(&telegramOutput)
+
+			/*
+
+				var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, kafkaOutputTopicsV1)
+
+				if reflect.ValueOf(kafkaOutput).IsNil() {
+					log.Panic("Kafka output is invalid. Terminating...")
+				}
+
+				outputs := common.NewOutputs()
+				outputs.Add(&kafkaOutput)
+
+				inputs.Start(&wg, outputs)
+			*/
 			wg.Wait()
 		},
 	}
@@ -128,6 +175,17 @@ func Execute() {
 
 	flags.StringVar(&rootOpts.PrometheusURL, "prometheus-url", rootOpts.PrometheusURL, "Prometheus endpoint url")
 	flags.StringVar(&rootOpts.PrometheusListen, "prometheus-listen", rootOpts.PrometheusListen, "Prometheus listen")
+
+	flags.StringVar(&textTemplateOptions.TimeFormat, "template-time-format", textTemplateOptions.TimeFormat, "Template time format")
+	flags.StringVar(&textTemplateOptions.Layout, "template-layout", textTemplateOptions.Layout, "Template layout name")
+
+	flags.StringVar(&httpInputOptions.K8sURL, "http-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
+	flags.StringVar(&httpInputOptions.RancherURL, "http-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
+	flags.StringVar(&httpInputOptions.Listen, "http-listen", httpInputOptions.Listen, "Http listen")
+	flags.BoolVar(&httpInputOptions.Tls, "http-tls", httpInputOptions.Tls, "Http TLS")
+	flags.StringVar(&httpInputOptions.Cert, "http-cert", httpInputOptions.Cert, "Http cert file or content")
+	flags.StringVar(&httpInputOptions.Key, "http-key", httpInputOptions.Key, "Http key file or content")
+	flags.StringVar(&httpInputOptions.Chain, "http-chain", httpInputOptions.Chain, "Http CA chain file or content")
 
 	interceptSyscall()
 

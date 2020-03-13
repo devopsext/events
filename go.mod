@@ -7,4 +7,6 @@ require (
 	github.com/devopsext/utils v0.0.3
 	github.com/prometheus/client_golang v1.4.1
 	github.com/spf13/cobra v0.0.5
+	k8s.io/api v0.17.3
+	k8s.io/apimachinery v0.17.3
 )
