@@ -22,12 +22,19 @@ var telegramOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Help: "Count of all telegram output count",
 }, []string{"telegram_output_bot"})
 
+type TelegramOutputOptions struct {
+	MessageTemplate  string
+	SelectorTemplate string
+	URL              string
+	Timeout          int
+}
+
 type TelegramOutput struct {
 	wg       *sync.WaitGroup
 	client   *http.Client
 	template *render.TextTemplate
 	selector *render.TextTemplate
-	url      string
+	options  TelegramOutputOptions
 }
 
 func (t *TelegramOutput) Send(o interface{}) {
@@ -40,7 +47,7 @@ func (t *TelegramOutput) Send(o interface{}) {
 			return
 		}
 
-		urls := t.url
+		urls := t.options.URL
 		if t.selector != nil {
 
 			b, err := t.selector.Execute(o)
@@ -152,14 +159,14 @@ func makeClient(url string, timeout int) *http.Client {
 	return client
 }
 
-func NewTelegramOutput(wg *sync.WaitGroup, clientID string, template string, selector string, url string, timeout int) *TelegramOutput {
+func NewTelegramOutput(wg *sync.WaitGroup, options TelegramOutputOptions, templateOptions render.TextTemplateOptions) *TelegramOutput {
 
 	return &TelegramOutput{
-		wg:     wg,
-		client: makeClient(url, timeout),
-		//template: render.NewTextTemplate("telegram", template),
-		//selector: render.NewTextTemplate("selector", selector),
-		url: url,
+		wg:       wg,
+		client:   makeClient(options.URL, options.Timeout),
+		template: render.NewTextTemplate("telegram", options.MessageTemplate, templateOptions, options),
+		selector: render.NewTextTemplate("selector", options.SelectorTemplate, templateOptions, options),
+		options:  options,
 	}
 }
 

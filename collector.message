@@ -1,0 +1,24 @@
+{{- define "description"}}
+  {{- if .orchestration | regexMatch "k8s.*"}}
+    {{- if .object}}
+      {{- if eq .kind "Namespace"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{- end}}
+      {{- if eq .kind "Node"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{- end}}
+      {{- if eq .kind "ReplicaSet"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "StatefulSet"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "DaemonSet"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Secret"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Ingress"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "CronJob"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Job"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "ConfigMap"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Role"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Deployment"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Service"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+      {{- if eq .kind "Pod"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{end}}
+    {{- else}}{{.kind}} => is not supported yet{{- end}}
+  {{- end}}  
+  {{- if .orchestration  | regexMatch "rancher.*"}}
+    {{.kind}} => rancher
+  {{- end}}
+{{- end}}
+{{define "collector"}}{{- if not (.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- .operation}},source={{.orchestration}},location={{.location}} description="{{template "description" .}}",duration=0i {{printf "%.0f" .timeNano}}{{- end}}{{end}}

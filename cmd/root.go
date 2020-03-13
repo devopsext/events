@@ -67,6 +67,28 @@ var collectorOutputOptions = output.CollectorOutputOptions{
 	Template: env.Get("EVENTS_COLLECTOR_MESSAGE_TEMPLATE", "").(string),
 }
 
+var kafkaOutputOptions = output.KafkaOutputOptions{
+
+	ClientID:           env.Get("EVENTS_KAFKA_CLIEND_ID", "events_kafka").(string),
+	Template:           env.Get("EVENTS_KAFKA_MESSAGE_TEMPLATE", "").(string),
+	Brokers:            env.Get("EVENTS_KAFKA_BROKERS", "").(string),
+	Topic:              env.Get("EVENTS_KAFKA_TOPIC", "events").(string),
+	FlushFrequency:     env.Get("EVENTS_KAFKA_FLUSH_FREQUENCY", 1).(int),
+	FlushMaxMessages:   env.Get("EVENTS_KAFKA_FLUSH_MAX_MESSAGES", 100).(int),
+	NetMaxOpenRequests: env.Get("EVENTS_KAFKA_NET_MAX_OPEN_REQUESTS", 5).(int),
+	NetDialTimeout:     env.Get("EVENTS_KAFKA_NET_DIAL_TIMEOUT", 30).(int),
+	NetReadTimeout:     env.Get("EVENTS_KAFKA_NET_READ_TIMEOUT", 30).(int),
+	NetWriteTimeout:    env.Get("EVENTS_KAFKA_NET_WRITE_TIMEOUT", 30).(int),
+}
+
+var telegramOutputOptions = output.TelegramOutputOptions{
+
+	MessageTemplate:  env.Get("EVENTS_TELEGRAM_MESSAGE_TEMPLATE", "").(string),
+	SelectorTemplate: env.Get("EVENTS_TELEGRAM_SELECTOR_TEMPLATE", "").(string),
+	URL:              env.Get("EVENTS_TELEGRAM_URL", "").(string),
+	Timeout:          env.Get("EVENTS_TELEGRAM_TIMEOUT", 30).(int),
+}
+
 func startMetrics(wg *sync.WaitGroup) {
 
 	wg.Add(1)
@@ -124,8 +146,6 @@ func Execute() {
 
 			startMetrics(&wg)
 
-			//render.SetTextTemplateConfig(vars, vars.TEMPLATE_TIME_FORMAT, vars.TEMPLATE_LAYOUT)
-
 			var httpInput common.Input = input.NewHttpInput(httpInputOptions)
 			if reflect.ValueOf(httpInput).IsNil() {
 				log.Panic("Http input is invalid. Terminating...")
@@ -136,33 +156,26 @@ func Execute() {
 
 			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions)
 			if reflect.ValueOf(collectorOutput).IsNil() {
-				log.Warn("Collector input is invalid. Skipping...")
+				log.Warn("Collector output is invalid. Skipping...")
 			}
 
-			/*var kafkaOutput common.Output = output.NewKafkaOutput(&wg, vars.KAFKA_CLIENT_ID, vars.KAFKA_MESSAGE_TEMPLATE, vars.KAFKA_BROKERS, vars.KAFKA_TOPIC,
-				vars.KAFKA_PRODUCER_FLUSH_FREQUENCY, vars.KAFKA_PRODUCER_FLUSH_MAX_MESSAGES,
-				vars.KAFKA_NET_MAX_OPEN_REQUESTS, vars.KAFKA_NET_DIAL_TIMEOUT, vars.KAFKA_NET_READ_TIMEOUT, vars.KAFKA_NET_WRITE_TIMEOUT)
-			var telegramOutput common.Output = output.NewTelegramOutput(&wg, vars.TELEGRAM_CLIENT_ID, vars.TELEGRAM_MESSAGE_TEMPLATE, vars.TELEGRAM_SELECTOR_TEMPLATE,
-				vars.TELEGRAM_URL, vars.TELEGRAM_TIMEOUT)*/
+			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions)
+			if reflect.ValueOf(kafkaOutput).IsNil() {
+				log.Warn("Kafka output is invalid. Skipping...")
+			}
+
+			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions)
+			if reflect.ValueOf(telegramOutput).IsNil() {
+				log.Warn("Telegram output is invalid. Skipping...")
+			}
 
 			outputs := common.NewOutputs(textTemplateOptions.TimeFormat)
 			outputs.Add(&collectorOutput)
-			//outputs.Add(&kafkaOutput)
-			//outputs.Add(&telegramOutput)
+			outputs.Add(&kafkaOutput)
+			outputs.Add(&telegramOutput)
 
-			/*
+			inputs.Start(&wg, outputs)
 
-				var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, kafkaOutputTopicsV1)
-
-				if reflect.ValueOf(kafkaOutput).IsNil() {
-					log.Panic("Kafka output is invalid. Terminating...")
-				}
-
-				outputs := common.NewOutputs()
-				outputs.Add(&kafkaOutput)
-
-				inputs.Start(&wg, outputs)
-			*/
 			wg.Wait()
 		},
 	}
@@ -186,6 +199,22 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.Cert, "http-cert", httpInputOptions.Cert, "Http cert file or content")
 	flags.StringVar(&httpInputOptions.Key, "http-key", httpInputOptions.Key, "Http key file or content")
 	flags.StringVar(&httpInputOptions.Chain, "http-chain", httpInputOptions.Chain, "Http CA chain file or content")
+
+	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
+	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-topic", kafkaOutputOptions.Topic, "Kafka topic")
+	flags.StringVar(&kafkaOutputOptions.ClientID, "kafka-client-id", kafkaOutputOptions.ClientID, "Kafka client id")
+	flags.StringVar(&kafkaOutputOptions.Template, "kafka-message-template", kafkaOutputOptions.Template, "Kafka message template")
+	flags.IntVar(&kafkaOutputOptions.FlushFrequency, "kafka-flush-frequency", kafkaOutputOptions.FlushFrequency, "Kafka Producer flush frequency")
+	flags.IntVar(&kafkaOutputOptions.FlushMaxMessages, "kafka-flush-max-messages", kafkaOutputOptions.FlushMaxMessages, "Kafka Producer flush max messages")
+	flags.IntVar(&kafkaOutputOptions.NetMaxOpenRequests, "kafka-net-max-open-requests", kafkaOutputOptions.NetMaxOpenRequests, "Kafka Net max open requests")
+	flags.IntVar(&kafkaOutputOptions.NetDialTimeout, "kafka-net-dial-timeout", kafkaOutputOptions.NetDialTimeout, "Kafka Net dial timeout")
+	flags.IntVar(&kafkaOutputOptions.NetReadTimeout, "kafka-net-read-timeout", kafkaOutputOptions.NetReadTimeout, "Kafka Net read timeout")
+	flags.IntVar(&kafkaOutputOptions.NetWriteTimeout, "kafka-net-write-timeout", kafkaOutputOptions.NetWriteTimeout, "Kafka Net write timeout")
+
+	flags.StringVar(&telegramOutputOptions.URL, "telegram-url", telegramOutputOptions.URL, "Telegram url")
+	flags.StringVar(&telegramOutputOptions.MessageTemplate, "telegram-message-template", telegramOutputOptions.MessageTemplate, "Telegram message template")
+	flags.StringVar(&telegramOutputOptions.SelectorTemplate, "telegram-selector-template", telegramOutputOptions.SelectorTemplate, "Telegram selector template")
+	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
 
 	interceptSyscall()
 
