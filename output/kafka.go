@@ -121,7 +121,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	return &KafkaOutput{
 		wg:       wg,
 		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config),
-		template: render.NewTextTemplate("kafka", options.Template, templateOptions, options),
+		template: render.NewTextTemplate("kafka-template", options.Template, templateOptions, options),
 		options:  options,
 	}
 }

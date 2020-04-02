@@ -96,7 +96,7 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
-		template:   render.NewTextTemplate("collector", options.Template, templateOptions, options),
+		template:   render.NewTextTemplate("collector-template", options.Template, templateOptions, options),
 		connection: makeCollectorOutputConnection(options.Address),
 	}
 }

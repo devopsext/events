@@ -2,4 +2,4 @@
 {{- define "rules"}}
   {{- if .location | regexMatch ".*"}}{{$a := getEnv "TELEGRAM_BOT_PLATFORM" | split "="}}{{template "render" $a}}{{end}}
 {{- end}}
-{{- define "selector"}}{{template "rules" .}}{{end}}
+{{- define "telegram-selector"}}{{template "rules" .}}{{end}}

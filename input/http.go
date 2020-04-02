@@ -22,13 +22,14 @@ var httpInputRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 }, []string{"input_url"})
 
 type HttpInputOptions struct {
-	K8sURL     string
-	RancherURL string
-	Listen     string
-	Tls        bool
-	Cert       string
-	Key        string
-	Chain      string
+	K8sURL          string
+	RancherURL      string
+	AlertmanagerURL string
+	Listen          string
+	Tls             bool
+	Cert            string
+	Key             string
+	Chain           string
 }
 
 type HttpInput struct {
@@ -124,7 +125,20 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
 					httpInputRequests.WithLabelValues(url).Inc()
-					processor.NewK8sProcessor(outputs).HandleHttpRequest(w, r)
+					processor.NewRancherProcessor(outputs).HandleHttpRequest(w, r)
+				})
+			}
+		}
+
+		if !utils.IsEmpty(h.options.AlertmanagerURL) {
+
+			urls := strings.Split(h.options.AlertmanagerURL, ",")
+			for _, url := range urls {
+
+				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+
+					httpInputRequests.WithLabelValues(url).Inc()
+					processor.NewAlertmanagerProcessor(outputs).HandleHttpRequest(w, r)
 				})
 			}
 		}

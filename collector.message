@@ -1,5 +1,5 @@
 {{- define "description"}}
-  {{- if .orchestration | regexMatch "k8s.*"}}
+  {{- if .orchestration | regexMatch ".*(k8s|rke|acs|eks|gke).*"}}
     {{- if .object}}
       {{- if eq .kind "Namespace"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{- end}}
       {{- if eq .kind "Node"}}{{.kind}} => {{.object.metadata.creationTimestamp}}{{- end}}
@@ -21,4 +21,4 @@
     {{.kind}} => rancher
   {{- end}}
 {{- end}}
-{{define "collector"}}{{- if not (.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- .operation}},source={{.orchestration}},location={{.location}} description="{{template "description" .}}",duration=0i {{printf "%.0f" .timeNano}}{{- end}}{{end}}
+{{define "collector-template"}}{{- if not (.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- .operation}},source={{.orchestration}},location={{.location}} description="{{template "description" .}}",duration=0i {{printf "%.0f" .timeNano}}{{- end}}{{end}}

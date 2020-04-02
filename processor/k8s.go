@@ -24,10 +24,23 @@ import (
 var k8sProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_k8s_processor_requests",
 	Help: "Count of all k8s processor requests",
-}, []string{"k8s_processor_user", "k8s_processor_operation", "k8s_processor_orchestration", "k8s_processor_namespace", "k8s_processor_kind"})
+}, []string{"k8s_processor_user", "k8s_processor_operation", "k8s_processor_channel", "k8s_processor_namespace", "k8s_processor_kind"})
 
 type K8sProcessor struct {
 	outputs *common.Outputs
+}
+
+type K8sUser struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type K8sEvent struct {
+	Kind      string      `json:"kind"`
+	Location  string      `json:"location"`
+	Operation string      `json:"operation"`
+	Object    interface{} `json:"object,omitempty"`
+	User      *K8sUser    `json:"user"`
 }
 
 var (
@@ -41,7 +54,24 @@ func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
 	return strings.Title(strings.ToLower(string(operation)))
 }
 
-func (p *K8sProcessor) processK8sNamespace(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) sendEvent(channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
+
+	user := &K8sUser{Name: ar.UserInfo.Username, ID: ar.UserInfo.UID}
+
+	p.outputs.Send(&common.Event{
+		Channel: channel,
+		Type:    "K8sEvent",
+		Event: K8sEvent{
+			Kind:      ar.Kind.Kind,
+			Operation: p.prepareOperation(ar.Operation),
+			Location:  location,
+			Object:    o,
+			User:      user,
+		},
+	})
+}
+
+func (p *K8sProcessor) processNamespace(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var namespace *corev1.Namespace
 
@@ -55,21 +85,13 @@ func (p *K8sProcessor) processK8sNamespace(orchestration string, user *common.Us
 	name := ar.Name
 
 	if namespace != nil {
-
 		name = namespace.Name
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      name,
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        namespace,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, name, namespace)
 }
 
-func (p *K8sProcessor) processK8sNode(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNode(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var node *corev1.Node
 
@@ -83,21 +105,13 @@ func (p *K8sProcessor) processK8sNode(orchestration string, user *common.User, a
 	name := ar.Name
 
 	if node != nil {
-
 		name = node.Name
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      name,
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        node,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, name, node)
 }
 
-func (p *K8sProcessor) processK8sReplicaSet(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processReplicaSet(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var replicaSet *appsv1.ReplicaSet
 
@@ -112,22 +126,14 @@ func (p *K8sProcessor) processK8sReplicaSet(orchestration string, user *common.U
 	namespace := ar.Namespace
 
 	if replicaSet != nil {
-
 		name = replicaSet.Name
 		namespace = replicaSet.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        replicaSet,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
 }
 
-func (p *K8sProcessor) processK8sStatefulSet(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processStatefulSet(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var statefulSet *appsv1.StatefulSet
 
@@ -142,22 +148,14 @@ func (p *K8sProcessor) processK8sStatefulSet(orchestration string, user *common.
 	namespace := ar.Namespace
 
 	if statefulSet != nil {
-
 		name = statefulSet.Name
 		namespace = statefulSet.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        statefulSet,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
 }
 
-func (p *K8sProcessor) processK8sDaemonSet(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDaemonSet(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var daemonSet *appsv1.DaemonSet
 
@@ -177,17 +175,10 @@ func (p *K8sProcessor) processK8sDaemonSet(orchestration string, user *common.Us
 		namespace = daemonSet.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        daemonSet,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
 }
 
-func (p *K8sProcessor) processK8sSecret(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processSecret(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var secret *corev1.Secret
 
@@ -202,22 +193,14 @@ func (p *K8sProcessor) processK8sSecret(orchestration string, user *common.User,
 	namespace := ar.Namespace
 
 	if secret != nil {
-
 		name = secret.Name
 		namespace = secret.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        secret,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
 }
 
-func (p *K8sProcessor) processK8sIngress(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processIngress(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var ingress *netv1beta1.Ingress
 
@@ -232,22 +215,14 @@ func (p *K8sProcessor) processK8sIngress(orchestration string, user *common.User
 	namespace := ar.Namespace
 
 	if ingress != nil {
-
 		name = ingress.Name
 		namespace = ingress.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        ingress,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
 }
 
-func (p *K8sProcessor) processK8sJob(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processJob(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var job *batchv1.Job
 
@@ -262,22 +237,14 @@ func (p *K8sProcessor) processK8sJob(orchestration string, user *common.User, ar
 	namespace := ar.Namespace
 
 	if job != nil {
-
 		name = job.Name
 		namespace = job.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        job,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
 }
 
-func (p *K8sProcessor) processK8sCronJob(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processCronJob(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var cronJob *batchv1beta.CronJob
 
@@ -292,22 +259,14 @@ func (p *K8sProcessor) processK8sCronJob(orchestration string, user *common.User
 	namespace := ar.Namespace
 
 	if cronJob != nil {
-
 		name = cronJob.Name
 		namespace = cronJob.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        cronJob,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
 }
 
-func (p *K8sProcessor) processK8sConfigMap(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processConfigMap(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var configMap *corev1.ConfigMap
 
@@ -322,22 +281,14 @@ func (p *K8sProcessor) processK8sConfigMap(orchestration string, user *common.Us
 	namespace := ar.Namespace
 
 	if configMap != nil {
-
 		name = configMap.Name
 		namespace = configMap.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        configMap,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
 }
 
-func (p *K8sProcessor) processK8sRole(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processRole(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var role *rbacv1.Role
 
@@ -352,22 +303,14 @@ func (p *K8sProcessor) processK8sRole(orchestration string, user *common.User, a
 	namespace := ar.Namespace
 
 	if role != nil {
-
 		name = role.Name
 		namespace = role.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        role,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
 }
 
-func (p *K8sProcessor) processK8sDeployment(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDeployment(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var deployment *appsv1.Deployment
 
@@ -382,22 +325,14 @@ func (p *K8sProcessor) processK8sDeployment(orchestration string, user *common.U
 	namespace := ar.Namespace
 
 	if deployment != nil {
-
 		name = deployment.Name
 		namespace = deployment.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        deployment,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
 }
 
-func (p *K8sProcessor) processK8sService(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processService(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var service *corev1.Service
 
@@ -412,22 +347,14 @@ func (p *K8sProcessor) processK8sService(orchestration string, user *common.User
 	namespace := ar.Namespace
 
 	if service != nil {
-
 		name = service.Name
 		namespace = service.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        service,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
 }
 
-func (p *K8sProcessor) processK8sPod(orchestration string, user *common.User, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processPod(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var pod *corev1.Pod
 
@@ -442,19 +369,11 @@ func (p *K8sProcessor) processK8sPod(orchestration string, user *common.User, ar
 	namespace := ar.Namespace
 
 	if pod != nil {
-
 		name = pod.Name
 		namespace = pod.Namespace
 	}
 
-	p.outputs.Send(&common.Event{
-		Orchestration: orchestration,
-		Location:      fmt.Sprintf("%s.%s", namespace, name),
-		Kind:          ar.Kind.Kind,
-		Operation:     p.prepareOperation(ar.Operation),
-		Object:        pod,
-		User:          user,
-	})
+	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
 }
 
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
@@ -499,41 +418,40 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	} else {
 
 		req := ar.Request
-		orchestration := strings.TrimLeft(r.URL.Path, "/")
-		user := &common.User{Name: req.UserInfo.Username, ID: req.UserInfo.UID}
+		channel := strings.TrimLeft(r.URL.Path, "/")
 
 		switch req.Kind.Kind {
 		case "Namespace":
-			p.processK8sNamespace(orchestration, user, req)
+			p.processNamespace(channel, req)
 		case "Node":
-			p.processK8sNode(orchestration, user, req)
+			p.processNode(channel, req)
 		case "ReplicaSet":
-			p.processK8sReplicaSet(orchestration, user, req)
+			p.processReplicaSet(channel, req)
 		case "StatefulSet":
-			p.processK8sStatefulSet(orchestration, user, req)
+			p.processStatefulSet(channel, req)
 		case "DaemonSet":
-			p.processK8sDaemonSet(orchestration, user, req)
+			p.processDaemonSet(channel, req)
 		case "Secret":
-			p.processK8sSecret(orchestration, user, req)
+			p.processSecret(channel, req)
 		case "Ingress":
-			p.processK8sIngress(orchestration, user, req)
+			p.processIngress(channel, req)
 		case "Job":
-			p.processK8sJob(orchestration, user, req)
+			p.processJob(channel, req)
 		case "CronJob":
-			p.processK8sCronJob(orchestration, user, req)
+			p.processCronJob(channel, req)
 		case "ConfigMap":
-			p.processK8sConfigMap(orchestration, user, req)
+			p.processConfigMap(channel, req)
 		case "Role":
-			p.processK8sRole(orchestration, user, req)
+			p.processRole(channel, req)
 		case "Deployment":
-			p.processK8sDeployment(orchestration, user, req)
+			p.processDeployment(channel, req)
 		case "Service":
-			p.processK8sService(orchestration, user, req)
+			p.processService(channel, req)
 		case "Pod":
-			p.processK8sPod(orchestration, user, req)
+			p.processPod(channel, req)
 		}
 
-		k8sProcessorRequests.WithLabelValues(req.UserInfo.Username, string(req.Operation), orchestration, req.Namespace, req.Kind.Kind).Inc()
+		k8sProcessorRequests.WithLabelValues(req.UserInfo.Username, string(req.Operation), channel, req.Namespace, req.Kind.Kind).Inc()
 
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Allowed: true,
