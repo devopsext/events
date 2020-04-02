@@ -22,10 +22,7 @@ go build
 ## Example
 
 ```sh
-./shipper --http-listen ":8081" --graphql-mode Playground \
-          --clickhouse-host=HOST --clickhouse-password=PASSWORD --clickhouse-debug \
-          --clickhouse-database-pattern "system" --clickhouse-table-pattern "(settings|tables)" \
-          --log-template "{{.msg}}" --log-format stdout
+
 ```
 
 ## Usage
