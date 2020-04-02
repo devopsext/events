@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/devopsext/events/common"
 	utils "github.com/devopsext/utils"
 )
 
@@ -20,12 +21,12 @@ var log = utils.GetLog()
 
 type TextTemplateOptions struct {
 	TimeFormat string
-	Layout     string
 }
 
 type TextTemplate struct {
 	template *template.Template
 	options  TextTemplateOptions
+	layout   string
 	vars     interface{}
 }
 
@@ -142,11 +143,11 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 	var b bytes.Buffer
 	var err error
 
-	if empty, _ := tpl.fIsEmpty(tpl.options.Layout); empty {
+	if empty, _ := tpl.fIsEmpty(tpl.layout); empty {
 
 		err = tpl.template.Execute(&b, object)
 	} else {
-		err = tpl.template.ExecuteTemplate(&b, tpl.options.Layout, object)
+		err = tpl.template.ExecuteTemplate(&b, tpl.layout, object)
 	}
 
 	if err != nil {
@@ -181,6 +182,11 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 		"jsonEscape":      tpl.fJsonEscape,
 	}
 
+	if common.IsEmpty(fileOrVar) {
+		log.Warn("Template %s is empty.", name)
+		return nil
+	}
+
 	if _, err := os.Stat(fileOrVar); err == nil {
 
 		//t, err1 = template.New(name).Funcs(funcs).ParseFiles(fileOrVar) - doesn't work with text/template properly
@@ -204,6 +210,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 
 	tpl.template = t
 	tpl.options = options
+	tpl.layout = name
 	tpl.vars = vars
 
 	return &tpl

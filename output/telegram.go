@@ -164,8 +164,8 @@ func NewTelegramOutput(wg *sync.WaitGroup, options TelegramOutputOptions, templa
 	return &TelegramOutput{
 		wg:       wg,
 		client:   makeClient(options.URL, options.Timeout),
-		template: render.NewTextTemplate("telegram", options.MessageTemplate, templateOptions, options),
-		selector: render.NewTextTemplate("selector", options.SelectorTemplate, templateOptions, options),
+		template: render.NewTextTemplate("telegram-template", options.MessageTemplate, templateOptions, options),
+		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options),
 		options:  options,
 	}
 }

@@ -47,18 +47,18 @@ var rootOpts = rootOptions{
 var textTemplateOptions = render.TextTemplateOptions{
 
 	TimeFormat: env.Get("EVENTS_TEMPLATE_TIME_FORMAT", "2006-01-02T15:04:05.999Z").(string),
-	Layout:     env.Get("EVENTS_TEMPLATE_LAYOUT", "").(string),
 }
 
 var httpInputOptions = input.HttpInputOptions{
 
-	K8sURL:     env.Get("EVENTS_HTTP_K8S_URL", "").(string),
-	RancherURL: env.Get("EVENTS_HTTP_RANCHER_URL", "").(string),
-	Listen:     env.Get("EVENTS_HTTP_LISTEN", ":80").(string),
-	Tls:        env.Get("EVENTS_HTTP_TLS", false).(bool),
-	Cert:       env.Get("EVENTS_HTTP_CERT", "").(string),
-	Key:        env.Get("EVENTS_HTTP_KEY", "").(string),
-	Chain:      env.Get("EVENTS_HTTP_CHAIN", "").(string),
+	K8sURL:          env.Get("EVENTS_HTTP_K8S_URL", "").(string),
+	RancherURL:      env.Get("EVENTS_HTTP_RANCHER_URL", "").(string),
+	AlertmanagerURL: env.Get("EVENTS_HTTP_ALERTMANAGER_URL", "").(string),
+	Listen:          env.Get("EVENTS_HTTP_LISTEN", ":80").(string),
+	Tls:             env.Get("EVENTS_HTTP_TLS", false).(bool),
+	Cert:            env.Get("EVENTS_HTTP_CERT", "").(string),
+	Key:             env.Get("EVENTS_HTTP_KEY", "").(string),
+	Chain:           env.Get("EVENTS_HTTP_CHAIN", "").(string),
 }
 
 var collectorOutputOptions = output.CollectorOutputOptions{
@@ -130,8 +130,8 @@ func interceptSyscall() {
 func Execute() {
 
 	rootCmd := &cobra.Command{
-		Use:   "feeder",
-		Short: "Feeder",
+		Use:   "events",
+		Short: "Events",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
 			log.CallInfo = true
@@ -190,10 +190,10 @@ func Execute() {
 	flags.StringVar(&rootOpts.PrometheusListen, "prometheus-listen", rootOpts.PrometheusListen, "Prometheus listen")
 
 	flags.StringVar(&textTemplateOptions.TimeFormat, "template-time-format", textTemplateOptions.TimeFormat, "Template time format")
-	flags.StringVar(&textTemplateOptions.Layout, "template-layout", textTemplateOptions.Layout, "Template layout name")
 
 	flags.StringVar(&httpInputOptions.K8sURL, "http-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
+	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
 	flags.StringVar(&httpInputOptions.Listen, "http-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-tls", httpInputOptions.Tls, "Http TLS")
 	flags.StringVar(&httpInputOptions.Cert, "http-cert", httpInputOptions.Cert, "Http cert file or content")
