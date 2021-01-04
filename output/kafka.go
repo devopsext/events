@@ -37,7 +37,7 @@ type KafkaOutput struct {
 	options  KafkaOutputOptions
 }
 
-func (k *KafkaOutput) Send(o interface{}) {
+func (k *KafkaOutput) Send(event *common.Event) {
 
 	k.wg.Add(1)
 	go func() {
@@ -47,7 +47,7 @@ func (k *KafkaOutput) Send(o interface{}) {
 			return
 		}
 
-		b, err := k.template.Execute(o)
+		b, err := k.template.Execute(event)
 		if err != nil {
 
 			log.Error(err)

@@ -25,12 +25,17 @@ type AlertmanagerResponse struct {
 	Message string
 }
 
+func (p *AlertmanagerProcessor) prepareStatus(status string) string {
+
+	return strings.Title(strings.ToLower(status))
+}
+
 func (p *AlertmanagerProcessor) processData(channel string, data *template.Data) {
 
 	p.outputs.Send(&common.Event{
 		Channel: channel,
 		Type:    "AlertmanagerEvent",
-		Event:   data,
+		Data:    data,
 	})
 }
 

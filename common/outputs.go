@@ -31,28 +31,20 @@ func (ots *Outputs) Send(e *Event) {
 		e.TimeNano = time.Now().UTC().UnixNano()
 	}
 
-	bytes, err := json.Marshal(e)
+	json, err := json.Marshal(e)
 	if err != nil {
 
 		log.Error(err)
 		return
 	}
 
-	log.Debug("Original event => %s", string(bytes))
-
-	var object interface{}
-
-	if err := json.Unmarshal(bytes, &object); err != nil {
-
-		log.Error(err)
-		return
-	}
+	log.Debug("Original event => %s", string(json))
 
 	for _, o := range ots.list {
 
 		if o != nil {
 
-			(*o).Send(object)
+			(*o).Send(e)
 		} else {
 			log.Warn("Output is not defined")
 		}

@@ -26,7 +26,7 @@ type CollectorOutput struct {
 	template   *render.TextTemplate
 }
 
-func (c *CollectorOutput) Send(o interface{}) {
+func (c *CollectorOutput) Send(event *common.Event) {
 
 	c.wg.Add(1)
 	go func() {
@@ -36,7 +36,7 @@ func (c *CollectorOutput) Send(o interface{}) {
 			return
 		}
 
-		b, err := c.template.Execute(o)
+		b, err := c.template.Execute(event)
 		if err != nil {
 
 			log.Error(err)
