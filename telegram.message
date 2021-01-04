@@ -37,7 +37,7 @@
 {{- end}}
 {{- define "alertmanager-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "<b>%s</b>\n<b>%s</b>: %s" .event.status .channel $t}}
+  {{- printf "<b>%s</b>\n<b>%s</b>: %s" .data.status .channel $t}}
 {{- end}}
 {{- define "alertmanager-body"}}
   {{- range .alerts}}
@@ -46,28 +46,28 @@
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
-    {{- if not (.event.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
-      {{- if .event.object}}
-        {{- if eq .event.kind "Namespace"}}{{template "k8s-header" .}}{{template "k8s-namespace" .event.object}}{{end}}
-        {{- if eq .event.kind "Node"}}{{template "k8s-header" .}}{{template "k8s-node" .event.object}}{{end}}
-        {{- if eq .event.kind "ReplicaSet"}}{{template "k8s-header" .}}{{template "k8s-replicaset" .event.object}}{{end}}
-        {{- if eq .event.kind "StatefulSet"}}{{template "k8s-header" .}}{{template "k8s-statefulset" .event.object}}{{end}}
-        {{- if eq .event.kind "DaemonSet"}}{{template "k8s-header" .}}{{template "k8s-daemonset" .event.object}}{{end}}
-        {{- if eq .event.kind "Secret"}}{{template "k8s-header" .}}{{template "k8s-secret" .event.object}}{{end}}
-        {{- if eq .event.kind "Ingress"}}{{template "k8s-header" .}}{{template "k8s-ingress" .event.object}}{{end}}
-        {{- if eq .event.kind "CronJob"}}{{template "k8s-header" .}}{{template "k8s-cronjob" .event.object}}{{end}}
-        {{- if eq .event.kind "Job"}}{{template "k8s-header" .}}{{template "k8s-job" .event.object}}{{end}}
-        {{- if eq .event.kind "ConfigMap"}}{{template "k8s-header" .}}{{template "k8s-configmap" .event.object}}{{end}}
-        {{- if eq .event.kind "Role"}}{{template "k8s-header" .}}{{template "k8s-role" .event.object}}{{end}}
-        {{- if eq .event.kind "Deployment"}}{{template "k8s-header" .}}{{template "k8s-deployment" .event.object}}{{end}}
-        {{- if eq .event.kind "Service"}}{{template "k8s-header" .}}{{template "k8s-service" .event.object}}{{end}}
-        {{- if eq .event.kind "Pod"}}{{template "k8s-header" .}}{{template "k8s-pod" .event.object}}{{end}}
+    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
+      {{- if .data.object}}
+        {{- if eq .data.kind "Namespace"}}{{template "k8s-header" .}}{{template "k8s-namespace" .data.object}}{{end}}
+        {{- if eq .data.kind "Node"}}{{template "k8s-header" .}}{{template "k8s-node" .data.object}}{{end}}
+        {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-header" .}}{{template "k8s-replicaset" .data.object}}{{end}}
+        {{- if eq .data.kind "StatefulSet"}}{{template "k8s-header" .}}{{template "k8s-statefulset" .data.object}}{{end}}
+        {{- if eq .data.kind "DaemonSet"}}{{template "k8s-header" .}}{{template "k8s-daemonset" .data.object}}{{end}}
+        {{- if eq .data.kind "Secret"}}{{template "k8s-header" .}}{{template "k8s-secret" .data.object}}{{end}}
+        {{- if eq .data.kind "Ingress"}}{{template "k8s-header" .}}{{template "k8s-ingress" .data.object}}{{end}}
+        {{- if eq .data.kind "CronJob"}}{{template "k8s-header" .}}{{template "k8s-cronjob" .data.object}}{{end}}
+        {{- if eq .data.kind "Job"}}{{template "k8s-header" .}}{{template "k8s-job" .data.object}}{{end}}
+        {{- if eq .data.kind "ConfigMap"}}{{template "k8s-header" .}}{{template "k8s-configmap" .data.object}}{{end}}
+        {{- if eq .data.kind "Role"}}{{template "k8s-header" .}}{{template "k8s-role" .data.object}}{{end}}
+        {{- if eq .data.kind "Deployment"}}{{template "k8s-header" .}}{{template "k8s-deployment" .data.object}}{{end}}
+        {{- if eq .data.kind "Service"}}{{template "k8s-header" .}}{{template "k8s-service" .data.object}}{{end}}
+        {{- if eq .data.kind "Pod"}}{{template "k8s-header" .}}{{template "k8s-pod" .data.object}}{{end}}
       {{- else}}{{template "k8s-header" .}}{{end}}
     {{- end}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
-    {{- if .event}}{{template "alertmanager-header" .}}{{template "alertmanager-body" .event}}
+    {{- if .data}}{{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
     {{- else}}{{template "alertmanager-header" .}}{{end}}
   {{- end}}
 {{- end}}
-{{- define "telegram-template"}}{"text":"{{template "text" .}}","parse_mode":"html","disable_web_page_preview":false,"disable_notification":true}{{- end}}  
+{{- define "telegram-template"}}{{template "text" .}}{{- end}}  

@@ -87,6 +87,19 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	SelectorTemplate: env.Get("EVENTS_TELEGRAM_SELECTOR_TEMPLATE", "").(string),
 	URL:              env.Get("EVENTS_TELEGRAM_URL", "").(string),
 	Timeout:          env.Get("EVENTS_TELEGRAM_TIMEOUT", 30).(int),
+	AlertExpression:  env.Get("EVENTS_TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
+}
+
+var grafanaOptions = render.GrafanaOptions{
+
+	URL:         env.Get("EVENTS_GRAFANA_URL", "").(string),
+	Timeout:     env.Get("EVENTS_GRAFANA_TIMEOUT", 60).(int),
+	Datasource:  env.Get("EVENTS_GRAFANA_DATASOURCE", "Prometheus").(string),
+	ApiKey:      env.Get("EVENTS_GRAFANA_API_KEY", "").(string),
+	Org:         env.Get("EVENTS_GRAFANA_ORG", "1").(string),
+	Period:      env.Get("EVENTS_GRAFANA_PERIOD", 60).(int),
+	ImageWidth:  env.Get("EVENTS_GRAFANA_IMAGE_WIDTH", 1280).(int),
+	ImageHeight: env.Get("EVENTS_GRAFANA_IMAGE_HEIGHT", 640).(int),
 }
 
 func startMetrics(wg *sync.WaitGroup) {
@@ -164,7 +177,7 @@ func Execute() {
 				log.Warn("Kafka output is invalid. Skipping...")
 			}
 
-			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions)
+			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions)
 			if reflect.ValueOf(telegramOutput).IsNil() {
 				log.Warn("Telegram output is invalid. Skipping...")
 			}
@@ -211,10 +224,20 @@ func Execute() {
 	flags.IntVar(&kafkaOutputOptions.NetReadTimeout, "kafka-net-read-timeout", kafkaOutputOptions.NetReadTimeout, "Kafka Net read timeout")
 	flags.IntVar(&kafkaOutputOptions.NetWriteTimeout, "kafka-net-write-timeout", kafkaOutputOptions.NetWriteTimeout, "Kafka Net write timeout")
 
-	flags.StringVar(&telegramOutputOptions.URL, "telegram-url", telegramOutputOptions.URL, "Telegram url")
+	flags.StringVar(&telegramOutputOptions.URL, "telegram-url", telegramOutputOptions.URL, "Telegram URL")
 	flags.StringVar(&telegramOutputOptions.MessageTemplate, "telegram-message-template", telegramOutputOptions.MessageTemplate, "Telegram message template")
 	flags.StringVar(&telegramOutputOptions.SelectorTemplate, "telegram-selector-template", telegramOutputOptions.SelectorTemplate, "Telegram selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
+	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
+
+	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
+	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
+	flags.StringVar(&grafanaOptions.Datasource, "grafana-datasource", grafanaOptions.Datasource, "Grafana datasource")
+	flags.StringVar(&grafanaOptions.ApiKey, "grafana-api-key", grafanaOptions.ApiKey, "Grafana API key")
+	flags.StringVar(&grafanaOptions.Org, "grafana-org", grafanaOptions.Org, "Grafana org")
+	flags.IntVar(&grafanaOptions.Period, "grafana-period", grafanaOptions.Period, "Grafana period in minutes")
+	flags.IntVar(&grafanaOptions.ImageWidth, "grafana-image-width", grafanaOptions.ImageWidth, "Grafan image width")
+	flags.IntVar(&grafanaOptions.ImageHeight, "grafana-image-height", grafanaOptions.ImageHeight, "Grafan image height")
 
 	interceptSyscall()
 

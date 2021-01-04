@@ -35,7 +35,7 @@ type K8sUser struct {
 	Name string `json:"name"`
 }
 
-type K8sEvent struct {
+type K8sData struct {
 	Kind      string      `json:"kind"`
 	Location  string      `json:"location"`
 	Operation string      `json:"operation"`
@@ -61,7 +61,7 @@ func (p *K8sProcessor) sendEvent(channel string, ar *admv1beta1.AdmissionRequest
 	p.outputs.Send(&common.Event{
 		Channel: channel,
 		Type:    "K8sEvent",
-		Event: K8sEvent{
+		Data: K8sData{
 			Kind:      ar.Kind.Kind,
 			Operation: p.prepareOperation(ar.Operation),
 			Location:  location,
