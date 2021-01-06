@@ -37,10 +37,11 @@
 {{- end}}
 {{- define "alertmanager-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "<b>%s</b>: %s\n<b>%s</b>: %s" (toUpper .data.status) .data.labels.alertname .channel $t}}
+  {{- printf "*%s*: %s\n*%s*: %s" (toUpper .data.status) .data.labels.alertname .channel $t}}
 {{- end}}
 {{- define "alertmanager-body"}}
-  {{- if eq .status "firing"}}{{- printf "\n<b>StartsAt</b>: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
+  {{- if eq .status "firing"}}{{- printf "\n*StartsAt*: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
+  {{- if eq .status "resolved"}}{{- printf "\n*endsAt*: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
