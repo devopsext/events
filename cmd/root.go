@@ -90,6 +90,15 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	AlertExpression:  env.Get("EVENTS_TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
 }
 
+var slackOutputOptions = output.SlackOutputOptions{
+
+	MessageTemplate:  env.Get("EVENTS_SLACK_MESSAGE_TEMPLATE", "").(string),
+	SelectorTemplate: env.Get("EVENTS_SLACK_SELECTOR_TEMPLATE", "").(string),
+	URL:              env.Get("EVENTS_SLACK_URL", "").(string),
+	Timeout:          env.Get("EVENTS_SLACK_TIMEOUT", 30).(int),
+	AlertExpression:  env.Get("EVENTS_SLACK_ALERT_EXPRESSION", "g0.expr").(string),
+}
+
 var grafanaOptions = render.GrafanaOptions{
 
 	URL:         env.Get("EVENTS_GRAFANA_URL", "").(string),
@@ -167,28 +176,37 @@ func Execute() {
 			inputs := common.NewInputs()
 			inputs.Add(&httpInput)
 
+			outputs := common.NewOutputs(textTemplateOptions.TimeFormat)
+
 			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions)
 			if reflect.ValueOf(collectorOutput).IsNil() {
 				log.Warn("Collector output is invalid. Skipping...")
+			} else {
+				outputs.Add(&collectorOutput)
 			}
 
 			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions)
 			if reflect.ValueOf(kafkaOutput).IsNil() {
 				log.Warn("Kafka output is invalid. Skipping...")
+			} else {
+				outputs.Add(&kafkaOutput)
 			}
 
 			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions)
 			if reflect.ValueOf(telegramOutput).IsNil() {
 				log.Warn("Telegram output is invalid. Skipping...")
+			} else {
+				outputs.Add(&telegramOutput)
 			}
 
-			outputs := common.NewOutputs(textTemplateOptions.TimeFormat)
-			outputs.Add(&collectorOutput)
-			outputs.Add(&kafkaOutput)
-			outputs.Add(&telegramOutput)
+			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions)
+			if reflect.ValueOf(telegramOutput).IsNil() {
+				log.Warn("Slack output is invalid. Skipping...")
+			} else {
+				outputs.Add(&slackOutput)
+			}
 
 			inputs.Start(&wg, outputs)
-
 			wg.Wait()
 		},
 	}
@@ -229,6 +247,12 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.SelectorTemplate, "telegram-selector-template", telegramOutputOptions.SelectorTemplate, "Telegram selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
+
+	flags.StringVar(&slackOutputOptions.URL, "slack-url", slackOutputOptions.URL, "Slack URL")
+	flags.StringVar(&slackOutputOptions.MessageTemplate, "slack-message-template", slackOutputOptions.MessageTemplate, "Slack message template")
+	flags.StringVar(&slackOutputOptions.SelectorTemplate, "slack-selector-template", slackOutputOptions.SelectorTemplate, "Slack selector template")
+	flags.IntVar(&slackOutputOptions.Timeout, "slack-timeout", slackOutputOptions.Timeout, "Slack timeout")
+	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
 
 	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
 	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")

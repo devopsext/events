@@ -1,6 +1,7 @@
 package output
 
 import (
+	"errors"
 	"net"
 	"sync"
 
@@ -23,7 +24,7 @@ type CollectorOutput struct {
 	wg         *sync.WaitGroup
 	options    CollectorOutputOptions
 	connection *net.UDPConn
-	template   *render.TextTemplate
+	message    *render.TextTemplate
 }
 
 func (c *CollectorOutput) Send(event *common.Event) {
@@ -32,11 +33,12 @@ func (c *CollectorOutput) Send(event *common.Event) {
 	go func() {
 		defer c.wg.Done()
 
-		if c.connection == nil || c.template == nil {
+		if c.connection == nil || c.message == nil {
+			log.Error(errors.New("No connection or message"))
 			return
 		}
 
-		b, err := c.template.Execute(event)
+		b, err := c.message.Execute(event)
 		if err != nil {
 
 			log.Error(err)
@@ -96,7 +98,7 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
-		template:   render.NewTextTemplate("collector-template", options.Template, templateOptions, options),
+		message:    render.NewTextTemplate("collector-message", options.Template, templateOptions, options),
 		connection: makeCollectorOutputConnection(options.Address),
 	}
 }

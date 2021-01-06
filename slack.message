@@ -68,4 +68,4 @@
     {{- else}}{{template "alertmanager-header" .}}{{end}}
   {{- end}}
 {{- end}}
-{{- define "telegram-message"}}{{template "text" .}}{{- end}}  
+{{- define "slack-message"}}{{template "text" .}}{{- end}}  

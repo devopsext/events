@@ -32,11 +32,14 @@ func (p *AlertmanagerProcessor) prepareStatus(status string) string {
 
 func (p *AlertmanagerProcessor) processData(channel string, data *template.Data) {
 
-	p.outputs.Send(&common.Event{
-		Channel: channel,
-		Type:    "AlertmanagerEvent",
-		Data:    data,
-	})
+	for _, alert := range data.Alerts {
+
+		p.outputs.Send(&common.Event{
+			Channel: channel,
+			Type:    "AlertmanagerEvent",
+			Data:    alert,
+		})
+	}
 }
 
 func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {

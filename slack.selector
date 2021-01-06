@@ -1,0 +1,5 @@
+{{- define "render"}}{{$url := getVar "URL"}}{{printf $url (index . 0) (index . 1)}}{{"\n"}}{{end}}
+{{- define "rules"}}
+  {{- if .type | regexMatch ".*"}}{{$a := getEnv "EVENTS_SLACK_BOT_PLATFORM" | split "="}}{{template "render" $a}}{{end}}
+{{- end}}
+{{- define "slack-selector"}}{{template "rules" .}}{{end}}
