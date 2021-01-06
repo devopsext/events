@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -141,6 +142,10 @@ func (t *TelegramOutput) sendMessage(URL, message string) error {
 	return t.post(URL, w.FormDataContentType(), body, message)
 }
 
+func (t *TelegramOutput) sendErrorMessage(URL, message string, err error) error {
+	return t.sendMessage(URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+}
+
 func (t *TelegramOutput) sendPhoto(URL, message, fileName string, photo []byte) error {
 
 	var body bytes.Buffer
@@ -224,12 +229,15 @@ func (t *TelegramOutput) sendAlertmanagerImage(URL, message string, alert templa
 		}
 	}
 
+	messageQuery := fmt.Sprintf("%s\n<i>%s</i>", message, query)
 	photo, fileName, err := t.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		return err
+		log.Error(err)
+		t.sendErrorMessage(URL, messageQuery, err)
+		return nil
 	}
 
-	return t.sendPhoto(t.getSendPhotoURL(URL), message, fileName, photo)
+	return t.sendPhoto(t.getSendPhotoURL(URL), messageQuery, fileName, photo)
 }
 
 func (t *TelegramOutput) Send(event *common.Event) {
@@ -302,10 +310,9 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if t.grafana != nil {
-
 					if err := t.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
 						log.Error(err)
-						t.sendMessage(URL, message)
+						t.sendErrorMessage(URL, message, err)
 					}
 				} else {
 					t.sendMessage(URL, message)

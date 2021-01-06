@@ -200,7 +200,7 @@ func Execute() {
 			}
 
 			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions)
-			if reflect.ValueOf(telegramOutput).IsNil() {
+			if reflect.ValueOf(slackOutput).IsNil() {
 				log.Warn("Slack output is invalid. Skipping...")
 			} else {
 				outputs.Add(&slackOutput)

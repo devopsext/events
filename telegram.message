@@ -41,6 +41,7 @@
 {{- end}}
 {{- define "alertmanager-body"}}
   {{- if eq .status "firing"}}{{- printf "\n<b>StartsAt</b>: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
+  {{- if eq .status "resolved"}}{{- printf "\n<b>endsAt</b>: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}

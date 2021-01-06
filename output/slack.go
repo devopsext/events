@@ -1,13 +1,20 @@
 package output
 
 import (
+	"bytes"
 	"errors"
+	"io/ioutil"
+	"mime/multipart"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
+	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -33,13 +40,167 @@ type SlackOutput struct {
 	options  SlackOutputOptions
 }
 
-func (t *SlackOutput) Send(event *common.Event) {
+func (s *SlackOutput) post(URL, contentType string, body bytes.Buffer, message string) error {
 
-	t.wg.Add(1)
+	log.Debug("Post to Slack (%s) => %s", URL, message)
+	reader := bytes.NewReader(body.Bytes())
+
+	req, err := http.NewRequest("POST", URL, reader)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", contentType)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	//slackOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
+
+	log.Debug("Response from Slack => %s", string(b))
+
+	return nil
+}
+
+func (s *SlackOutput) sendMessage(URL, message, title, content string) error {
+
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Warn("Failed to close writer")
+		}
+	}()
+
+	if err := w.WriteField("initial_comment", message); err != nil {
+		return err
+	}
+
+	if err := w.WriteField("title", title); err != nil {
+		return err
+	}
+
+	if err := w.WriteField("content", content); err != nil {
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	return s.post(URL, w.FormDataContentType(), body, message)
+}
+
+func (s *SlackOutput) sendErrorMessage(URL, message, title string, err error) error {
+
+	return s.sendMessage(URL, message, title, err.Error())
+}
+
+func (s *SlackOutput) sendPhoto(URL, message, fileName, title string, photo []byte) error {
+
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Warn("Failed to close writer")
+		}
+	}()
+
+	if err := w.WriteField("initial_comment", message); err != nil {
+		return err
+	}
+
+	if err := w.WriteField("title", title); err != nil {
+		return err
+	}
+
+	fw, err := w.CreateFormFile("file", fileName)
+	if err != nil {
+		return err
+	}
+
+	if _, err := fw.Write(photo); err != nil {
+		return err
+	}
+
+	if err := w.Close(); err != nil {
+		return err
+	}
+
+	return s.post(URL, w.FormDataContentType(), body, message)
+}
+
+func (s *SlackOutput) sendAlertmanagerImage(URL, message string, alert template.Alert) error {
+
+	u, err := url.Parse(alert.GeneratorURL)
+	if err != nil {
+		return err
+	}
+
+	values := u.Query()
+	for k, v := range values {
+		alert.Labels[k] = strings.Join(v, " ")
+	}
+
+	query, ok := alert.Labels[s.options.AlertExpression]
+	if !ok {
+		return errors.New("No alert expression")
+	}
+
+	caption := alert.Labels["alertname"]
+	unit := alert.Labels["unit"]
+
+	var minutes *int
+
+	if m, err := strconv.Atoi(alert.Labels["minutes"]); err == nil {
+		minutes = &m
+	}
+
+	expr, err := metricsql.Parse(query)
+	if err != nil {
+		return err
+	}
+
+	metric := query
+	operator := ""
+	var value *float64
+
+	binExpr, ok := expr.(*metricsql.BinaryOpExpr)
+	if binExpr != nil && ok {
+		metric = string(binExpr.Left.AppendString(nil))
+		operator = binExpr.Op
+
+		if v, err := strconv.ParseFloat(string(binExpr.Right.AppendString(nil)), 64); err == nil {
+			value = &v
+		}
+	}
+
+	photo, fileName, err := s.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
+	if err != nil {
+		log.Error(err)
+		s.sendErrorMessage(URL, message, query, err)
+		return nil
+	}
+
+	return s.sendPhoto(URL, message, fileName, query, photo)
+}
+
+func (s *SlackOutput) Send(event *common.Event) {
+
+	s.wg.Add(1)
 	go func() {
-		defer t.wg.Done()
+		defer s.wg.Done()
 
-		if t.client == nil || t.message == nil {
+		if s.client == nil || s.message == nil {
 			log.Error(errors.New("No client or message"))
 			return
 		}
@@ -60,10 +221,10 @@ func (t *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		URLs := t.options.URL
-		if t.selector != nil {
+		URLs := s.options.URL
+		if s.selector != nil {
 
-			b, err := t.selector.Execute(jsonObject)
+			b, err := s.selector.Execute(jsonObject)
 			if err != nil {
 				log.Error(err)
 			} else {
@@ -76,7 +237,7 @@ func (t *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := t.message.Execute(jsonObject)
+		b, err := s.message.Execute(jsonObject)
 		if err != nil {
 			log.Error(err)
 			return
@@ -99,13 +260,16 @@ func (t *SlackOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "K8sEvent":
-				//t.sendMessage(URL, message)
+				s.sendMessage(URL, message, "No title", "No image")
 			case "AlertmanagerEvent":
 
-				if t.grafana != nil {
-
+				if s.grafana != nil {
+					if err := s.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
+						log.Error(err)
+						s.sendErrorMessage(URL, message, "No title", err)
+					}
 				} else {
-					//t.sendMessage(URL, message)
+					s.sendMessage(URL, message, "No title", "No image")
 				}
 			}
 		}
