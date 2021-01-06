@@ -267,8 +267,13 @@ func makeClient(url string, timeout int) *http.Client {
 
 func NewGrafana(options GrafanaOptions) *Grafana {
 
+	if common.IsEmpty(options.URL) {
+		log.Debug("Grafana URL is not defined. Skipped")
+		return nil
+	}
+
 	return &Grafana{
-		client:  makeClient(options.URL, options.Timeout),
+		client:  common.MakeHttpClient(options.Timeout),
 		options: options,
 	}
 }

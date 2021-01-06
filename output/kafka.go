@@ -1,6 +1,7 @@
 package output
 
 import (
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,7 @@ type KafkaOutputOptions struct {
 type KafkaOutput struct {
 	wg       *sync.WaitGroup
 	producer *sarama.AsyncProducer
-	template *render.TextTemplate
+	message  *render.TextTemplate
 	options  KafkaOutputOptions
 }
 
@@ -43,11 +44,12 @@ func (k *KafkaOutput) Send(event *common.Event) {
 	go func() {
 		defer k.wg.Done()
 
-		if k.producer == nil || k.template == nil {
+		if k.producer == nil || k.message == nil {
+			log.Error(errors.New("No producer or message"))
 			return
 		}
 
-		b, err := k.template.Execute(event)
+		b, err := k.message.Execute(event)
 		if err != nil {
 
 			log.Error(err)
@@ -121,7 +123,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	return &KafkaOutput{
 		wg:       wg,
 		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config),
-		template: render.NewTextTemplate("kafka-template", options.Template, templateOptions, options),
+		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options),
 		options:  options,
 	}
 }

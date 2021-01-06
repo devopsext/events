@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -138,6 +139,15 @@ func (tpl *TextTemplate) fJsonEscape(s string) (string, error) {
 	return string(bytes), nil
 }
 
+// toString converts the given value to string
+func (tpl *TextTemplate) fToString(i interface{}) (string, error) {
+
+	if i != nil {
+		return fmt.Sprintf("%v", i), nil
+	}
+	return "", nil
+}
+
 func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 
 	var b bytes.Buffer
@@ -180,6 +190,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 		"getVar":          tpl.fGetVar,
 		"timeFormat":      tpl.fTimeFormat,
 		"jsonEscape":      tpl.fJsonEscape,
+		"toString":        tpl.fToString,
 	}
 
 	if common.IsEmpty(fileOrVar) {

@@ -1,5 +1,7 @@
 package output
 
-import "github.com/devopsext/utils"
+import (
+	"github.com/devopsext/utils"
+)
 
 var log = utils.GetLog()
