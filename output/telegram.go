@@ -26,11 +26,12 @@ var telegramOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 }, []string{"telegram_output_bot"})
 
 type TelegramOutputOptions struct {
-	MessageTemplate  string
-	SelectorTemplate string
-	URL              string
-	Timeout          int
-	AlertExpression  string
+	MessageTemplate     string
+	SelectorTemplate    string
+	URL                 string
+	Timeout             int
+	AlertExpression     string
+	DisableNotification string
 }
 
 type TelegramOutput struct {
@@ -135,6 +136,10 @@ func (t *TelegramOutput) sendMessage(URL, message string) error {
 		return err
 	}
 
+	if err := w.WriteField("disable_notification", t.options.DisableNotification); err != nil {
+		return err
+	}
+
 	if err := w.Close(); err != nil {
 		return err
 	}
@@ -165,6 +170,10 @@ func (t *TelegramOutput) sendPhoto(URL, message, fileName string, photo []byte) 
 	}
 
 	if err := w.WriteField("disable_web_page_preview", "true"); err != nil {
+		return err
+	}
+
+	if err := w.WriteField("disable_notification", t.options.DisableNotification); err != nil {
 		return err
 	}
 
@@ -230,6 +239,10 @@ func (t *TelegramOutput) sendAlertmanagerImage(URL, message string, alert templa
 	}
 
 	messageQuery := fmt.Sprintf("%s\n<i>%s</i>", message, query)
+	if t.grafana == nil {
+		return t.sendMessage(URL, messageQuery)
+	}
+
 	photo, fileName, err := t.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
@@ -309,13 +322,9 @@ func (t *TelegramOutput) Send(event *common.Event) {
 				t.sendMessage(URL, message)
 			case "AlertmanagerEvent":
 
-				if t.grafana != nil {
-					if err := t.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
-						log.Error(err)
-						t.sendErrorMessage(URL, message, err)
-					}
-				} else {
-					t.sendMessage(URL, message)
+				if err := t.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
+					log.Error(err)
+					t.sendErrorMessage(URL, message, err)
 				}
 			}
 		}
