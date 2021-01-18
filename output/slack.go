@@ -21,7 +21,7 @@ import (
 var slackOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_slack_output_count",
 	Help: "Count of all slack outputs",
-}, []string{"telegram_output_bot"})
+}, []string{})
 
 type SlackOutputOptions struct {
 	MessageTemplate  string
@@ -184,6 +184,10 @@ func (s *SlackOutput) sendAlertmanagerImage(URL, message string, alert template.
 		}
 	}
 
+	if s.grafana == nil {
+		return s.sendMessage(URL, message, query, "No image")
+	}
+
 	photo, fileName, err := s.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
@@ -263,13 +267,9 @@ func (s *SlackOutput) Send(event *common.Event) {
 				s.sendMessage(URL, message, "No title", "No image")
 			case "AlertmanagerEvent":
 
-				if s.grafana != nil {
-					if err := s.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
-						log.Error(err)
-						s.sendErrorMessage(URL, message, "No title", err)
-					}
-				} else {
-					s.sendMessage(URL, message, "No title", "No image")
+				if err := s.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
+					log.Error(err)
+					s.sendErrorMessage(URL, message, "No title", err)
 				}
 			}
 		}

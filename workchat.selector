@@ -1,0 +1,5 @@
+{{- define "render"}}{{$url := getVar "URL"}}{{$token := (index . 0)}}{{$recipient := (print "%7B%22thread_key%22%3A%22" (index . 1) "%22%7D")}}{{printf $url $token $recipient}}{{"\n"}}{{end}}
+{{- define "rules"}}
+  {{- if .type | regexMatch ".*"}}{{$a := getEnv "EVENTS_WORKCHAT_BOT_PLATFORM" | split "="}}{{template "render" $a}}{{end}}
+{{- end}}
+{{- define "workchat-selector"}}{{template "rules" .}}{{end}}

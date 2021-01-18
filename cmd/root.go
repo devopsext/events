@@ -83,11 +83,12 @@ var kafkaOutputOptions = output.KafkaOutputOptions{
 
 var telegramOutputOptions = output.TelegramOutputOptions{
 
-	MessageTemplate:  env.Get("EVENTS_TELEGRAM_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate: env.Get("EVENTS_TELEGRAM_SELECTOR_TEMPLATE", "").(string),
-	URL:              env.Get("EVENTS_TELEGRAM_URL", "").(string),
-	Timeout:          env.Get("EVENTS_TELEGRAM_TIMEOUT", 30).(int),
-	AlertExpression:  env.Get("EVENTS_TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
+	MessageTemplate:     env.Get("EVENTS_TELEGRAM_MESSAGE_TEMPLATE", "").(string),
+	SelectorTemplate:    env.Get("EVENTS_TELEGRAM_SELECTOR_TEMPLATE", "").(string),
+	URL:                 env.Get("EVENTS_TELEGRAM_URL", "").(string),
+	Timeout:             env.Get("EVENTS_TELEGRAM_TIMEOUT", 30).(int),
+	AlertExpression:     env.Get("EVENTS_TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
+	DisableNotification: env.Get("EVENTS_TELEGRAM_DISABLE_NOTIFICATION", "false").(string),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
@@ -97,6 +98,16 @@ var slackOutputOptions = output.SlackOutputOptions{
 	URL:              env.Get("EVENTS_SLACK_URL", "").(string),
 	Timeout:          env.Get("EVENTS_SLACK_TIMEOUT", 30).(int),
 	AlertExpression:  env.Get("EVENTS_SLACK_ALERT_EXPRESSION", "g0.expr").(string),
+}
+
+var workchatOutputOptions = output.WorkchatOutputOptions{
+
+	MessageTemplate:  env.Get("EVENTS_WORKCHAT_MESSAGE_TEMPLATE", "").(string),
+	SelectorTemplate: env.Get("EVENTS_WORKCHAT_SELECTOR_TEMPLATE", "").(string),
+	URL:              env.Get("EVENTS_WORKCHAT_URL", "").(string),
+	Timeout:          env.Get("EVENTS_WORKCHAT_TIMEOUT", 30).(int),
+	AlertExpression:  env.Get("EVENTS_WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
+	NotificationType: env.Get("EVENTS_WORKCHAT_NOTIFICATION_TYPE", "REGULAR").(string),
 }
 
 var grafanaOptions = render.GrafanaOptions{
@@ -206,6 +217,13 @@ func Execute() {
 				outputs.Add(&slackOutput)
 			}
 
+			var workchatOutput common.Output = output.NewWorkchatOutput(&wg, workchatOutputOptions, textTemplateOptions, grafanaOptions)
+			if reflect.ValueOf(workchatOutput).IsNil() {
+				log.Warn("Workchat output is invalid. Skipping...")
+			} else {
+				outputs.Add(&workchatOutput)
+			}
+
 			inputs.Start(&wg, outputs)
 			wg.Wait()
 		},
@@ -247,12 +265,20 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.SelectorTemplate, "telegram-selector-template", telegramOutputOptions.SelectorTemplate, "Telegram selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
+	flags.StringVar(&telegramOutputOptions.DisableNotification, "telegram-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 
 	flags.StringVar(&slackOutputOptions.URL, "slack-url", slackOutputOptions.URL, "Slack URL")
 	flags.StringVar(&slackOutputOptions.MessageTemplate, "slack-message-template", slackOutputOptions.MessageTemplate, "Slack message template")
 	flags.StringVar(&slackOutputOptions.SelectorTemplate, "slack-selector-template", slackOutputOptions.SelectorTemplate, "Slack selector template")
 	flags.IntVar(&slackOutputOptions.Timeout, "slack-timeout", slackOutputOptions.Timeout, "Slack timeout")
 	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
+
+	flags.StringVar(&workchatOutputOptions.URL, "workchat-url", workchatOutputOptions.URL, "Workchat URL")
+	flags.StringVar(&workchatOutputOptions.MessageTemplate, "workchat-message-template", workchatOutputOptions.MessageTemplate, "Workchat message template")
+	flags.StringVar(&workchatOutputOptions.SelectorTemplate, "workchat-selector-template", workchatOutputOptions.SelectorTemplate, "Workchat selector template")
+	flags.IntVar(&workchatOutputOptions.Timeout, "workchat-timeout", workchatOutputOptions.Timeout, "Workchat timeout")
+	flags.StringVar(&workchatOutputOptions.AlertExpression, "workchat-alert-expression", workchatOutputOptions.AlertExpression, "Workchat alert expression")
+	flags.StringVar(&workchatOutputOptions.NotificationType, "workchat-notification-type", workchatOutputOptions.NotificationType, "Workchat notification type")
 
 	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
 	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
