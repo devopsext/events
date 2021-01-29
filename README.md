@@ -333,7 +333,7 @@ EOF
 
 <details>
   <summary>Provide environment common variable</summary>
-
+<br>
 In a case of Grafana images based on alert rules which come from Alertmanager, setup environment variables for convinience. You can use command switches for that, but for the sake of simplicity, environment variables should be provided. 
 
 ```sh
@@ -345,7 +345,8 @@ export EVENTS_LOG_TEMPLATE="{{.msg}}"
 ```
 </details>
 
-#### Telegram only
+<details>
+  <summary>Run Events with telegram channel</summary>
 
 ```sh
 export TELEGRAM_BOT="Place Telegram bot"
@@ -357,6 +358,7 @@ export TELEGRAM_CHAT_ID="Place Telegram chat ID"
          --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
          --telegram-message-template "{{- define \"telegram-message\"}}{{ printf (toJSON .)}}{{- end}}"
 ```
+</details>
 
 #### Slack only
 
