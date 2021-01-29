@@ -156,16 +156,12 @@ func (w *WorkchatOutput) sendPhoto(URL, message, fileName string, photo []byte) 
 		return err
 	}
 
-	response, err := w.post(URL, mw.FormDataContentType(), body, message)
+	_, err = w.post(URL, mw.FormDataContentType(), body, message)
 	if err != nil {
 		return err
 	}
 
-	if response != nil {
-		return nil
-	} else {
-		return w.sendMessage(URL, message)
-	}
+	return w.sendMessage(URL, message)
 }
 
 func (w *WorkchatOutput) sendAlertmanagerImage(URL, message string, alert template.Alert) error {
