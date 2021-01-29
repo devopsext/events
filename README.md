@@ -7,40 +7,10 @@ Http service which inmplements an endpoint to listen events in Kubernetes cluste
 
 ## Features
 
-- Consume events from Kubernetes API, support kinds:
-  - Namespace
-  - Node
-  - ReplicaSet
-  - StatefulSet
-  - DaemonSet
-  - Secret
-  - Ingress
-  - CronJob
-  - Job
-  - ConfigMap
-  - Role
-  - Deployment
-  - Service
-  - Pod
-- Consume alerts from Alertmanager
-- Render alert images based on Grafana
+- Consume events from Kubernetes API, support kinds: Namespace, Node, ReplicaSet, StatefulSet, DaemonSet, Secret, Ingress, CronJob, Job, ConfigMap, Role, Deployment, Service, Pod
+- Consume alerts from Alertmanager and render alert images based on Grafana
 - Support golang templates as patterns of messages for channels and channel selectors
-- Template functions:
-  - regexReplaceAll
-  - regexMatch
-  - replaceAll
-  - toLower
-  - toTitle
-  - toUpper
-  - toJSON
-  - split
-  - join
-  - isEmpty
-  - getEnv
-  - getVar
-  - timeFormat
-  - jsonEscape
-  - toString
+- Template functions: regexReplaceAll, regexMatch, replaceAll, toLower, toTitle, toUpper, toJSON, split, join, isEmpty, getEnv, getVar, timeFormat, jsonEscape, toString
 - Support channels like: Kafka, Telegram, Slack, Workchat. All templates in place
 - Provide Prometheus metrics out of the box
 
@@ -358,6 +328,15 @@ export TELEGRAM_CHAT_ID="Place Telegram chat ID"
          --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
          --telegram-message-template "{{- define \"telegram-message\"}}{{ printf (toJSON .)}}{{- end}}"
 ```
+
+or
+
+```sh
+./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
+         --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
+         --telegram-message-template "telegram.message"
+```
+
 </details>
 
 <details>
@@ -372,6 +351,14 @@ export SLACK_CHANNELS="Place Slack channels"
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
          --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
          --slack-message-template "{{- define \"slack-message\"}}{{ printf (toJSON .)}}{{- end}}"
+```
+
+or
+
+```sh
+./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
+         --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
+         --slack-message-template "slack.message"
 ```
 </details>
 
@@ -388,6 +375,15 @@ export WORKCHAT_RECIPIENT="Place Wotkchat thread group"
          --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
          --workchat-message-template "{{- define \"workchat-message\"}}{{ printf \"Hey...\" }}{{- end}}"
 ```
+
+or
+
+```sh
+./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
+         --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
+         --workchat-message-template "workchat.message"
+```
+
 </details>
 
 <details>
@@ -402,6 +398,19 @@ export WORKCHAT_RECIPIENT="Place Wotkchat thread group"
          --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
          --workchat-message-template "{{- define \"workchat-message\"}}{{ printf \"Hey...\" }}{{- end}}"
 ```
+
+or
+
+```sh
+./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
+         --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
+         --telegram-message-template "telegram.message"
+         --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
+         --telegram-message-template "telegram.message"
+         --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
+         --workchat-message-template "workchat.message"
+```
+
 </details>
 
 <details>
