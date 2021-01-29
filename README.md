@@ -55,11 +55,8 @@ go build
 
 ## Example
 
-To try this exapmle ...
-
-### Provide request
-
-#### Kubernetes API event json
+<details>
+  <summary>Create Kubernetes API event json file</summary>
 
 ```sh
 cat <<EOF > k8s.json
@@ -278,8 +275,10 @@ cat <<EOF > k8s.json
 }
 EOF
 ```
+</details>
 
-#### Aleftmanager alert json
+<details>
+  <summary>Create Alertmanager alert json file</summary>
 
 ```sh
 cat <<EOF > 
@@ -330,20 +329,21 @@ cat <<EOF >
 }
 EOF
 ```
+</details>
 
-### Run Events
-
-#### Grafana images
+<details>
+  <summary>Provide environment common variable</summary>
 
 In a case of Grafana images based on alert rules which come from Alertmanager, setup environment variables for convinience. You can use command switches for that, but for the sake of simplicity, environment variables should be provided. 
 
 ```sh
-export EVENTS_GRAFANA_URL="Place Grafana URL in case of Alertmanger images"
+export EVENTS_GRAFANA_URL="Place Grafana URL in case of Alertmanger images or leave it empty"
 export EVENTS_GRAFANA_API_KEY="Place Grafana API key"
 export EVENTS_LOG_FORMAT="stdout"
 export EVENTS_LOG_LEVEL="debug"
 export EVENTS_LOG_TEMPLATE="{{.msg}}"
 ```
+</details>
 
 #### Telegram only
 
