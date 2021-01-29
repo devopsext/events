@@ -346,7 +346,7 @@ export EVENTS_LOG_TEMPLATE="{{.msg}}"
 </details>
 
 <details>
-  <summary>Run Events with telegram channel</summary>
+  <summary>Run Events with Telegram channel</summary>
 
 ```sh
 export TELEGRAM_BOT="Place Telegram bot"
@@ -360,7 +360,8 @@ export TELEGRAM_CHAT_ID="Place Telegram chat ID"
 ```
 </details>
 
-#### Slack only
+<details>
+  <summary>Run Events with Slack channel</summary>
 
 ```sh
 export SLACK_TOKEN="Place Slack token"
@@ -372,8 +373,10 @@ export SLACK_CHANNELS="Place Slack channels"
          --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
          --slack-message-template "{{- define \"slack-message\"}}{{ printf (toJSON .)}}{{- end}}"
 ```
+</details>
 
-#### Workchat only
+<details>
+  <summary>Run Events with Workchat channel</summary>
 
 ```sh
 export WORKCHAT_TOKEN="Place Workchat access token"
@@ -385,8 +388,10 @@ export WORKCHAT_RECIPIENT="Place Wotkchat thread group"
          --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
          --workchat-message-template "{{- define \"workchat-message\"}}{{ printf \"Hey...\" }}{{- end}}"
 ```
+</details>
 
-#### Telegram, Slack and Workchat simultaniously
+<details>
+  <summary>Run Events with Telegram, Slack and Workchat simultaniously</summary>
 
 ```sh
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
@@ -397,18 +402,31 @@ export WORKCHAT_RECIPIENT="Place Wotkchat thread group"
          --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
          --workchat-message-template "{{- define \"workchat-message\"}}{{ printf \"Hey...\" }}{{- end}}"
 ```
+</details>
 
-### Test Alertmanager alert 
+<details>
+  <summary>Test Alertmanager endpoint</summary>
 
 ```sh
 curl -X POST -H 'Content-type: application/json' -d @alertmanager.json http://127.0.0.1:8081/alertmanager
 ```
 
-### Test Kubernetes API event 
+```json
+{"Message":"OK"}
+```
+</details>
+
+<details>
+  <summary>Test Kubernetes API endpoint</summary>
 
 ```sh
 curl -X POST -H 'Content-type: application/json' -d @k8s.json http://127.0.0.1:8081/k8s
 ```
+
+```json
+{"response":{"uid":"23172a7a-f4c6-11e9-953e-0050568aa55b","allowed":true}}
+```
+</details>
 
 ## Usage
 
