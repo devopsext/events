@@ -495,8 +495,9 @@ Flags:
 
 ```
 
-## Environment variables
-
+<details>
+  <summary>Environment variables</summary>
+<br>
 For containerization purpose all command switches have environment variables analogs.
 
 - EVENTS_LOG_FORMAT
@@ -558,3 +559,4 @@ For containerization purpose all command switches have environment variables ana
 - EVENTS_GRAFANA_PERIOD
 - EVENTS_GRAFANA_IMAGE_WIDTH
 - EVENTS_GRAFANA_IMAGE_HEIGHT
+</details>
