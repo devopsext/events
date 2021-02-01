@@ -1,6 +1,6 @@
 {{- define "k8s-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "<b>%s</b>: %s / %s\n<b>%s</b>: %s\nby <i>%s</i>" (toUpper .event.operation) .event.kind .event.location .channel $t .event.user.name}}
+  {{- printf "<b>%s</b>: %s / %s\n<b>%s</b>: %s\nby <i>%s</i>" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
 {{- end}}
 {{- define "k8s-namespace"}}{{- end}}
 {{- define "k8s-node"}}{{- end}}
