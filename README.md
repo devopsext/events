@@ -392,18 +392,6 @@ or
 ```sh
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
          --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
-         --telegram-message-template "{{- define \"telegram-message\"}}{{ printf (toJSON .)}}{{- end}}" \
-         --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
-         --slack-message-template "{{- define \"slack-message\"}}{{ printf (toJSON .)}}{{- end}}" \
-         --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
-         --workchat-message-template "{{- define \"workchat-message\"}}{{ printf \"Hey...\" }}{{- end}}"
-```
-
-or
-
-```sh
-./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
-         --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
          --telegram-message-template "telegram.message" \
          --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
          --slack-message-template "slack.message" \
