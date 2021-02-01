@@ -1,0 +1,45 @@
+{
+  "receiver": "events",
+  "status": "firing",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "Process Open FDS 2",
+        "app": "prometheus",
+        "instance": "10.42.0.5:9090",
+        "kubernetes_namespace": "default",
+        "kubernetes_pod_name": "prometheus-0",
+        "severity": "some",
+        "unit": "short",
+        "minutes": "10",
+        "statefulset_kubernetes_io_pod_name": "prometheus-0"
+      },
+      "annotations": {
+        "summary": "High process Open FDS"
+      },
+      "startsAt": "2020-12-22T16:42:47.056441315Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus-0:9090/graph?g0.expr=rate(process_cpu_seconds_total[1m]) > 0.004&g0.tab=1",
+      "fingerprint": "f8767e67485c740c"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "Process Open FDS"
+  },
+  "commonLabels": {
+    "alertname": "Process Open FDS",
+    "app": "prometheus",
+    "instance": "10.42.0.5:9090",
+    "kubernetes_namespace": "default",
+    "kubernetes_pod_name": "prometheus-0",
+    "severity": "some",
+    "statefulset_kubernetes_io_pod_name": "prometheus-0"
+  },
+  "commonAnnotations": {
+    "summary": "High process Open FDS"
+  },
+  "externalURL": "http://alertmanager-db66d4578-dm696:9093",
+  "version": "4",
+  "groupKey": "{}/{}:{alertname=\"Process Open FDS\"}"
+}

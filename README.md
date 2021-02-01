@@ -326,7 +326,7 @@ export TELEGRAM_CHAT_ID="Place Telegram chat ID"
 ```sh
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
          --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
-         --telegram-message-template "{{- define \"telegram-message\"}}{{ printf (toJSON .)}}{{- end}}"
+         --telegram-message-template "{{- define \"telegram-message\"}}{{ toJSON . }}{{- end}}"
 ```
 
 or
@@ -350,7 +350,7 @@ export SLACK_CHANNELS="Place Slack channels"
 ```sh
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
          --slack-url "https://slack.com/api/files.upload?token=${SLACK_TOKEN}&channels=${SLACK_CHANNELS}" \
-         --slack-message-template "{{- define \"slack-message\"}}{{ printf (toJSON .)}}{{- end}}"
+         --slack-message-template "{{- define \"slack-message\"}}{{ toJSON . }}{{- end}}"
 ```
 
 or
@@ -373,7 +373,7 @@ export WORKCHAT_RECIPIENT="Place Wotkchat thread group"
 ```sh
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
          --workchat-url "https://graph.workplace.com/v9.0/me/messages?access_token=${WORKCHAT_TOKEN}&recipient=%7B%22thread_key%22%3A%22${WORKCHAT_RECIPIENT}%22%7D" \
-         --workchat-message-template "{{- define \"workchat-message\"}}{{ printf \"Hey...\" }}{{- end}}"
+         --workchat-message-template "{{- define \"workchat-message\"}}{{ replaceAll \"\\\"\" \"\" (toJSON .) }}{{- end}}"
 ```
 
 or
