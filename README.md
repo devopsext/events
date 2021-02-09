@@ -439,7 +439,7 @@ Available Commands:
   version     Print the version number
 
 Flags:
-      --grafana-api-key string                 Grafana API key
+      --grafana-api-key string                 Grafana API key (default "admin:admin")
       --grafana-datasource string              Grafana datasource (default "Prometheus")
       --grafana-image-height int               Grafan image height (default 640)
       --grafana-image-width int                Grafan image width (default 1280)
