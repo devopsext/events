@@ -251,7 +251,7 @@ EOF
   <summary>Create Alertmanager alert json file</summary>
 
 ```sh
-cat <<EOF > 
+cat <<EOF > alertmanager.json
 {
   "receiver": "events",
   "status": "firing",
