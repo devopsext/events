@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/devopsext/events/common"
@@ -62,7 +64,16 @@ func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string
 	return nil
 }
 
-func (g *Grafana) renderImage(imageURL string) ([]byte, error) {
+func (g *Grafana) apiKeyIsCredentials() bool {
+
+	arr := strings.Split(g.options.ApiKey, ":")
+	if len(arr) == 2 {
+		return true
+	}
+	return false
+}
+
+func (g *Grafana) renderImage(imageURL string, apiKey string) ([]byte, error) {
 
 	req, err := http.NewRequest("GET", g.options.URL+imageURL, nil)
 
@@ -70,9 +81,14 @@ func (g *Grafana) renderImage(imageURL string) ([]byte, error) {
 		return nil, err
 	}
 
-	key := fmt.Sprintf("Bearer %s", g.options.ApiKey)
+	method := "Bearer"
+	if g.apiKeyIsCredentials() {
+		method = "Basic"
+		apiKey = base64.StdEncoding.EncodeToString([]byte(apiKey))
+	}
 
-	req.Header.Set("Authorization", key)
+	auth := fmt.Sprintf("%s %s", method, apiKey)
+	req.Header.Set("Authorization", auth)
 
 	resp, err := g.client.Do(req)
 
@@ -81,7 +97,6 @@ func (g *Grafana) renderImage(imageURL string) ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-
 	return ioutil.ReadAll(resp.Body)
 }
 
@@ -95,7 +110,8 @@ func (g *Grafana) GenerateDashboard(title string, metric string, operator string
 	t := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
 	suffix := fmt.Sprintf("%x", md5.Sum([]byte(t)))
 
-	board := sdk.NewBoard(fmt.Sprintf("%s - %s", title, suffix))
+	boardName := fmt.Sprintf("%s - %s", title, suffix)
+	board := sdk.NewBoard(boardName)
 	board.Timezone = "utc"
 
 	to := time.Now().UTC().Unix() * 1000
@@ -228,7 +244,7 @@ func (g *Grafana) GenerateDashboard(title string, metric string, operator string
 
 		log.Debug("%s", URL)
 
-		bytes, err := g.renderImage(URL)
+		bytes, err := g.renderImage(URL, g.options.ApiKey)
 		if err != nil {
 			log.Error(err)
 			return nil, "", err

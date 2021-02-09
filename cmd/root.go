@@ -115,7 +115,7 @@ var grafanaOptions = render.GrafanaOptions{
 	URL:         env.Get("EVENTS_GRAFANA_URL", "").(string),
 	Timeout:     env.Get("EVENTS_GRAFANA_TIMEOUT", 60).(int),
 	Datasource:  env.Get("EVENTS_GRAFANA_DATASOURCE", "Prometheus").(string),
-	ApiKey:      env.Get("EVENTS_GRAFANA_API_KEY", "").(string),
+	ApiKey:      env.Get("EVENTS_GRAFANA_API_KEY", "admin:admin").(string),
 	Org:         env.Get("EVENTS_GRAFANA_ORG", "1").(string),
 	Period:      env.Get("EVENTS_GRAFANA_PERIOD", 60).(int),
 	ImageWidth:  env.Get("EVENTS_GRAFANA_IMAGE_WIDTH", 1280).(int),
