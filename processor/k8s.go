@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/devopsext/events/common"
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	admv1beta1 "k8s.io/api/admission/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -54,11 +55,11 @@ func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
 	return strings.Title(strings.ToLower(string(operation)))
 }
 
-func (p *K8sProcessor) sendEvent(channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
+func (p *K8sProcessor) sendEvent(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
 
 	user := &K8sUser{Name: ar.UserInfo.Username, ID: ar.UserInfo.UID}
 
-	p.outputs.Send(&common.Event{
+	e := common.Event{
 		Channel: channel,
 		Type:    "K8sEvent",
 		Data: K8sData{
@@ -68,10 +69,14 @@ func (p *K8sProcessor) sendEvent(channel string, ar *admv1beta1.AdmissionRequest
 			Object:    o,
 			User:      user,
 		},
-	})
+	}
+	if span != nil {
+		e.SetSpanContext(span.Context())
+	}
+	p.outputs.Send(&e)
 }
 
-func (p *K8sProcessor) processNamespace(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNamespace(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var namespace *corev1.Namespace
 
@@ -88,10 +93,10 @@ func (p *K8sProcessor) processNamespace(channel string, ar *admv1beta1.Admission
 		name = namespace.Name
 	}
 
-	p.sendEvent(channel, ar, name, namespace)
+	p.sendEvent(span, channel, ar, name, namespace)
 }
 
-func (p *K8sProcessor) processNode(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNode(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var node *corev1.Node
 
@@ -108,10 +113,10 @@ func (p *K8sProcessor) processNode(channel string, ar *admv1beta1.AdmissionReque
 		name = node.Name
 	}
 
-	p.sendEvent(channel, ar, name, node)
+	p.sendEvent(span, channel, ar, name, node)
 }
 
-func (p *K8sProcessor) processReplicaSet(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processReplicaSet(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var replicaSet *appsv1.ReplicaSet
 
@@ -130,10 +135,10 @@ func (p *K8sProcessor) processReplicaSet(channel string, ar *admv1beta1.Admissio
 		namespace = replicaSet.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
 }
 
-func (p *K8sProcessor) processStatefulSet(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processStatefulSet(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var statefulSet *appsv1.StatefulSet
 
@@ -152,10 +157,10 @@ func (p *K8sProcessor) processStatefulSet(channel string, ar *admv1beta1.Admissi
 		namespace = statefulSet.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
 }
 
-func (p *K8sProcessor) processDaemonSet(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDaemonSet(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var daemonSet *appsv1.DaemonSet
 
@@ -175,10 +180,10 @@ func (p *K8sProcessor) processDaemonSet(channel string, ar *admv1beta1.Admission
 		namespace = daemonSet.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
 }
 
-func (p *K8sProcessor) processSecret(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processSecret(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var secret *corev1.Secret
 
@@ -197,10 +202,10 @@ func (p *K8sProcessor) processSecret(channel string, ar *admv1beta1.AdmissionReq
 		namespace = secret.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
 }
 
-func (p *K8sProcessor) processIngress(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processIngress(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var ingress *netv1beta1.Ingress
 
@@ -219,10 +224,10 @@ func (p *K8sProcessor) processIngress(channel string, ar *admv1beta1.AdmissionRe
 		namespace = ingress.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
 }
 
-func (p *K8sProcessor) processJob(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processJob(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var job *batchv1.Job
 
@@ -241,10 +246,10 @@ func (p *K8sProcessor) processJob(channel string, ar *admv1beta1.AdmissionReques
 		namespace = job.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
 }
 
-func (p *K8sProcessor) processCronJob(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processCronJob(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var cronJob *batchv1beta.CronJob
 
@@ -263,10 +268,10 @@ func (p *K8sProcessor) processCronJob(channel string, ar *admv1beta1.AdmissionRe
 		namespace = cronJob.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
 }
 
-func (p *K8sProcessor) processConfigMap(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processConfigMap(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var configMap *corev1.ConfigMap
 
@@ -285,10 +290,10 @@ func (p *K8sProcessor) processConfigMap(channel string, ar *admv1beta1.Admission
 		namespace = configMap.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
 }
 
-func (p *K8sProcessor) processRole(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processRole(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var role *rbacv1.Role
 
@@ -307,10 +312,10 @@ func (p *K8sProcessor) processRole(channel string, ar *admv1beta1.AdmissionReque
 		namespace = role.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
 }
 
-func (p *K8sProcessor) processDeployment(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDeployment(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var deployment *appsv1.Deployment
 
@@ -329,10 +334,10 @@ func (p *K8sProcessor) processDeployment(channel string, ar *admv1beta1.Admissio
 		namespace = deployment.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
 }
 
-func (p *K8sProcessor) processService(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processService(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var service *corev1.Service
 
@@ -351,10 +356,10 @@ func (p *K8sProcessor) processService(channel string, ar *admv1beta1.AdmissionRe
 		namespace = service.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
 }
 
-func (p *K8sProcessor) processPod(channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processPod(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var pod *corev1.Pod
 
@@ -373,12 +378,19 @@ func (p *K8sProcessor) processPod(channel string, ar *admv1beta1.AdmissionReques
 		namespace = pod.Namespace
 	}
 
-	p.sendEvent(channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
+	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
 }
 
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 
 	var body []byte
+
+	var span opentracing.Span
+	spanConext, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+	if err == nil {
+		span = common.TracerStartSpanChildOf(spanConext)
+		defer span.Finish()
+	}
 
 	if r.Body != nil {
 
@@ -391,6 +403,7 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		log.Error("Empty body")
 		http.Error(w, "empty body", http.StatusBadRequest)
+		common.TracerSpanError(span, err)
 		return
 	}
 
@@ -401,6 +414,8 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		log.Error("Content-Type=%s, expect application/json", contentType)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
+		common.TracerSpanError(span, err)
+		//span.Finish()
 		return
 	}
 
@@ -409,6 +424,11 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 
 		log.Error("Can't decode body: %v", err)
+		common.TracerSpanError(span, err)
+		/*span.SetTag("error", true)
+		span.LogFields(
+			opentracingLog.Error(err),
+		)*/
 
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Result: &metav1.Status{
@@ -422,33 +442,33 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		switch req.Kind.Kind {
 		case "Namespace":
-			p.processNamespace(channel, req)
+			p.processNamespace(span, channel, req)
 		case "Node":
-			p.processNode(channel, req)
+			p.processNode(span, channel, req)
 		case "ReplicaSet":
-			p.processReplicaSet(channel, req)
+			p.processReplicaSet(span, channel, req)
 		case "StatefulSet":
-			p.processStatefulSet(channel, req)
+			p.processStatefulSet(span, channel, req)
 		case "DaemonSet":
-			p.processDaemonSet(channel, req)
+			p.processDaemonSet(span, channel, req)
 		case "Secret":
-			p.processSecret(channel, req)
+			p.processSecret(span, channel, req)
 		case "Ingress":
-			p.processIngress(channel, req)
+			p.processIngress(span, channel, req)
 		case "Job":
-			p.processJob(channel, req)
+			p.processJob(span, channel, req)
 		case "CronJob":
-			p.processCronJob(channel, req)
+			p.processCronJob(span, channel, req)
 		case "ConfigMap":
-			p.processConfigMap(channel, req)
+			p.processConfigMap(span, channel, req)
 		case "Role":
-			p.processRole(channel, req)
+			p.processRole(span, channel, req)
 		case "Deployment":
-			p.processDeployment(channel, req)
+			p.processDeployment(span, channel, req)
 		case "Service":
-			p.processService(channel, req)
+			p.processService(span, channel, req)
 		case "Pod":
-			p.processPod(channel, req)
+			p.processPod(span, channel, req)
 		}
 
 		k8sProcessorRequests.WithLabelValues(req.UserInfo.Username, string(req.Operation), channel, req.Namespace, req.Kind.Kind).Inc()
@@ -473,13 +493,17 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		log.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		common.TracerSpanError(span, err)
 	}
 
 	if _, err := w.Write(resp); err != nil {
 
 		log.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		common.TracerSpanError(span, err)
 	}
+
+	//span.Finish()
 }
 
 func NewK8sProcessor(outputs *common.Outputs) *K8sProcessor {

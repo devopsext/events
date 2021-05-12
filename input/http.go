@@ -13,6 +13,7 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/processor"
 	"github.com/devopsext/utils"
+	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -111,8 +112,27 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
+					/*if h.rootSpan != nil {
+
+						span = h.rootSpan.Tracer().StartSpan("k8s-processor", opentracing.ChildOf(h.rootSpan.Context()))
+						span.LogFields(
+							opentracingLog.String("path", r.URL.Path),
+						)
+						defer span.Finish()
+					}*/
+
 					httpInputRequests.WithLabelValues(r.URL.Path).Inc()
+					span := common.TracerStartSpan()
+					if span != nil {
+						/*	span.LogFields(
+								opentracingLog.String("path", r.URL.Path),
+							)
+						*/
+						span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
+						defer span.Finish()
+					}
 					processor.NewK8sProcessor(outputs).HandleHttpRequest(w, r)
+					//span.Finish()
 				})
 			}
 		}

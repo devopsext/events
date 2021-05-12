@@ -241,14 +241,20 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
+		span := common.TracerStartSpanFollowsFrom(event.GetSpanContext())
+		defer span.Finish()
+
 		if event.Data == nil {
-			log.Error(errors.New("Event data is empty"))
+			err := errors.New("Event data is empty")
+			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
 			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 
@@ -264,13 +270,16 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		}
 
 		if common.IsEmpty(URLs) {
-			log.Error(errors.New("Workchat URLs are not found"))
+			err := errors.New("Workchat URLs are not found")
+			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 
 		b, err := w.message.Execute(jsonObject)
 		if err != nil {
 			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 

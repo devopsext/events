@@ -214,14 +214,20 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
+		span := common.TracerStartSpanFollowsFrom(event.GetSpanContext())
+		defer span.Finish()
+
 		if event.Data == nil {
-			log.Error(errors.New("Event data is empty"))
+			err := errors.New("Event data is empty")
+			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
 			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 
@@ -237,13 +243,16 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		if common.IsEmpty(URLs) {
-			log.Error(errors.New("Slack URLs are not found"))
+			err := errors.New("Slack URLs are not found")
+			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 
 		b, err := s.message.Execute(jsonObject)
 		if err != nil {
 			log.Error(err)
+			common.TracerSpanError(span, err)
 			return
 		}
 

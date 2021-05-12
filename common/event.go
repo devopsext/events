@@ -2,14 +2,17 @@ package common
 
 import (
 	"encoding/json"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 type Event struct {
-	Time     string      `json:"time"`
-	TimeNano int64       `json:"timeNano"`
-	Channel  string      `json:"channel"`
-	Type     string      `json:"type"`
-	Data     interface{} `json:"data"`
+	Time       string      `json:"time"`
+	TimeNano   int64       `json:"timeNano"`
+	Channel    string      `json:"channel"`
+	Type       string      `json:"type"`
+	Data       interface{} `json:"data"`
+	spanConext opentracing.SpanContext
 }
 
 func (e *Event) JsonObject() (interface{}, error) {
@@ -28,4 +31,12 @@ func (e *Event) JsonObject() (interface{}, error) {
 	}
 
 	return object, nil
+}
+
+func (e *Event) SetSpanContext(spanConext opentracing.SpanContext) {
+	e.spanConext = spanConext
+}
+
+func (e *Event) GetSpanContext() opentracing.SpanContext {
+	return e.spanConext
 }
