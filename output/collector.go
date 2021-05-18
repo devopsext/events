@@ -25,6 +25,7 @@ type CollectorOutput struct {
 	options    CollectorOutputOptions
 	connection *net.UDPConn
 	message    *render.TextTemplate
+	tracer     common.Tracer
 }
 
 func (c *CollectorOutput) Send(event *common.Event) {
@@ -38,17 +39,23 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			return
 		}
 
+		if event == nil {
+			log.Error(errors.New("Event is empty"))
+			return
+		}
+
+		span := c.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		defer span.Finish()
+
 		b, err := c.message.Execute(event)
 		if err != nil {
-
 			log.Error(err)
+			span.Error(err)
 			return
 		}
 
 		message := b.String()
-
 		if common.IsEmpty(message) {
-
 			log.Debug("Message to Collector is empty")
 			return
 		}
@@ -58,6 +65,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 		_, err = c.connection.Write(b.Bytes())
 		if err != nil {
 			log.Error(err)
+			span.Error(err)
 		}
 
 		collectorOutputCount.WithLabelValues(c.options.Address).Inc()
@@ -93,13 +101,14 @@ func makeCollectorOutputConnection(address string) *net.UDPConn {
 	return connection
 }
 
-func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions) *CollectorOutput {
+func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions, tracer common.Tracer) *CollectorOutput {
 
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
 		message:    render.NewTextTemplate("collector-message", options.Template, templateOptions, options),
 		connection: makeCollectorOutputConnection(options.Address),
+		tracer:     tracer,
 	}
 }
 

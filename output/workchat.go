@@ -43,15 +43,20 @@ type WorkchatOutput struct {
 	selector *render.TextTemplate
 	grafana  *render.Grafana
 	options  WorkchatOutputOptions
+	tracer   common.Tracer
 }
 
-func (w *WorkchatOutput) post(URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
+func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
+
+	span := w.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	log.Debug("Post to Workchat (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
+		span.Error(err)
 		return nil, err
 	}
 
@@ -59,6 +64,7 @@ func (w *WorkchatOutput) post(URL, contentType string, body bytes.Buffer, messag
 
 	resp, err := w.client.Do(req)
 	if err != nil {
+		span.Error(err)
 		return nil, err
 	}
 
@@ -66,6 +72,7 @@ func (w *WorkchatOutput) post(URL, contentType string, body bytes.Buffer, messag
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		span.Error(err)
 		return nil, err
 	}
 
@@ -76,13 +83,17 @@ func (w *WorkchatOutput) post(URL, contentType string, body bytes.Buffer, messag
 	var object interface{}
 
 	if err := json.Unmarshal(b, &object); err != nil {
+		span.Error(err)
 		return nil, err
 	}
 
 	return object, nil
 }
 
-func (w *WorkchatOutput) sendMessage(URL, message string) error {
+func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message string) error {
+
+	span := w.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
@@ -94,23 +105,26 @@ func (w *WorkchatOutput) sendMessage(URL, message string) error {
 
 	m := fmt.Sprintf("{\"text\":\"%s\"}", strings.ReplaceAll(message, "\n", "\\n"))
 	if err := mw.WriteField("message", m); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := mw.WriteField("notification_type", w.options.NotificationType); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := mw.Close(); err != nil {
+		span.Error(err)
 		return err
 	}
 
-	_, err := w.post(URL, mw.FormDataContentType(), body, message)
+	_, err := w.post(span.GetContext(), URL, mw.FormDataContentType(), body, message)
 	return err
 }
 
-func (w *WorkchatOutput) sendErrorMessage(URL, message string, err error) error {
-	return w.sendMessage(URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+func (w *WorkchatOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL, message string, err error) error {
+	return w.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -128,7 +142,10 @@ func (w *WorkchatOutput) createFormFile(writer *multipart.Writer, fieldname, fil
 	return writer.CreatePart(h)
 }
 
-func (w *WorkchatOutput) sendPhoto(URL, message, fileName string, photo []byte) error {
+func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName string, photo []byte) error {
+
+	span := w.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
@@ -140,34 +157,43 @@ func (w *WorkchatOutput) sendPhoto(URL, message, fileName string, photo []byte) 
 
 	m := "{\"attachment\":{\"type\":\"image\",\"payload\":{\"is_reusable\":true}}}"
 	if err := mw.WriteField("message", m); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	fw, err := w.createFormFile(mw, "filedata", fileName, "image/png")
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if _, err := fw.Write(photo); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := mw.Close(); err != nil {
+		span.Error(err)
 		return err
 	}
 
-	_, err = w.post(URL, mw.FormDataContentType(), body, message)
+	_, err = w.post(span.GetContext(), URL, mw.FormDataContentType(), body, message)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
-	return w.sendMessage(URL, message)
+	return w.sendMessage(span.GetContext(), URL, message)
 }
 
-func (w *WorkchatOutput) sendAlertmanagerImage(URL, message string, alert template.Alert) error {
+func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
+
+	span := w.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -178,7 +204,9 @@ func (w *WorkchatOutput) sendAlertmanagerImage(URL, message string, alert templa
 
 	query, ok := alert.Labels[w.options.AlertExpression]
 	if !ok {
-		return errors.New("No alert expression")
+		err := errors.New("No alert expression")
+		span.Error(err)
+		return err
 	}
 
 	caption := alert.Labels["alertname"]
@@ -192,6 +220,7 @@ func (w *WorkchatOutput) sendAlertmanagerImage(URL, message string, alert templa
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -212,17 +241,18 @@ func (w *WorkchatOutput) sendAlertmanagerImage(URL, message string, alert templa
 	messageQuery := fmt.Sprintf("%s\n_%s_", message, query)
 
 	if w.grafana == nil {
-		return w.sendMessage(URL, messageQuery)
+		return w.sendMessage(span.GetContext(), URL, messageQuery)
 	}
 
-	photo, fileName, err := w.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
+	photo, fileName, err := w.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
-		w.sendErrorMessage(URL, messageQuery, err)
+		span.Error(err)
+		w.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
 
-	return w.sendPhoto(URL, messageQuery, fileName, photo)
+	return w.sendPhoto(span.GetContext(), URL, messageQuery, fileName, photo)
 }
 
 func (w *WorkchatOutput) Send(event *common.Event) {
@@ -241,20 +271,20 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := common.TracerStartSpanFollowsFrom(event.GetSpanContext())
+		span := w.tracer.StartFollowSpanFrom(event.GetSpanContext())
 		defer span.Finish()
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
@@ -272,14 +302,14 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		if common.IsEmpty(URLs) {
 			err := errors.New("Workchat URLs are not found")
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
 		b, err := w.message.Execute(jsonObject)
 		if err != nil {
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
@@ -300,12 +330,12 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "K8sEvent":
-				w.sendMessage(URL, message)
+				w.sendMessage(span.GetContext(), URL, message)
 			case "AlertmanagerEvent":
 
-				if err := w.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
+				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
 					log.Error(err)
-					w.sendErrorMessage(URL, message, err)
+					w.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			}
 		}
@@ -315,7 +345,8 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 func NewWorkchatOutput(wg *sync.WaitGroup,
 	options WorkchatOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	grafanaOptions render.GrafanaOptions) *WorkchatOutput {
+	grafanaOptions render.GrafanaOptions,
+	tracer common.Tracer) *WorkchatOutput {
 
 	if common.IsEmpty(options.URL) {
 		log.Debug("Workchat URL is not defined. Skipped")
@@ -327,8 +358,9 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		client:   common.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options),
 		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options),
-		grafana:  render.NewGrafana(grafanaOptions),
+		grafana:  render.NewGrafana(grafanaOptions, tracer),
 		options:  options,
+		tracer:   tracer,
 	}
 }
 

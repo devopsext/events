@@ -13,7 +13,6 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/processor"
 	"github.com/devopsext/utils"
-	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -35,6 +34,7 @@ type HttpInputOptions struct {
 
 type HttpInput struct {
 	options HttpInputOptions
+	tracer  common.Tracer
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -112,27 +112,13 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
-					/*if h.rootSpan != nil {
-
-						span = h.rootSpan.Tracer().StartSpan("k8s-processor", opentracing.ChildOf(h.rootSpan.Context()))
-						span.LogFields(
-							opentracingLog.String("path", r.URL.Path),
-						)
-						defer span.Finish()
-					}*/
+					span := h.tracer.StartSpan()
+					span.SetCarrier(r.Header)
+					span.SetTag("path", r.URL.Path)
+					defer span.Finish()
 
 					httpInputRequests.WithLabelValues(r.URL.Path).Inc()
-					span := common.TracerStartSpan()
-					if span != nil {
-						/*	span.LogFields(
-								opentracingLog.String("path", r.URL.Path),
-							)
-						*/
-						span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-						defer span.Finish()
-					}
-					processor.NewK8sProcessor(outputs).HandleHttpRequest(w, r)
-					//span.Finish()
+					processor.NewK8sProcessor(outputs, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -144,8 +130,13 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
+					span := h.tracer.StartSpan()
+					span.SetCarrier(r.Header)
+					span.SetTag("path", r.URL.Path)
+					defer span.Finish()
+
 					httpInputRequests.WithLabelValues(url).Inc()
-					processor.NewRancherProcessor(outputs).HandleHttpRequest(w, r)
+					processor.NewRancherProcessor(outputs, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -157,8 +148,13 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
+					span := h.tracer.StartSpan()
+					span.SetCarrier(r.Header)
+					span.SetTag("path", r.URL.Path)
+					defer span.Finish()
+
 					httpInputRequests.WithLabelValues(url).Inc()
-					processor.NewAlertmanagerProcessor(outputs).HandleHttpRequest(w, r)
+					processor.NewAlertmanagerProcessor(outputs, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -193,10 +189,11 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func NewHttpInput(options HttpInputOptions) *HttpInput {
+func NewHttpInput(options HttpInputOptions, tracer common.Tracer) *HttpInput {
 
 	return &HttpInput{
 		options: options,
+		tracer:  tracer,
 	}
 }
 
