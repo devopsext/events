@@ -220,7 +220,6 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, UR
 	photo, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
-		span.Error(err)
 		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
 		return nil
 	}

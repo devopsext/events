@@ -16,4 +16,5 @@ type Tracer interface {
 	StartSpan() TracerSpan
 	StartChildSpanFrom(object interface{}) TracerSpan
 	StartFollowSpanFrom(object interface{}) TracerSpan
+	Stop()
 }

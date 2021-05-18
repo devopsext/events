@@ -8,6 +8,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/devopsext/events/common"
@@ -28,6 +29,7 @@ type JaegerOptions struct {
 	Password            string
 	BufferFlushInterval int
 	QueueSize           int
+	Tags                string
 }
 
 type JaegerSpanContext struct {
@@ -45,6 +47,9 @@ type Jaeger struct {
 	options JaegerOptions
 	tracer  opentracing.Tracer
 	list    []*JaegerSpan
+}
+
+type JaegerLogger struct {
 }
 
 func (js JaegerSpan) GetContext() common.TracerSpanContext {
@@ -278,14 +283,61 @@ func (j *Jaeger) StartFollowSpanFrom(object interface{}) common.TracerSpan {
 	}
 }
 
+func (j *Jaeger) Stop() {
+	//
+}
+
+func (jl *JaegerLogger) Error(msg string) {
+	log.Error(msg)
+}
+
+func (jl *JaegerLogger) Infof(msg string, args ...interface{}) {
+
+	if utils.IsEmpty(msg) {
+		return
+	}
+
+	msg = strings.TrimSpace(msg)
+	if args != nil {
+		log.Info(msg, args...)
+	} else {
+		log.Info(msg)
+	}
+}
+
+func parseTags(sTags string) []opentracing.Tag {
+
+	pairs := strings.Split(sTags, ",")
+	tags := make([]opentracing.Tag, 0)
+	for _, p := range pairs {
+		kv := strings.SplitN(p, "=", 2)
+		k, v := strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1])
+
+		if strings.HasPrefix(v, "${") && strings.HasSuffix(v, "}") {
+			ed := strings.SplitN(v[2:len(v)-1], ":", 2)
+			e, d := ed[0], ed[1]
+			v = env.Get(e, "").(string)
+			if v == "" && d != "" {
+				v = d
+			}
+		}
+
+		tag := opentracing.Tag{Key: k, Value: v}
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
 func newJaegerTracer(options JaegerOptions) opentracing.Tracer {
 
 	disabled := utils.IsEmpty(options.AgentHost) && utils.IsEmpty(options.Endpoint)
+	tags := parseTags(options.Tags)
 
 	cfg := &jaegerConfig.Configuration{
 
 		ServiceName: options.ServiceName,
 		Disabled:    disabled,
+		Tags:        tags,
 
 		// Use constant sampling to sample every trace
 		Sampler: &jaegerConfig.SamplerConfig{
@@ -306,7 +358,7 @@ func newJaegerTracer(options JaegerOptions) opentracing.Tracer {
 	}
 
 	metricsFactory := prometheus.New()
-	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory), jaegerConfig.Logger(jaeger.StdLogger))
+	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory), jaegerConfig.Logger(&JaegerLogger{}))
 	if err != nil {
 		log.Error(err)
 		return opentracing.NoopTracer{}
