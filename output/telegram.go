@@ -278,7 +278,6 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 	photo, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
-		span.Error(err)
 		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}

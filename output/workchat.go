@@ -247,7 +247,6 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 	photo, fileName, err := w.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
-		span.Error(err)
 		w.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
