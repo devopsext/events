@@ -2,13 +2,13 @@ package processor
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/devopsext/events/common"
-	"github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
 	admv1beta1 "k8s.io/api/admission/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,6 +29,7 @@ var k8sProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 
 type K8sProcessor struct {
 	outputs *common.Outputs
+	tracer  common.Tracer
 }
 
 type K8sUser struct {
@@ -55,7 +56,7 @@ func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
 	return strings.Title(strings.ToLower(string(operation)))
 }
 
-func (p *K8sProcessor) sendEvent(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
+func (p *K8sProcessor) sendEvent(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
 
 	user := &K8sUser{Name: ar.UserInfo.Username, ID: ar.UserInfo.UID}
 
@@ -71,19 +72,19 @@ func (p *K8sProcessor) sendEvent(span opentracing.Span, channel string, ar *admv
 		},
 	}
 	if span != nil {
-		e.SetSpanContext(span.Context())
+		e.SetSpanContext(span.GetContext())
 	}
 	p.outputs.Send(&e)
 }
 
-func (p *K8sProcessor) processNamespace(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNamespace(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var namespace *corev1.Namespace
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &namespace); err != nil {
-
 			log.Error("Couldn't unmarshal namespace object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -96,14 +97,14 @@ func (p *K8sProcessor) processNamespace(span opentracing.Span, channel string, a
 	p.sendEvent(span, channel, ar, name, namespace)
 }
 
-func (p *K8sProcessor) processNode(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNode(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var node *corev1.Node
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &node); err != nil {
-
 			log.Error("Couldn't unmarshal node object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -116,14 +117,14 @@ func (p *K8sProcessor) processNode(span opentracing.Span, channel string, ar *ad
 	p.sendEvent(span, channel, ar, name, node)
 }
 
-func (p *K8sProcessor) processReplicaSet(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processReplicaSet(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var replicaSet *appsv1.ReplicaSet
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &replicaSet); err != nil {
-
 			log.Error("Couldn't unmarshal replicaSet object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -138,14 +139,14 @@ func (p *K8sProcessor) processReplicaSet(span opentracing.Span, channel string, 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
 }
 
-func (p *K8sProcessor) processStatefulSet(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processStatefulSet(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var statefulSet *appsv1.StatefulSet
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &statefulSet); err != nil {
-
 			log.Error("Couldn't unmarshal statefulSet object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -160,14 +161,14 @@ func (p *K8sProcessor) processStatefulSet(span opentracing.Span, channel string,
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
 }
 
-func (p *K8sProcessor) processDaemonSet(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDaemonSet(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var daemonSet *appsv1.DaemonSet
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &daemonSet); err != nil {
-
 			log.Error("Couldn't unmarshal daemonSet object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -183,14 +184,14 @@ func (p *K8sProcessor) processDaemonSet(span opentracing.Span, channel string, a
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
 }
 
-func (p *K8sProcessor) processSecret(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processSecret(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var secret *corev1.Secret
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &secret); err != nil {
-
 			log.Error("Couldn't unmarshal secret object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -205,14 +206,14 @@ func (p *K8sProcessor) processSecret(span opentracing.Span, channel string, ar *
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
 }
 
-func (p *K8sProcessor) processIngress(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processIngress(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var ingress *netv1beta1.Ingress
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &ingress); err != nil {
-
 			log.Error("Couldn't unmarshal ingress object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -227,14 +228,14 @@ func (p *K8sProcessor) processIngress(span opentracing.Span, channel string, ar 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
 }
 
-func (p *K8sProcessor) processJob(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processJob(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var job *batchv1.Job
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &job); err != nil {
-
 			log.Error("Couldn't unmarshal job object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -249,14 +250,14 @@ func (p *K8sProcessor) processJob(span opentracing.Span, channel string, ar *adm
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
 }
 
-func (p *K8sProcessor) processCronJob(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processCronJob(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var cronJob *batchv1beta.CronJob
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &cronJob); err != nil {
-
 			log.Error("Couldn't unmarshal cronjob object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -271,14 +272,14 @@ func (p *K8sProcessor) processCronJob(span opentracing.Span, channel string, ar 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
 }
 
-func (p *K8sProcessor) processConfigMap(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processConfigMap(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var configMap *corev1.ConfigMap
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &configMap); err != nil {
-
 			log.Error("Couldn't unmarshal configMap object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -293,14 +294,14 @@ func (p *K8sProcessor) processConfigMap(span opentracing.Span, channel string, a
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
 }
 
-func (p *K8sProcessor) processRole(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processRole(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var role *rbacv1.Role
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &role); err != nil {
-
 			log.Error("Couldn't unmarshal role object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -315,14 +316,14 @@ func (p *K8sProcessor) processRole(span opentracing.Span, channel string, ar *ad
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
 }
 
-func (p *K8sProcessor) processDeployment(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDeployment(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var deployment *appsv1.Deployment
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &deployment); err != nil {
-
 			log.Error("Couldn't unmarshal deployment object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -337,14 +338,14 @@ func (p *K8sProcessor) processDeployment(span opentracing.Span, channel string, 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
 }
 
-func (p *K8sProcessor) processService(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processService(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var service *corev1.Service
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &service); err != nil {
-
 			log.Error("Couldn't unmarshal service object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -359,14 +360,14 @@ func (p *K8sProcessor) processService(span opentracing.Span, channel string, ar 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
 }
 
-func (p *K8sProcessor) processPod(span opentracing.Span, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processPod(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var pod *corev1.Pod
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &pod); err != nil {
-
 			log.Error("Couldn't unmarshal pod object: %v", err)
+			span.Error(err)
 		}
 	}
 
@@ -383,27 +384,21 @@ func (p *K8sProcessor) processPod(span opentracing.Span, channel string, ar *adm
 
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 
+	span := p.tracer.StartChildSpanFrom(r.Header)
+	defer span.Finish()
+
 	var body []byte
-
-	var span opentracing.Span
-	spanConext, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-	if err == nil {
-		span = common.TracerStartSpanChildOf(spanConext)
-		defer span.Finish()
-	}
-
 	if r.Body != nil {
-
 		if data, err := ioutil.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
 
 	if len(body) == 0 {
-
-		log.Error("Empty body")
-		http.Error(w, "empty body", http.StatusBadRequest)
-		common.TracerSpanError(span, err)
+		err := errors.New("Empty body")
+		log.Error(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		span.Error(err)
 		return
 	}
 
@@ -414,8 +409,7 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		log.Error("Content-Type=%s, expect application/json", contentType)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		common.TracerSpanError(span, err)
-		//span.Finish()
+		span.Error(errors.New("Invalid content type"))
 		return
 	}
 
@@ -424,11 +418,7 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 
 		log.Error("Can't decode body: %v", err)
-		common.TracerSpanError(span, err)
-		/*span.SetTag("error", true)
-		span.LogFields(
-			opentracingLog.Error(err),
-		)*/
+		span.Error(err)
 
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Result: &metav1.Status{
@@ -493,21 +483,19 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		log.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
-		common.TracerSpanError(span, err)
+		span.Error(err)
 	}
 
 	if _, err := w.Write(resp); err != nil {
 
 		log.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
-		common.TracerSpanError(span, err)
+		span.Error(err)
 	}
-
-	//span.Finish()
 }
 
-func NewK8sProcessor(outputs *common.Outputs) *K8sProcessor {
-	return &K8sProcessor{outputs: outputs}
+func NewK8sProcessor(outputs *common.Outputs, tracer common.Tracer) *K8sProcessor {
+	return &K8sProcessor{outputs: outputs, tracer: tracer}
 }
 
 func init() {

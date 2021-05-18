@@ -38,15 +38,20 @@ type SlackOutput struct {
 	selector *render.TextTemplate
 	grafana  *render.Grafana
 	options  SlackOutputOptions
+	tracer   common.Tracer
 }
 
-func (s *SlackOutput) post(URL, contentType string, body bytes.Buffer, message string) error {
+func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
+
+	span := s.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	log.Debug("Post to Slack (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -54,6 +59,7 @@ func (s *SlackOutput) post(URL, contentType string, body bytes.Buffer, message s
 
 	resp, err := s.client.Do(req)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -61,6 +67,7 @@ func (s *SlackOutput) post(URL, contentType string, body bytes.Buffer, message s
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -71,7 +78,10 @@ func (s *SlackOutput) post(URL, contentType string, body bytes.Buffer, message s
 	return nil
 }
 
-func (s *SlackOutput) sendMessage(URL, message, title, content string) error {
+func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message, title, content string) error {
+
+	span := s.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
@@ -82,30 +92,37 @@ func (s *SlackOutput) sendMessage(URL, message, title, content string) error {
 	}()
 
 	if err := w.WriteField("initial_comment", message); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("title", title); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("content", content); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
+		span.Error(err)
 		return err
 	}
 
-	return s.post(URL, w.FormDataContentType(), body, message)
+	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (s *SlackOutput) sendErrorMessage(URL, message, title string, err error) error {
+func (s *SlackOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL, message, title string, err error) error {
 
-	return s.sendMessage(URL, message, title, err.Error())
+	return s.sendMessage(spanCtx, URL, message, title, err.Error())
 }
 
-func (s *SlackOutput) sendPhoto(URL, message, fileName, title string, photo []byte) error {
+func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName, title string, photo []byte) error {
+
+	span := s.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	var body bytes.Buffer
 	w := multipart.NewWriter(&body)
@@ -116,33 +133,42 @@ func (s *SlackOutput) sendPhoto(URL, message, fileName, title string, photo []by
 	}()
 
 	if err := w.WriteField("initial_comment", message); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("title", title); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	fw, err := w.CreateFormFile("file", fileName)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if _, err := fw.Write(photo); err != nil {
+		span.Error(err)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
+		span.Error(err)
 		return err
 	}
 
-	return s.post(URL, w.FormDataContentType(), body, message)
+	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(URL, message string, alert template.Alert) error {
+func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
+
+	span := s.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -153,7 +179,9 @@ func (s *SlackOutput) sendAlertmanagerImage(URL, message string, alert template.
 
 	query, ok := alert.Labels[s.options.AlertExpression]
 	if !ok {
-		return errors.New("No alert expression")
+		err := errors.New("No alert expression")
+		span.Error(err)
+		return err
 	}
 
 	caption := alert.Labels["alertname"]
@@ -167,6 +195,7 @@ func (s *SlackOutput) sendAlertmanagerImage(URL, message string, alert template.
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
+		span.Error(err)
 		return err
 	}
 
@@ -185,17 +214,18 @@ func (s *SlackOutput) sendAlertmanagerImage(URL, message string, alert template.
 	}
 
 	if s.grafana == nil {
-		return s.sendMessage(URL, message, query, "No image")
+		return s.sendMessage(span.GetContext(), URL, message, query, "No image")
 	}
 
-	photo, fileName, err := s.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
+	photo, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		log.Error(err)
-		s.sendErrorMessage(URL, message, query, err)
+		span.Error(err)
+		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
 		return nil
 	}
 
-	return s.sendPhoto(URL, message, fileName, query, photo)
+	return s.sendPhoto(span.GetContext(), URL, message, fileName, query, photo)
 }
 
 func (s *SlackOutput) Send(event *common.Event) {
@@ -214,20 +244,20 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := common.TracerStartSpanFollowsFrom(event.GetSpanContext())
+		span := s.tracer.StartFollowSpanFrom(event.GetSpanContext())
 		defer span.Finish()
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
@@ -245,14 +275,14 @@ func (s *SlackOutput) Send(event *common.Event) {
 		if common.IsEmpty(URLs) {
 			err := errors.New("Slack URLs are not found")
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
 		b, err := s.message.Execute(jsonObject)
 		if err != nil {
 			log.Error(err)
-			common.TracerSpanError(span, err)
+			span.Error(err)
 			return
 		}
 
@@ -273,12 +303,12 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "K8sEvent":
-				s.sendMessage(URL, message, "No title", "No image")
+				s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
 			case "AlertmanagerEvent":
 
-				if err := s.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
+				if err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
 					log.Error(err)
-					s.sendErrorMessage(URL, message, "No title", err)
+					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
 				}
 			}
 		}
@@ -288,7 +318,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	grafanaOptions render.GrafanaOptions) *SlackOutput {
+	grafanaOptions render.GrafanaOptions,
+	tracer common.Tracer) *SlackOutput {
 
 	if common.IsEmpty(options.URL) {
 		log.Debug("Slack URL is not defined. Skipped")
@@ -300,8 +331,9 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		client:   common.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options),
 		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options),
-		grafana:  render.NewGrafana(grafanaOptions),
+		grafana:  render.NewGrafana(grafanaOptions, tracer),
 		options:  options,
+		tracer:   tracer,
 	}
 }
 

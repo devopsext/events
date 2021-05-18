@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"time"
 
 	"sync"
 	"syscall"
@@ -16,13 +15,10 @@ import (
 	"github.com/devopsext/events/input"
 	"github.com/devopsext/events/output"
 	"github.com/devopsext/events/render"
+	tracer "github.com/devopsext/events/tracer"
 	utils "github.com/devopsext/utils"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"github.com/uber/jaeger-client-go"
-	jaegerConfig "github.com/uber/jaeger-client-go/config"
-	"github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
 var VERSION = "unknown"
@@ -37,15 +33,6 @@ type rootOptions struct {
 
 	PrometheusURL    string
 	PrometheusListen string
-
-	JaegerServiceName         string
-	JaegerAgentHost           string
-	JaegerAgentPort           int
-	JaegerEndpoint            string
-	JaegerUser                string
-	JaegerPassword            string
-	JaegerBufferFlushInterval int
-	JaegerQueueSize           int
 }
 
 var rootOpts = rootOptions{
@@ -56,15 +43,6 @@ var rootOpts = rootOptions{
 
 	PrometheusURL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
 	PrometheusListen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
-
-	JaegerServiceName:         env.Get("EVENTS_JAEGER_SERVICE_NAME", "events").(string),
-	JaegerAgentHost:           env.Get("EVENTS_JAEGER_AGENT_HOST", "").(string),
-	JaegerAgentPort:           env.Get("EVENTS_JAEGER_AGENT_PORT", 6831).(int),
-	JaegerEndpoint:            env.Get("EVENTS_JAEGER_ENDPOINT", "").(string),
-	JaegerUser:                env.Get("EVENTS_JAEGER_USER", "").(string),
-	JaegerPassword:            env.Get("EVENTS_JAEGER_PASSWORD", "").(string),
-	JaegerBufferFlushInterval: env.Get("EVENTS_JAEGER_BUFFER_FLUSH_INTERVAL", 0).(int),
-	JaegerQueueSize:           env.Get("EVENTS_JAEGER_QUEUE_SIZE", 0).(int),
 }
 
 var textTemplateOptions = render.TextTemplateOptions{
@@ -145,6 +123,17 @@ var grafanaOptions = render.GrafanaOptions{
 	ImageHeight: env.Get("EVENTS_GRAFANA_IMAGE_HEIGHT", 640).(int),
 }
 
+var jaegerOptions = tracer.JaegerOptions{
+	ServiceName:         env.Get("EVENTS_JAEGER_SERVICE_NAME", "events").(string),
+	AgentHost:           env.Get("EVENTS_JAEGER_AGENT_HOST", "").(string),
+	AgentPort:           env.Get("EVENTS_JAEGER_AGENT_PORT", 6831).(int),
+	Endpoint:            env.Get("EVENTS_JAEGER_ENDPOINT", "").(string),
+	User:                env.Get("EVENTS_JAEGER_USER", "").(string),
+	Password:            env.Get("EVENTS_JAEGER_PASSWORD", "").(string),
+	BufferFlushInterval: env.Get("EVENTS_JAEGER_BUFFER_FLUSH_INTERVAL", 0).(int),
+	QueueSize:           env.Get("EVENTS_JAEGER_QUEUE_SIZE", 0).(int),
+}
+
 func startMetrics(wg *sync.WaitGroup) {
 
 	wg.Add(1)
@@ -170,40 +159,6 @@ func startMetrics(wg *sync.WaitGroup) {
 		}
 
 	}(wg)
-}
-
-func startTracing() {
-
-	disabled := utils.IsEmpty(rootOpts.JaegerAgentHost) && utils.IsEmpty(rootOpts.JaegerEndpoint)
-
-	cfg := &jaegerConfig.Configuration{
-
-		ServiceName: rootOpts.JaegerServiceName,
-		Disabled:    disabled,
-
-		Sampler: &jaegerConfig.SamplerConfig{
-			Type:  "const",
-			Param: 1,
-		},
-
-		Reporter: &jaegerConfig.ReporterConfig{
-			LogSpans:            true,
-			User:                rootOpts.JaegerUser,
-			Password:            rootOpts.JaegerPassword,
-			LocalAgentHostPort:  fmt.Sprintf("%s:%d", rootOpts.JaegerAgentHost, rootOpts.JaegerAgentPort),
-			CollectorEndpoint:   rootOpts.JaegerEndpoint,
-			BufferFlushInterval: time.Duration(rootOpts.JaegerBufferFlushInterval) * time.Second,
-			QueueSize:           rootOpts.JaegerQueueSize,
-		},
-	}
-
-	metricsFactory := prometheus.New()
-	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory), jaegerConfig.Logger(jaeger.StdLogger))
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	opentracing.SetGlobalTracer(tracer)
 }
 
 func interceptSyscall() {
@@ -235,9 +190,10 @@ func Execute() {
 			var wg sync.WaitGroup
 
 			startMetrics(&wg)
-			startTracing()
 
-			var httpInput common.Input = input.NewHttpInput(httpInputOptions)
+			var t common.Tracer = tracer.NewJaeger(jaegerOptions)
+
+			var httpInput common.Input = input.NewHttpInput(httpInputOptions, t)
 			if reflect.ValueOf(httpInput).IsNil() {
 				log.Panic("Http input is invalid. Terminating...")
 			}
@@ -247,35 +203,35 @@ func Execute() {
 
 			outputs := common.NewOutputs(textTemplateOptions.TimeFormat)
 
-			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions)
+			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions, t)
 			if reflect.ValueOf(collectorOutput).IsNil() {
 				log.Warn("Collector output is invalid. Skipping...")
 			} else {
 				outputs.Add(&collectorOutput)
 			}
 
-			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions)
+			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions, t)
 			if reflect.ValueOf(kafkaOutput).IsNil() {
 				log.Warn("Kafka output is invalid. Skipping...")
 			} else {
 				outputs.Add(&kafkaOutput)
 			}
 
-			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions)
+			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions, t)
 			if reflect.ValueOf(telegramOutput).IsNil() {
 				log.Warn("Telegram output is invalid. Skipping...")
 			} else {
 				outputs.Add(&telegramOutput)
 			}
 
-			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions)
+			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions, t)
 			if reflect.ValueOf(slackOutput).IsNil() {
 				log.Warn("Slack output is invalid. Skipping...")
 			} else {
 				outputs.Add(&slackOutput)
 			}
 
-			var workchatOutput common.Output = output.NewWorkchatOutput(&wg, workchatOutputOptions, textTemplateOptions, grafanaOptions)
+			var workchatOutput common.Output = output.NewWorkchatOutput(&wg, workchatOutputOptions, textTemplateOptions, grafanaOptions, t)
 			if reflect.ValueOf(workchatOutput).IsNil() {
 				log.Warn("Workchat output is invalid. Skipping...")
 			} else {
@@ -296,14 +252,14 @@ func Execute() {
 	flags.StringVar(&rootOpts.PrometheusURL, "prometheus-url", rootOpts.PrometheusURL, "Prometheus endpoint url")
 	flags.StringVar(&rootOpts.PrometheusListen, "prometheus-listen", rootOpts.PrometheusListen, "Prometheus listen")
 
-	flags.StringVar(&rootOpts.JaegerServiceName, "jaeger-service-name", rootOpts.JaegerServiceName, "Jaeger service name")
-	flags.StringVar(&rootOpts.JaegerAgentHost, "jaeger-agent-host", rootOpts.JaegerAgentHost, "Jaeger agent host")
-	flags.IntVar(&rootOpts.JaegerAgentPort, "jaeger-agent-port", rootOpts.JaegerAgentPort, "Jaeger agent port")
-	flags.StringVar(&rootOpts.JaegerEndpoint, "jaeger-endpoint", rootOpts.JaegerEndpoint, "Jaeger endpoint")
-	flags.StringVar(&rootOpts.JaegerUser, "jaeger-user", rootOpts.JaegerUser, "Jaeger user")
-	flags.StringVar(&rootOpts.JaegerPassword, "jaeger-password", rootOpts.JaegerPassword, "Jaeger password")
-	flags.IntVar(&rootOpts.JaegerBufferFlushInterval, "jaeger-buffer-flush-interval", rootOpts.JaegerBufferFlushInterval, "Jaeger buffer flush interval")
-	flags.IntVar(&rootOpts.JaegerQueueSize, "jaeger-queue-size", rootOpts.JaegerQueueSize, "Jaeger queue size")
+	flags.StringVar(&jaegerOptions.ServiceName, "jaeger-service-name", jaegerOptions.ServiceName, "Jaeger service name")
+	flags.StringVar(&jaegerOptions.AgentHost, "jaeger-agent-host", jaegerOptions.AgentHost, "Jaeger agent host")
+	flags.IntVar(&jaegerOptions.AgentPort, "jaeger-agent-port", jaegerOptions.AgentPort, "Jaeger agent port")
+	flags.StringVar(&jaegerOptions.Endpoint, "jaeger-endpoint", jaegerOptions.Endpoint, "Jaeger endpoint")
+	flags.StringVar(&jaegerOptions.User, "jaeger-user", jaegerOptions.User, "Jaeger user")
+	flags.StringVar(&jaegerOptions.Password, "jaeger-password", jaegerOptions.Password, "Jaeger password")
+	flags.IntVar(&jaegerOptions.BufferFlushInterval, "jaeger-buffer-flush-interval", jaegerOptions.BufferFlushInterval, "Jaeger buffer flush interval")
+	flags.IntVar(&jaegerOptions.QueueSize, "jaeger-queue-size", jaegerOptions.QueueSize, "Jaeger queue size")
 
 	flags.StringVar(&textTemplateOptions.TimeFormat, "template-time-format", textTemplateOptions.TimeFormat, "Template time format")
 

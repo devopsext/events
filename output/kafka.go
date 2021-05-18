@@ -36,6 +36,7 @@ type KafkaOutput struct {
 	producer *sarama.AsyncProducer
 	message  *render.TextTemplate
 	options  KafkaOutputOptions
+	tracer   common.Tracer
 }
 
 func (k *KafkaOutput) Send(event *common.Event) {
@@ -49,17 +50,23 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			return
 		}
 
+		if event == nil {
+			log.Error(errors.New("Event is empty"))
+			return
+		}
+
+		span := k.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		defer span.Finish()
+
 		b, err := k.message.Execute(event)
 		if err != nil {
-
 			log.Error(err)
+			span.Error(err)
 			return
 		}
 
 		message := b.String()
-
 		if common.IsEmpty(message) {
-
 			log.Debug("Message to Kafka is empty")
 			return
 		}
@@ -101,7 +108,7 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 	return &producer
 }
 
-func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions) *KafkaOutput {
+func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions, tracer common.Tracer) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
@@ -125,6 +132,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config),
 		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options),
 		options:  options,
+		tracer:   tracer,
 	}
 }
 

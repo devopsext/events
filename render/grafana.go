@@ -41,6 +41,7 @@ type GrafanaAliasColors struct {
 type Grafana struct {
 	client  *http.Client
 	options GrafanaOptions
+	tracer  common.Tracer
 }
 
 func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string) *sdk.Board {
@@ -100,7 +101,11 @@ func (g *Grafana) renderImage(imageURL string, apiKey string) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (g *Grafana) GenerateDashboard(title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
+func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
+	title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
+
+	span := g.tracer.StartChildSpanFrom(spanCtx)
+	defer span.Finish()
 
 	period := g.options.Period
 	if minutes != nil {
@@ -232,6 +237,7 @@ func (g *Grafana) GenerateDashboard(title string, metric string, operator string
 	status, err := c.SetDashboard(ctx, *board, params)
 	if err != nil {
 		log.Error(err)
+		span.Error(err)
 		return nil, "", err
 	}
 
@@ -247,16 +253,21 @@ func (g *Grafana) GenerateDashboard(title string, metric string, operator string
 		bytes, err := g.renderImage(URL, g.options.ApiKey)
 		if err != nil {
 			log.Error(err)
+			span.Error(err)
 			return nil, "", err
 		}
 
 		_, err = c.DeleteDashboard(ctx, *status.Slug)
 		if err != nil {
 			log.Error(err)
+			span.Error(err)
 		}
 		return bytes, URL, nil
 	}
-	return nil, "", errors.New("panel is not found")
+
+	err = errors.New("panel is not found")
+	span.Error(err)
+	return nil, "", err
 }
 
 func makeClient(url string, timeout int) *http.Client {
@@ -281,7 +292,7 @@ func makeClient(url string, timeout int) *http.Client {
 	return client
 }
 
-func NewGrafana(options GrafanaOptions) *Grafana {
+func NewGrafana(options GrafanaOptions, tracer common.Tracer) *Grafana {
 
 	if common.IsEmpty(options.URL) {
 		log.Debug("Grafana URL is not defined. Skipped")
@@ -291,6 +302,7 @@ func NewGrafana(options GrafanaOptions) *Grafana {
 	return &Grafana{
 		client:  common.MakeHttpClient(options.Timeout),
 		options: options,
+		tracer:  tracer,
 	}
 }
 
