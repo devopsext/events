@@ -48,7 +48,7 @@ type WorkchatOutput struct {
 
 func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
 
-	span := w.tracer.StartChildSpanFrom(spanCtx)
+	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	log.Debug("Post to Workchat (%s) => %s", URL, message)
@@ -92,7 +92,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message string) error {
 
-	span := w.tracer.StartChildSpanFrom(spanCtx)
+	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	var body bytes.Buffer
@@ -144,7 +144,7 @@ func (w *WorkchatOutput) createFormFile(writer *multipart.Writer, fieldname, fil
 
 func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName string, photo []byte) error {
 
-	span := w.tracer.StartChildSpanFrom(spanCtx)
+	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	var body bytes.Buffer
@@ -188,7 +188,7 @@ func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 
 func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
 
-	span := w.tracer.StartChildSpanFrom(spanCtx)
+	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
@@ -270,7 +270,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := w.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		span := w.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
 		if event.Data == nil {

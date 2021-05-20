@@ -86,7 +86,7 @@ func (t *TelegramOutput) getSendPhotoURL(URL string) string {
 
 func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
 
-	span := t.tracer.StartChildSpanFrom(spanCtx)
+	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	log.Debug("Post to Telegram (%s) => %s", URL, message)
@@ -123,7 +123,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 func (t *TelegramOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message string) error {
 
-	span := t.tracer.StartChildSpanFrom(spanCtx)
+	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	var body bytes.Buffer
@@ -168,7 +168,7 @@ func (t *TelegramOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL,
 
 func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName string, photo []byte) error {
 
-	span := t.tracer.StartChildSpanFrom(spanCtx)
+	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	var body bytes.Buffer
@@ -220,7 +220,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 
 func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
 
-	span := t.tracer.StartChildSpanFrom(spanCtx)
+	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
@@ -301,7 +301,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := t.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		span := t.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
 		if event.Data == nil {

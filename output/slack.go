@@ -43,7 +43,7 @@ type SlackOutput struct {
 
 func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
 
-	span := s.tracer.StartChildSpanFrom(spanCtx)
+	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	log.Debug("Post to Slack (%s) => %s", URL, message)
@@ -80,7 +80,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 
 func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message, title, content string) error {
 
-	span := s.tracer.StartChildSpanFrom(spanCtx)
+	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	var body bytes.Buffer
@@ -121,7 +121,7 @@ func (s *SlackOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL, me
 
 func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName, title string, photo []byte) error {
 
-	span := s.tracer.StartChildSpanFrom(spanCtx)
+	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	var body bytes.Buffer
@@ -163,7 +163,7 @@ func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, 
 
 func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
 
-	span := s.tracer.StartChildSpanFrom(spanCtx)
+	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
@@ -243,7 +243,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := s.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		span := s.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
 		if event.Data == nil {

@@ -44,7 +44,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := c.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		span := c.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
 		b, err := c.message.Execute(event)

@@ -50,7 +50,7 @@ func (p *AlertmanagerProcessor) processData(span common.TracerSpan, channel stri
 
 func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 
-	span := p.tracer.StartChildSpanFrom(r.Header)
+	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
 
 	var body []byte

@@ -55,7 +55,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := k.tracer.StartFollowSpanFrom(event.GetSpanContext())
+		span := k.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
 		b, err := k.message.Execute(event)
