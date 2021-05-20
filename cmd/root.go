@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 
 	"sync"
 	"syscall"
@@ -14,8 +15,8 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/input"
 	"github.com/devopsext/events/output"
+	"github.com/devopsext/events/provider"
 	"github.com/devopsext/events/render"
-	tracer "github.com/devopsext/events/tracer"
 	utils "github.com/devopsext/utils"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
@@ -23,10 +24,17 @@ import (
 
 var VERSION = "unknown"
 
-var log = utils.GetLog()
-var env = utils.GetEnvironment()
+//var log = utils.GetLog()
 
-type rootOptions struct {
+var env = utils.GetEnvironment()
+var logs = common.NewLogs()
+var traces = common.NewTraces()
+
+type RootOptions struct {
+	Logs    []string
+	Metrics string
+	Traces  []string
+
 	LogFormat   string
 	LogLevel    string
 	LogTemplate string
@@ -35,7 +43,11 @@ type rootOptions struct {
 	PrometheusListen string
 }
 
-var rootOpts = rootOptions{
+var rootOptions = RootOptions{
+
+	Logs:    strings.Split(env.Get("EVENTS_LOGS", "stdout").(string), ","),
+	Metrics: env.Get("EVENTS_METRICS", "prometheus").(string),
+	Traces:  strings.Split(env.Get("EVENTS_TRACES", "").(string), ","),
 
 	LogFormat:   env.Get("EVENTS_LOG_FORMAT", "text").(string),
 	LogLevel:    env.Get("EVENTS_LOG_LEVEL", "info").(string),
@@ -123,7 +135,7 @@ var grafanaOptions = render.GrafanaOptions{
 	ImageHeight: env.Get("EVENTS_GRAFANA_IMAGE_HEIGHT", 640).(int),
 }
 
-var jaegerOptions = tracer.JaegerOptions{
+var jaegerOptions = provider.JaegerOptions{
 	ServiceName:         env.Get("EVENTS_JAEGER_SERVICE_NAME", "events").(string),
 	AgentHost:           env.Get("EVENTS_JAEGER_AGENT_HOST", "").(string),
 	AgentPort:           env.Get("EVENTS_JAEGER_AGENT_PORT", 6831).(int),
@@ -135,8 +147,10 @@ var jaegerOptions = tracer.JaegerOptions{
 	Tags:                env.Get("EVENTS_JAEGER_TAGS", "").(string),
 }
 
-var datadogOptions = tracer.DataDogOptions{
-	Host: env.Get("EVENTS_DATADOG_HOST", "").(string),
+var datadogOptions = provider.DataDogOptions{
+	TracerHost:  env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
+	TracerPort:  env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
+	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "").(string),
 }
 
 func startMetrics(wg *sync.WaitGroup) {
@@ -147,20 +161,20 @@ func startMetrics(wg *sync.WaitGroup) {
 
 		defer wg.Done()
 
-		log.Info("Start metrics...")
+		//log.Info("Start metrics...")
 
-		http.Handle(rootOpts.PrometheusURL, promhttp.Handler())
+		http.Handle(rootOptions.PrometheusURL, promhttp.Handler())
 
-		listener, err := net.Listen("tcp", rootOpts.PrometheusListen)
+		listener, err := net.Listen("tcp", rootOptions.PrometheusListen)
 		if err != nil {
-			log.Panic(err)
+			//log.Panic(err)
 		}
 
-		log.Info("Metrics are up. Listening...")
+		//log.Info("Metrics are up. Listening...")
 
 		err = http.Serve(listener, nil)
 		if err != nil {
-			log.Panic(err)
+			//log.Panic(err)
 		}
 
 	}(wg)
@@ -172,7 +186,7 @@ func interceptSyscall() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
 	go func() {
 		<-c
-		log.Info("Exiting...")
+		//log.Info("Exiting...")
 		os.Exit(1)
 	}()
 }
@@ -184,24 +198,33 @@ func Execute() {
 		Short: "Events",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
-			log.CallInfo = true
-			log.Init(rootOpts.LogFormat, rootOpts.LogLevel, rootOpts.LogTemplate)
+			//log.CallInfo = true
+			//log.Init(rootOptions.LogFormat, rootOptions.LogLevel, rootOptions.LogTemplate)
 
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
-			log.Info("Booting...")
-
 			var wg sync.WaitGroup
+
+			if common.HasElem(rootOptions.Traces, "jaeger") {
+				jaeger := provider.NewJaeger(jaegerOptions)
+				jaeger.SetCallerOffset(1)
+				traces.Register(jaeger)
+			}
+
+			if common.HasElem(rootOptions.Traces, "datadog") {
+				datadog := provider.NewDataDog(datadogOptions)
+				datadog.SetCallerOffset(1)
+				traces.Register(datadog)
+			}
+
+			//log.Info("Booting...")
 
 			startMetrics(&wg)
 
-			var t common.Tracer = tracer.NewJaeger(jaegerOptions)
-			//var t common.Tracer = tracer.NewDataDog(datadogOptions)
-
-			var httpInput common.Input = input.NewHttpInput(httpInputOptions, t)
+			var httpInput common.Input = input.NewHttpInput(httpInputOptions, traces)
 			if reflect.ValueOf(httpInput).IsNil() {
-				log.Panic("Http input is invalid. Terminating...")
+				//	log.Panic("Http input is invalid. Terminating...")
 			}
 
 			inputs := common.NewInputs()
@@ -209,37 +232,37 @@ func Execute() {
 
 			outputs := common.NewOutputs(textTemplateOptions.TimeFormat)
 
-			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions, t)
+			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions, traces)
 			if reflect.ValueOf(collectorOutput).IsNil() {
-				log.Warn("Collector output is invalid. Skipping...")
+				//	log.Warn("Collector output is invalid. Skipping...")
 			} else {
 				outputs.Add(&collectorOutput)
 			}
 
-			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions, t)
+			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions, traces)
 			if reflect.ValueOf(kafkaOutput).IsNil() {
-				log.Warn("Kafka output is invalid. Skipping...")
+				//	log.Warn("Kafka output is invalid. Skipping...")
 			} else {
 				outputs.Add(&kafkaOutput)
 			}
 
-			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions, t)
+			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions, traces)
 			if reflect.ValueOf(telegramOutput).IsNil() {
-				log.Warn("Telegram output is invalid. Skipping...")
+				//log.Warn("Telegram output is invalid. Skipping...")
 			} else {
 				outputs.Add(&telegramOutput)
 			}
 
-			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions, t)
+			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions, traces)
 			if reflect.ValueOf(slackOutput).IsNil() {
-				log.Warn("Slack output is invalid. Skipping...")
+				//log.Warn("Slack output is invalid. Skipping...")
 			} else {
 				outputs.Add(&slackOutput)
 			}
 
-			var workchatOutput common.Output = output.NewWorkchatOutput(&wg, workchatOutputOptions, textTemplateOptions, grafanaOptions, t)
+			var workchatOutput common.Output = output.NewWorkchatOutput(&wg, workchatOutputOptions, textTemplateOptions, grafanaOptions, traces)
 			if reflect.ValueOf(workchatOutput).IsNil() {
-				log.Warn("Workchat output is invalid. Skipping...")
+				//log.Warn("Workchat output is invalid. Skipping...")
 			} else {
 				outputs.Add(&workchatOutput)
 			}
@@ -251,12 +274,16 @@ func Execute() {
 
 	flags := rootCmd.PersistentFlags()
 
-	flags.StringVar(&rootOpts.LogFormat, "log-format", rootOpts.LogFormat, "Log format: json, text, stdout")
-	flags.StringVar(&rootOpts.LogLevel, "log-level", rootOpts.LogLevel, "Log level: info, warn, error, debug, panic")
-	flags.StringVar(&rootOpts.LogTemplate, "log-template", rootOpts.LogTemplate, "Log template")
+	flags.StringSliceVar(&rootOptions.Logs, "logs", rootOptions.Logs, "Log providers: stdout, datadog")
+	flags.StringVar(&rootOptions.Metrics, "metrics", rootOptions.Metrics, "Metric providers")
+	flags.StringSliceVar(&rootOptions.Traces, "traces", rootOptions.Traces, "Trace providers: jaeger, datadog")
 
-	flags.StringVar(&rootOpts.PrometheusURL, "prometheus-url", rootOpts.PrometheusURL, "Prometheus endpoint url")
-	flags.StringVar(&rootOpts.PrometheusListen, "prometheus-listen", rootOpts.PrometheusListen, "Prometheus listen")
+	flags.StringVar(&rootOptions.LogFormat, "log-format", rootOptions.LogFormat, "Log format: json, text, stdout")
+	flags.StringVar(&rootOptions.LogLevel, "log-level", rootOptions.LogLevel, "Log level: info, warn, error, debug, panic")
+	flags.StringVar(&rootOptions.LogTemplate, "log-template", rootOptions.LogTemplate, "Log template")
+
+	flags.StringVar(&rootOptions.PrometheusURL, "prometheus-url", rootOptions.PrometheusURL, "Prometheus endpoint url")
+	flags.StringVar(&rootOptions.PrometheusListen, "prometheus-listen", rootOptions.PrometheusListen, "Prometheus listen")
 
 	flags.StringVar(&textTemplateOptions.TimeFormat, "template-time-format", textTemplateOptions.TimeFormat, "Template time format")
 
@@ -319,7 +346,9 @@ func Execute() {
 	flags.IntVar(&jaegerOptions.QueueSize, "jaeger-queue-size", jaegerOptions.QueueSize, "Jaeger queue size")
 	flags.StringVar(&jaegerOptions.Tags, "jaeger-tags", jaegerOptions.Tags, "Jaeger tags, comma separated list of name=value")
 
-	flags.StringVar(&datadogOptions.Host, "datadog-host", datadogOptions.Host, "DataDog host")
+	flags.StringVar(&datadogOptions.TracerHost, "datadog-tracer-host", datadogOptions.TracerHost, "DataDog tracer host")
+	flags.IntVar(&datadogOptions.TracerPort, "datadog-tracer-port", datadogOptions.TracerPort, "Datadog tracer port")
+	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name")
 
 	interceptSyscall()
 
@@ -332,7 +361,7 @@ func Execute() {
 	})
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Error(err)
+		//	log.Error(err)
 		os.Exit(1)
 	}
 }

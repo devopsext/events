@@ -384,7 +384,7 @@ func (p *K8sProcessor) processPod(span common.TracerSpan, channel string, ar *ad
 
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 
-	span := p.tracer.StartChildSpanFrom(r.Header)
+	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
 
 	var body []byte

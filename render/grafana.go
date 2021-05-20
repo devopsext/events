@@ -104,7 +104,7 @@ func (g *Grafana) renderImage(imageURL string, apiKey string) ([]byte, error) {
 func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 	title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
 
-	span := g.tracer.StartChildSpanFrom(spanCtx)
+	span := g.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	period := g.options.Period

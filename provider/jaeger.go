@@ -1,13 +1,10 @@
-package tracer
+package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
-	"path"
 	"reflect"
-	"runtime"
 	"strings"
 	"time"
 
@@ -44,9 +41,9 @@ type JaegerSpan struct {
 }
 
 type Jaeger struct {
-	options JaegerOptions
-	tracer  opentracing.Tracer
-	list    []*JaegerSpan
+	options      JaegerOptions
+	callerOffset int
+	tracer       opentracing.Tracer
 }
 
 type JaegerLogger struct {
@@ -74,12 +71,15 @@ func (js JaegerSpan) SetCarrier(object interface{}) common.TracerSpan {
 	}
 
 	if reflect.TypeOf(object) != reflect.TypeOf(http.Header{}) {
-		log.Error(errors.New("Other than http.Header is not supported yet"))
+		//log.Error(errors.New("Other than http.Header is not supported yet"))
 		return js
 	}
 
 	var h http.Header = object.(http.Header)
 	js.jaeger.tracer.Inject(js.span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	/*if err != nil {
+		log.Error(err)
+	}*/
 	return js
 }
 
@@ -143,10 +143,13 @@ func (js JaegerSpan) Error(err error) common.TracerSpan {
 		return nil
 	}
 
-	_, file, line := js.jaeger.GetCallerInfo(3)
+	_, file, line := common.GetCallerInfo(js.jaeger.callerOffset + 3)
 
 	js.SetTag("error", true)
-	js.LogFields(map[string]interface{}{"error.message": err.Error(), "error.line": fmt.Sprintf("%s:%d", file, line)})
+	js.LogFields(map[string]interface{}{
+		"error.message": err.Error(),
+		"error.line":    fmt.Sprintf("%s:%d", file, line),
+	})
 	return js
 }
 
@@ -157,43 +160,11 @@ func (js JaegerSpan) Finish() {
 	js.span.Finish()
 }
 
-func getLastPath(s string, limit int) string {
-
-	index := 0
-	dir := s
-	var arr []string
-
-	for !utils.IsEmpty(dir) {
-		if index >= limit {
-			break
-		}
-		index++
-		arr = append([]string{path.Base(dir)}, arr...)
-		dir = path.Dir(dir)
-	}
-
-	return path.Join(arr...)
-}
-
-func (j *Jaeger) GetCallerInfo(offset int) (string, string, int) {
-
-	pc := make([]uintptr, 15)
-	n := runtime.Callers(offset, pc)
-	frames := runtime.CallersFrames(pc[:n])
-	frame, _ := frames.Next()
-
-	function := getLastPath(frame.Function, 1)
-	file := getLastPath(frame.File, 2)
-	line := frame.Line
-
-	return function, file, line
-}
-
 func (j *Jaeger) startSpanFromContext(ctx context.Context, offset int, opts ...opentracing.StartSpanOption) (opentracing.Span, context.Context) {
 
-	operation, file, line := j.GetCallerInfo(offset)
+	operation, file, line := common.GetCallerInfo(offset)
 
-	span, context := opentracing.StartSpanFromContext(ctx, operation, opts...)
+	span, context := opentracing.StartSpanFromContextWithTracer(ctx, j.tracer, operation, opts...)
 	if span != nil {
 		span.SetTag("caller.line", fmt.Sprintf("%s:%d", file, line))
 	}
@@ -205,9 +176,9 @@ func (j *Jaeger) startChildOfSpan(ctx context.Context, spanContext opentracing.S
 	var span opentracing.Span
 	var context context.Context
 	if spanContext != nil {
-		span, context = j.startSpanFromContext(ctx, 5, opentracing.ChildOf(spanContext))
+		span, context = j.startSpanFromContext(ctx, j.callerOffset+5, opentracing.ChildOf(spanContext))
 	} else {
-		span, context = j.startSpanFromContext(ctx, 5)
+		span, context = j.startSpanFromContext(ctx, j.callerOffset+5)
 	}
 	return span, context
 }
@@ -217,16 +188,16 @@ func (j *Jaeger) startFollowsFromSpan(ctx context.Context, spanContext opentraci
 	var span opentracing.Span
 	var context context.Context
 	if spanContext != nil {
-		span, context = j.startSpanFromContext(ctx, 5, opentracing.FollowsFrom(spanContext))
+		span, context = j.startSpanFromContext(ctx, j.callerOffset+5, opentracing.FollowsFrom(spanContext))
 	} else {
-		span, context = j.startSpanFromContext(ctx, 5)
+		span, context = j.startSpanFromContext(ctx, j.callerOffset+5)
 	}
 	return span, context
 }
 
 func (j *Jaeger) StartSpan() common.TracerSpan {
 
-	s, ctx := j.startSpanFromContext(context.Background(), 4)
+	s, ctx := j.startSpanFromContext(context.Background(), j.callerOffset+4)
 	return JaegerSpan{
 		span:    s,
 		context: ctx,
@@ -240,7 +211,7 @@ func (j *Jaeger) getOpentracingSpanContext(object interface{}) opentracing.SpanC
 	if ok {
 		spanContext, err := j.tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 		if err != nil {
-			log.Error(err)
+			//log.Error(err)
 			return nil
 		}
 		return spanContext
@@ -253,7 +224,7 @@ func (j *Jaeger) getOpentracingSpanContext(object interface{}) opentracing.SpanC
 	return nil
 }
 
-func (j *Jaeger) StartChildSpanFrom(object interface{}) common.TracerSpan {
+func (j *Jaeger) StartChildSpan(object interface{}) common.TracerSpan {
 
 	spanContext := j.getOpentracingSpanContext(object)
 	if spanContext == nil {
@@ -268,7 +239,7 @@ func (j *Jaeger) StartChildSpanFrom(object interface{}) common.TracerSpan {
 	}
 }
 
-func (j *Jaeger) StartFollowSpanFrom(object interface{}) common.TracerSpan {
+func (j *Jaeger) StartFollowSpan(object interface{}) common.TracerSpan {
 
 	spanContext := j.getOpentracingSpanContext(object)
 	if spanContext == nil {
@@ -283,12 +254,12 @@ func (j *Jaeger) StartFollowSpanFrom(object interface{}) common.TracerSpan {
 	}
 }
 
-func (j *Jaeger) Stop() {
-	//
+func (j *Jaeger) SetCallerOffset(offset int) {
+	j.callerOffset = offset
 }
 
 func (jl *JaegerLogger) Error(msg string) {
-	log.Error(msg)
+	//	log.Error(msg)
 }
 
 func (jl *JaegerLogger) Infof(msg string, args ...interface{}) {
@@ -297,16 +268,17 @@ func (jl *JaegerLogger) Infof(msg string, args ...interface{}) {
 		return
 	}
 
-	msg = strings.TrimSpace(msg)
-	if args != nil {
-		log.Info(msg, args...)
-	} else {
-		log.Info(msg)
-	}
+	/*	msg = strings.TrimSpace(msg)
+		if args != nil {
+			log.Info(msg, args...)
+		} else {
+			log.Info(msg)
+		}*/
 }
 
 func parseTags(sTags string) []opentracing.Tag {
 
+	env := utils.GetEnvironment()
 	pairs := strings.Split(sTags, ",")
 	tags := make([]opentracing.Tag, 0)
 	for _, p := range pairs {
@@ -360,17 +332,18 @@ func newJaegerTracer(options JaegerOptions) opentracing.Tracer {
 	metricsFactory := prometheus.New()
 	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory), jaegerConfig.Logger(&JaegerLogger{}))
 	if err != nil {
-		log.Error(err)
+		//log.Error(err)
 		return opentracing.NoopTracer{}
 	}
-	opentracing.SetGlobalTracer(tracer)
+	opentracing.SetGlobalTracer(tracer) //?
 	return tracer
 }
 
 func NewJaeger(options JaegerOptions) *Jaeger {
 
 	return &Jaeger{
-		options: options,
-		tracer:  newJaegerTracer(options),
+		options:      options,
+		callerOffset: 0,
+		tracer:       newJaegerTracer(options),
 	}
 }
