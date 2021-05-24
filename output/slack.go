@@ -39,6 +39,7 @@ type SlackOutput struct {
 	grafana  *render.Grafana
 	options  SlackOutputOptions
 	tracer   common.Tracer
+	logger   common.Logger
 }
 
 func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
@@ -46,7 +47,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	log.Debug("Post to Slack (%s) => %s", URL, message)
+	s.logger.Debug("Post to Slack (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
@@ -73,7 +74,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 
 	//slackOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
-	log.Debug("Response from Slack => %s", string(b))
+	s.logger.Debug("Response from Slack => %s", string(b))
 
 	return nil
 }
@@ -87,7 +88,7 @@ func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			log.Warn("Failed to close writer")
+			s.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -128,7 +129,7 @@ func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, 
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			log.Warn("Failed to close writer")
+			s.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -219,7 +220,7 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, UR
 
 	photo, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		log.Error(err)
+		s.logger.Error(err)
 		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
 		return nil
 	}
@@ -234,12 +235,12 @@ func (s *SlackOutput) Send(event *common.Event) {
 		defer s.wg.Done()
 
 		if s.client == nil || s.message == nil {
-			log.Error(errors.New("No client or message"))
+			s.logger.Error(errors.New("No client or message"))
 			return
 		}
 
 		if event == nil {
-			log.Error(errors.New("Event is empty"))
+			s.logger.Error(errors.New("Event is empty"))
 			return
 		}
 
@@ -248,14 +249,14 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
-			log.Error(err)
+			s.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			log.Error(err)
+			s.logger.Error(err)
 			span.Error(err)
 			return
 		}
@@ -265,7 +266,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			b, err := s.selector.Execute(jsonObject)
 			if err != nil {
-				log.Error(err)
+				s.logger.Error(err)
 			} else {
 				URLs = b.String()
 			}
@@ -273,21 +274,21 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		if common.IsEmpty(URLs) {
 			err := errors.New("Slack URLs are not found")
-			log.Error(err)
+			s.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		b, err := s.message.Execute(jsonObject)
 		if err != nil {
-			log.Error(err)
+			s.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			log.Debug("Slack message is empty")
+			s.logger.Debug("Slack message is empty")
 			return
 		}
 
@@ -306,7 +307,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					log.Error(err)
+					s.logger.Error(err)
 					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
 				}
 			}
@@ -318,20 +319,22 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
+	logger common.Logger,
 	tracer common.Tracer) *SlackOutput {
 
 	if common.IsEmpty(options.URL) {
-		log.Debug("Slack URL is not defined. Skipped")
+		logger.Debug("Slack URL is not defined. Skipped")
 		return nil
 	}
 
 	return &SlackOutput{
 		wg:       wg,
 		client:   common.MakeHttpClient(options.Timeout),
-		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options),
-		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options),
-		grafana:  render.NewGrafana(grafanaOptions, tracer),
+		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
+		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer),
 		options:  options,
+		logger:   logger,
 		tracer:   tracer,
 	}
 }

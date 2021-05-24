@@ -8,6 +8,7 @@ import (
 type Outputs struct {
 	timeFormat string
 	list       []*Output
+	logger     Logger
 }
 
 func (ots *Outputs) Add(o *Output) {
@@ -19,7 +20,9 @@ func (ots *Outputs) Send(e *Event) {
 
 	if e == nil {
 
-		log.Warn("Event is not found")
+		if ots.logger != nil {
+			ots.logger.Warn("Event is not found")
+		}
 		return
 	}
 
@@ -34,11 +37,15 @@ func (ots *Outputs) Send(e *Event) {
 	json, err := json.Marshal(e)
 	if err != nil {
 
-		log.Error(err)
+		if ots.logger != nil {
+			ots.logger.Error(err)
+		}
 		return
 	}
 
-	log.Debug("Original event => %s", string(json))
+	if ots.logger != nil {
+		ots.logger.Debug("Original event => %s", string(json))
+	}
 
 	for _, o := range ots.list {
 
@@ -46,13 +53,16 @@ func (ots *Outputs) Send(e *Event) {
 
 			(*o).Send(e)
 		} else {
-			log.Warn("Output is not defined")
+			if ots.logger != nil {
+				ots.logger.Warn("Output is not defined")
+			}
 		}
 	}
 }
 
-func NewOutputs(timeFormat string) *Outputs {
+func NewOutputs(timeFormat string, logger Logger) *Outputs {
 	return &Outputs{
 		timeFormat: timeFormat,
+		logger:     logger,
 	}
 }

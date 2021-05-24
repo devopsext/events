@@ -21,6 +21,7 @@ var AlertmanagerProcessorRequests = prometheus.NewCounterVec(prometheus.CounterO
 type AlertmanagerProcessor struct {
 	outputs *common.Outputs
 	tracer  common.Tracer
+	logger  common.Logger
 }
 
 type AlertmanagerResponse struct {
@@ -63,18 +64,18 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	if len(body) == 0 {
 
 		err := errors.New("Empty body")
-		log.Error(err)
+		p.logger.Error(err)
 		http.Error(w, "empty body", http.StatusBadRequest)
 		span.Error(err)
 		return
 	}
 
-	log.Debug("Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 
-		log.Error("Content-Type=%s, expect application/json", contentType)
+		p.logger.Error("Content-Type=%s, expect application/json", contentType)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
 		span.Error(errors.New("Invalid content type"))
 		return
@@ -85,7 +86,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	data := template.Data{}
 	if err := json.Unmarshal(body, &data); err != nil {
 
-		log.Error("Can't decode body: %v", err)
+		p.logger.Error("Can't decode body: %v", err)
 		span.Error(err)
 
 		response = &AlertmanagerResponse{
@@ -103,22 +104,23 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		log.Error("Can't encode response: %v", err)
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		span.Error(err)
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		log.Error("Can't write response: %v", err)
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		span.Error(err)
 	}
 }
 
-func NewAlertmanagerProcessor(outputs *common.Outputs, tracer common.Tracer) *AlertmanagerProcessor {
+func NewAlertmanagerProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer) *AlertmanagerProcessor {
 	return &AlertmanagerProcessor{
 		outputs: outputs,
 		tracer:  tracer,
+		logger:  logger,
 	}
 }
 

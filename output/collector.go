@@ -26,6 +26,7 @@ type CollectorOutput struct {
 	connection *net.UDPConn
 	message    *render.TextTemplate
 	tracer     common.Tracer
+	logger     common.Logger
 }
 
 func (c *CollectorOutput) Send(event *common.Event) {
@@ -35,12 +36,12 @@ func (c *CollectorOutput) Send(event *common.Event) {
 		defer c.wg.Done()
 
 		if c.connection == nil || c.message == nil {
-			log.Error(errors.New("No connection or message"))
+			c.logger.Error(errors.New("No connection or message"))
 			return
 		}
 
 		if event == nil {
-			log.Error(errors.New("Event is empty"))
+			c.logger.Error(errors.New("Event is empty"))
 			return
 		}
 
@@ -49,22 +50,22 @@ func (c *CollectorOutput) Send(event *common.Event) {
 
 		b, err := c.message.Execute(event)
 		if err != nil {
-			log.Error(err)
+			c.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			log.Debug("Message to Collector is empty")
+			c.logger.Debug("Message to Collector is empty")
 			return
 		}
 
-		log.Debug("Message to Collector => %s", message)
+		c.logger.Debug("Message to Collector => %s", message)
 
 		_, err = c.connection.Write(b.Bytes())
 		if err != nil {
-			log.Error(err)
+			c.logger.Error(err)
 			span.Error(err)
 		}
 
@@ -72,43 +73,45 @@ func (c *CollectorOutput) Send(event *common.Event) {
 	}()
 }
 
-func makeCollectorOutputConnection(address string) *net.UDPConn {
+func makeCollectorOutputConnection(address string, logger common.Logger) *net.UDPConn {
 
 	if common.IsEmpty(address) {
 
-		log.Debug("Collector address is not defined. Skipped.")
+		logger.Debug("Collector address is not defined. Skipped.")
 		return nil
 	}
 
 	localAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return nil
 	}
 
 	serverAddr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return nil
 	}
 
 	connection, err := net.DialUDP("udp", localAddr, serverAddr)
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return nil
 	}
 
 	return connection
 }
 
-func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions, tracer common.Tracer) *CollectorOutput {
+func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions,
+	logger common.Logger, tracer common.Tracer) *CollectorOutput {
 
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
-		message:    render.NewTextTemplate("collector-message", options.Template, templateOptions, options),
-		connection: makeCollectorOutputConnection(options.Address),
+		message:    render.NewTextTemplate("collector-message", options.Template, templateOptions, options, logger),
+		connection: makeCollectorOutputConnection(options.Address, logger),
 		tracer:     tracer,
+		logger:     logger,
 	}
 }
 

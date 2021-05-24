@@ -11,20 +11,25 @@ type Event struct {
 	Type        string      `json:"type"`
 	Data        interface{} `json:"data"`
 	spanContext TracerSpanContext
+	logger      Logger
 }
 
 func (e *Event) JsonObject() (interface{}, error) {
 
 	bytes, err := json.Marshal(e)
 	if err != nil {
-		log.Error(err)
+		if e.logger != nil {
+			e.logger.Error(err)
+		}
 		return "", err
 	}
 
 	var object interface{}
 
 	if err := json.Unmarshal(bytes, &object); err != nil {
-		log.Error(err)
+		if e.logger != nil {
+			e.logger.Error(err)
+		}
 		return "", err
 	}
 
@@ -37,4 +42,8 @@ func (e *Event) SetSpanContext(context TracerSpanContext) {
 
 func (e *Event) GetSpanContext() TracerSpanContext {
 	return e.spanContext
+}
+
+func (e *Event) SetLogger(logger Logger) {
+	e.logger = logger
 }

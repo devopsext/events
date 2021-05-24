@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/utils"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
@@ -18,6 +20,8 @@ type DataDogOptions struct {
 	TracerHost  string
 	TracerPort  int
 	ServiceName string
+	LoggerHost  string
+	LoggerPort  int
 }
 
 type DataDogTracerSpanContext struct {
@@ -31,8 +35,20 @@ type DataDogTracerSpan struct {
 	datadog     *DataDog
 }
 
+type DataDogTracerLogger struct {
+	logger common.Logger
+}
+
+type DataDogUDPLogger struct {
+	connection *net.UDPConn
+	stdout     *Stdout
+	log        *logrus.Logger
+}
+
 type DataDog struct {
 	options      DataDogOptions
+	logger       common.Logger
+	udpLogger    *DataDogUDPLogger
 	callerOffset int
 }
 
@@ -58,15 +74,15 @@ func (dds DataDogTracerSpan) SetCarrier(object interface{}) common.TracerSpan {
 	}
 
 	if reflect.TypeOf(object) != reflect.TypeOf(http.Header{}) {
-		//log.Error(errors.New("Other than http.Header is not supported yet"))
+		dds.datadog.logger.Error(errors.New("Other than http.Header is not supported yet"))
 		return dds
 	}
 
 	var h http.Header = object.(http.Header)
-	tracer.Inject(dds.span.Context(), tracer.HTTPHeadersCarrier(h))
-	/*if err != nil {
-		log.Error(err)
-	}*/
+	err := tracer.Inject(dds.span.Context(), tracer.HTTPHeadersCarrier(h))
+	if err != nil {
+		dds.datadog.logger.Error(err)
+	}
 	return dds
 }
 
@@ -94,6 +110,10 @@ func (dds DataDogTracerSpan) Finish() {
 		return
 	}
 	dds.span.Finish()
+}
+
+func (ddtl *DataDogTracerLogger) Log(msg string) {
+	ddtl.logger.Info(msg)
 }
 
 func (dd *DataDog) startSpanFromContext(ctx context.Context, offset int, opts ...tracer.StartSpanOption) (ddtrace.Span, context.Context) {
@@ -135,7 +155,7 @@ func (dd *DataDog) getOpentracingSpanContext(object interface{}) ddtrace.SpanCon
 	if ok {
 		spanContext, err := tracer.Extract(tracer.HTTPHeadersCarrier(h))
 		if err != nil {
-			//log.Error(err)
+			dd.logger.Error(err)
 			return nil
 		}
 		return spanContext
@@ -181,11 +201,126 @@ func (dd *DataDog) SetCallerOffset(offset int) {
 	dd.callerOffset = offset
 }
 
-func startDataDogTracer(options DataDogOptions) {
+func (dd *DataDog) Info(obj interface{}, args ...interface{}) {
+
+	if dd.udpLogger == nil {
+		return
+	}
+
+	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
+		dd.udpLogger.log.WithFields(fields).Infoln(message)
+	}
+}
+
+func (dd *DataDog) Warn(obj interface{}, args ...interface{}) {
+
+	if dd.udpLogger == nil {
+		return
+	}
+
+	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
+		dd.udpLogger.log.WithFields(fields).Warnln(message)
+	}
+}
+
+func (dd *DataDog) Error(obj interface{}, args ...interface{}) {
+
+	if dd.udpLogger == nil {
+		return
+	}
+
+	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
+		dd.udpLogger.log.WithFields(fields).Errorln(message)
+	}
+}
+
+func (dd *DataDog) Debug(obj interface{}, args ...interface{}) {
+
+	if dd.udpLogger == nil {
+		return
+	}
+
+	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
+		dd.udpLogger.log.WithFields(fields).Debugln(message)
+	}
+}
+
+func (dd *DataDog) Panic(obj interface{}, args ...interface{}) {
+
+	if dd.udpLogger == nil {
+		return
+	}
+
+	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
+		dd.udpLogger.log.WithFields(fields).Panicln(message)
+	}
+}
+
+func (ddul *DataDogUDPLogger) exists(obj interface{}, args ...interface{}) (bool, logrus.Fields, string) {
+
+	message := ""
+
+	switch v := obj.(type) {
+	case error:
+		message = v.Error()
+	case string:
+		message = v
+	default:
+		message = "not implemented"
+	}
+
+	if len(args) > 0 {
+		message = fmt.Sprintf(message, args...)
+	}
+
+	if utils.IsEmpty(message) {
+		return false, nil, ""
+	}
+
+	function, file, line := common.GetCallerInfo(4)
+	fields := logrus.Fields{
+		"file": fmt.Sprintf("%s:%d", file, line),
+		"func": function,
+	}
+	return true, fields, message
+}
+
+func newDataDogUDPLogger(options DataDogOptions, stdout *Stdout) *DataDogUDPLogger {
+
+	if utils.IsEmpty(options.LoggerHost) {
+		stdout.Debug("DataDog logger is disabled.")
+		return nil
+	}
+
+	address := fmt.Sprintf("%s:%d", options.LoggerHost, options.LoggerPort)
+	serverAddr, err := net.ResolveUDPAddr("udp", address)
+	if err != nil {
+		stdout.Error(err)
+		return nil
+	}
+
+	connection, err := net.DialUDP("udp", nil, serverAddr)
+	if err != nil {
+		stdout.Error(err)
+		return nil
+	}
+
+	log := logrus.New()
+	log.SetFormatter(&logrus.JSONFormatter{})
+	log.SetOutput(connection)
+
+	return &DataDogUDPLogger{
+		connection: connection,
+		stdout:     stdout,
+		log:        log,
+	}
+}
+
+func startDataDogTracer(options DataDogOptions, logger common.Logger, stdout *Stdout) {
 
 	disabled := utils.IsEmpty(options.TracerHost)
-
 	if disabled {
+		stdout.Debug("DataDog tracer is disabled.")
 		return
 	}
 
@@ -193,15 +328,19 @@ func startDataDogTracer(options DataDogOptions) {
 		options.TracerHost,
 		strconv.Itoa(options.TracerPort),
 	)
-	tracer.Start(tracer.WithAgentAddr(addr), tracer.WithServiceName(options.ServiceName))
+	tracer.Start(tracer.WithAgentAddr(addr),
+		tracer.WithServiceName(options.ServiceName),
+		tracer.WithLogger(&DataDogTracerLogger{logger: logger}))
 }
 
-func NewDataDog(options DataDogOptions) *DataDog {
+func NewDataDog(options DataDogOptions, logger common.Logger, stdout *Stdout) *DataDog {
 
-	startDataDogTracer(options)
+	startDataDogTracer(options, logger, stdout)
 
 	return &DataDog{
 		options:      options,
 		callerOffset: 0,
+		logger:       logger,
+		udpLogger:    newDataDogUDPLogger(options, stdout),
 	}
 }

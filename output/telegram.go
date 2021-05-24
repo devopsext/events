@@ -42,6 +42,7 @@ type TelegramOutput struct {
 	grafana  *render.Grafana
 	options  TelegramOutputOptions
 	tracer   common.Tracer
+	logger   common.Logger
 }
 
 // assume that url => https://api.telegram.org/bot508526210:sdsdfsdfsdf/sendMessage?chat_id=-324234234
@@ -89,7 +90,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	log.Debug("Post to Telegram (%s) => %s", URL, message)
+	t.logger.Debug("Post to Telegram (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
@@ -116,7 +117,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	telegramOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
-	log.Debug("Response from Telegram => %s", string(b))
+	t.logger.Debug("Response from Telegram => %s", string(b))
 
 	return nil
 }
@@ -130,7 +131,7 @@ func (t *TelegramOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			log.Warn("Failed to close writer")
+			t.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -175,7 +176,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			log.Warn("Failed to close writer")
+			t.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -277,7 +278,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	photo, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		log.Error(err)
+		t.logger.Error(err)
 		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
@@ -292,12 +293,12 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		defer t.wg.Done()
 
 		if t.client == nil || t.message == nil {
-			log.Error(errors.New("No client or message"))
+			t.logger.Error(errors.New("No client or message"))
 			return
 		}
 
 		if event == nil {
-			log.Error(errors.New("Event is empty"))
+			t.logger.Error(errors.New("Event is empty"))
 			return
 		}
 
@@ -306,14 +307,14 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
-			log.Error(err)
+			t.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			log.Error(err)
+			t.logger.Error(err)
 			span.Error(err)
 			return
 		}
@@ -323,7 +324,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			b, err := t.selector.Execute(jsonObject)
 			if err != nil {
-				log.Error(err)
+				t.logger.Error(err)
 			} else {
 				URLs = b.String()
 			}
@@ -331,21 +332,21 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		if common.IsEmpty(URLs) {
 			err := errors.New("Telegram URLs are not found")
-			log.Error(err)
+			t.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		b, err := t.message.Execute(jsonObject)
 		if err != nil {
-			log.Error(err)
+			t.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			log.Debug("Telegram message is empty")
+			t.logger.Debug("Telegram message is empty")
 			return
 		}
 
@@ -364,7 +365,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if err := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					log.Error(err)
+					t.logger.Error(err)
 					t.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			}
@@ -376,20 +377,22 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	options TelegramOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
+	logger common.Logger,
 	tracer common.Tracer) *TelegramOutput {
 
 	if common.IsEmpty(options.URL) {
-		log.Debug("Telegram URL is not defined. Skipped")
+		logger.Debug("Telegram URL is not defined. Skipped")
 		return nil
 	}
 
 	return &TelegramOutput{
 		wg:       wg,
 		client:   common.MakeHttpClient(options.Timeout),
-		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options),
-		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options),
-		grafana:  render.NewGrafana(grafanaOptions, tracer),
+		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
+		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options, logger),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer),
 		options:  options,
+		logger:   logger,
 		tracer:   tracer,
 	}
 }

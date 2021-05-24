@@ -29,6 +29,7 @@ type TextTemplate struct {
 	options  TextTemplateOptions
 	layout   string
 	vars     interface{}
+	logger   common.Logger
 }
 
 // replaceAll replaces all occurrences of a value in a string with the given
@@ -162,13 +163,13 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 
 	if err != nil {
 
-		log.Error(err)
+		tpl.logger.Error(err)
 		return nil, err
 	}
 	return &b, nil
 }
 
-func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}) *TextTemplate {
+func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger common.Logger) *TextTemplate {
 
 	var tpl = TextTemplate{}
 
@@ -194,17 +195,15 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	}
 
 	if common.IsEmpty(fileOrVar) {
-		log.Warn("Template %s is empty.", name)
+		logger.Warn("Template %s is empty.", name)
 		return nil
 	}
 
 	if _, err := os.Stat(fileOrVar); err == nil {
 
-		//t, err1 = template.New(name).Funcs(funcs).ParseFiles(fileOrVar) - doesn't work with text/template properly
-
 		content, err := ioutil.ReadFile(fileOrVar)
 		if err != nil {
-			log.Error(err)
+			logger.Error(err)
 			return nil
 		}
 
@@ -215,7 +214,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	}
 
 	if err1 != nil {
-		log.Error(err1)
+		logger.Error(err1)
 		return nil
 	}
 
@@ -223,6 +222,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	tpl.options = options
 	tpl.layout = name
 	tpl.vars = vars
+	tpl.logger = logger
 
 	return &tpl
 }
