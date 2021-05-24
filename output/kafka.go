@@ -37,6 +37,7 @@ type KafkaOutput struct {
 	message  *render.TextTemplate
 	options  KafkaOutputOptions
 	tracer   common.Tracer
+	logger   common.Logger
 }
 
 func (k *KafkaOutput) Send(event *common.Event) {
@@ -46,12 +47,12 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		defer k.wg.Done()
 
 		if k.producer == nil || k.message == nil {
-			log.Error(errors.New("No producer or message"))
+			k.logger.Error(errors.New("No producer or message"))
 			return
 		}
 
 		if event == nil {
-			log.Error(errors.New("Event is empty"))
+			k.logger.Error(errors.New("Event is empty"))
 			return
 		}
 
@@ -60,18 +61,18 @@ func (k *KafkaOutput) Send(event *common.Event) {
 
 		b, err := k.message.Execute(event)
 		if err != nil {
-			log.Error(err)
+			k.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			log.Debug("Message to Kafka is empty")
+			k.logger.Debug("Message to Kafka is empty")
 			return
 		}
 
-		log.Debug("Message to Kafka => %s", message)
+		k.logger.Debug("Message to Kafka => %s", message)
 
 		(*k.producer).Input() <- &sarama.ProducerMessage{
 			Topic: k.options.Topic,
@@ -82,33 +83,34 @@ func (k *KafkaOutput) Send(event *common.Event) {
 	}()
 }
 
-func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config *sarama.Config) *sarama.AsyncProducer {
+func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config *sarama.Config, logger common.Logger) *sarama.AsyncProducer {
 
 	brks := strings.Split(brokers, ",")
 	if len(brks) == 0 || common.IsEmpty(brokers) {
 
-		log.Debug("Kafka brokers are not defined. Skipped.")
+		logger.Debug("Kafka brokers are not defined. Skipped.")
 		return nil
 	}
 
 	if common.IsEmpty(topic) {
 
-		log.Debug("Kafka topic is not defined. Skipped.")
+		logger.Debug("Kafka topic is not defined. Skipped.")
 		return nil
 	}
 
-	log.Info("Start %s for %s...", config.ClientID, topic)
+	logger.Info("Start %s for %s...", config.ClientID, topic)
 
 	producer, err := sarama.NewAsyncProducer(brks, config)
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return nil
 	}
 
 	return &producer
 }
 
-func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions, tracer common.Tracer) *KafkaOutput {
+func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions,
+	logger common.Logger, tracer common.Tracer) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
@@ -129,9 +131,10 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 
 	return &KafkaOutput{
 		wg:       wg,
-		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config),
-		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options),
+		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config, logger),
+		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options, logger),
 		options:  options,
+		logger:   logger,
 		tracer:   tracer,
 	}
 }

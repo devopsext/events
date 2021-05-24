@@ -11,8 +11,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type StdoutOptions struct {
+	Format   string
+	Level    string
+	Template string
+}
+
 type Stdout struct {
-	callerInfo   bool
+	log          *logrus.Logger
+	options      StdoutOptions
 	callerOffset int
 }
 
@@ -56,16 +63,10 @@ func (f *templateFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 
 func (so *Stdout) trace(offset int) logrus.Fields {
 
-	if so.callerInfo {
-
-		function, file, line := common.GetCallerInfo(offset)
-		return logrus.Fields{
-			"file": file,
-			"line": line,
-			"func": function,
-		}
-	} else {
-		return logrus.Fields{}
+	function, file, line := common.GetCallerInfo(so.callerOffset + offset)
+	return logrus.Fields{
+		"file": fmt.Sprintf("%s:%d", file, line),
+		"func": function,
 	}
 }
 
@@ -105,74 +106,87 @@ func exists(level logrus.Level, obj interface{}, args ...interface{}) (bool, str
 func (so *Stdout) Info(obj interface{}, args ...interface{}) {
 
 	if exists, message := exists(logrus.InfoLevel, obj, args...); exists {
-		logrus.WithFields(so.trace(3)).Infoln(message)
+		so.log.WithFields(so.trace(3)).Infoln(message)
 	}
 }
 
 func (so *Stdout) Warn(obj interface{}, args ...interface{}) {
 
 	if exists, message := exists(logrus.WarnLevel, obj, args...); exists {
-		logrus.WithFields(so.trace(3)).Warnln(message)
+		so.log.WithFields(so.trace(3)).Warnln(message)
 	}
 }
 
 func (so *Stdout) Error(obj interface{}, args ...interface{}) {
 
 	if exists, message := exists(logrus.ErrorLevel, obj, args...); exists {
-		logrus.WithFields(so.trace(3)).Errorln(message)
+		so.log.WithFields(so.trace(3)).Errorln(message)
 	}
 }
 
 func (so *Stdout) Debug(obj interface{}, args ...interface{}) {
 
 	if exists, message := exists(logrus.DebugLevel, obj, args...); exists {
-		logrus.WithFields(so.trace(3)).Debugln(message)
+		so.log.WithFields(so.trace(3)).Debugln(message)
 	}
 }
 
 func (so *Stdout) Panic(obj interface{}, args ...interface{}) {
 
 	if exists, message := exists(logrus.PanicLevel, obj, args...); exists {
-		logrus.WithFields(so.trace(3)).Panicln(message)
+		so.log.WithFields(so.trace(3)).Panicln(message)
 	}
 }
 
-func (so *Stdout) setStdout(format string, level string, templ string) {
+func newLog(options StdoutOptions) *logrus.Logger {
 
-	switch format {
+	log := logrus.New()
+
+	switch options.Format {
 	case "json":
-		logrus.SetFormatter(&logrus.JSONFormatter{})
+		log.SetFormatter(&logrus.JSONFormatter{})
 	case "text":
-		logrus.SetFormatter(&logrus.TextFormatter{})
-	case "stdout":
-		t, err := template.New("").Parse(templ)
+		log.SetFormatter(&logrus.TextFormatter{})
+	case "template":
+		t, err := template.New("").Parse(options.Template)
 		if err != nil {
-			logrus.Panic(err)
+			log.Panic(err)
 		}
-		logrus.SetFormatter(&templateFormatter{template: t, timestampFormat: time.RFC3339})
+		log.SetFormatter(&templateFormatter{template: t, timestampFormat: time.RFC3339})
+	default:
+		log.SetFormatter(&logrus.TextFormatter{})
 	}
 
-	switch level {
+	switch options.Level {
 	case "info":
-		logrus.SetLevel(logrus.InfoLevel)
+		log.SetLevel(logrus.InfoLevel)
 	case "error":
-		logrus.SetLevel(logrus.ErrorLevel)
+		log.SetLevel(logrus.ErrorLevel)
 	case "panic":
-		logrus.SetLevel(logrus.PanicLevel)
+		log.SetLevel(logrus.PanicLevel)
 	case "warn":
-		logrus.SetLevel(logrus.WarnLevel)
+		log.SetLevel(logrus.WarnLevel)
 	case "debug":
-		logrus.SetLevel(logrus.DebugLevel)
-
+		log.SetLevel(logrus.DebugLevel)
+	default:
+		log.SetLevel(logrus.InfoLevel)
 	}
 
-	logrus.SetOutput(os.Stdout)
+	log.SetOutput(os.Stdout)
+	return log
 }
 
-func NewStdout(callerInfo bool, callerOffset int) *Stdout {
+func (so *Stdout) SetCallerOffset(offset int) {
+	so.callerOffset = offset
+}
+
+func NewStdout(options StdoutOptions) *Stdout {
+
+	log := newLog(options)
 
 	return &Stdout{
-		callerInfo:   callerInfo,
-		callerOffset: callerOffset,
+		log:          log,
+		options:      options,
+		callerOffset: 0,
 	}
 }

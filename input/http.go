@@ -35,6 +35,7 @@ type HttpInputOptions struct {
 type HttpInput struct {
 	options HttpInputOptions
 	tracer  common.Tracer
+	logger  common.Logger
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -45,7 +46,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 		defer wg.Done()
 
-		log.Info("Start http input...")
+		h.logger.Info("Start http input...")
 
 		var caPool *x509.CertPool
 		var certificates []tls.Certificate
@@ -58,7 +59,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				cert, err = ioutil.ReadFile(h.options.Cert)
 				if err != nil {
-					log.Panic(err)
+					h.logger.Panic(err)
 				}
 			} else {
 				cert = []byte(h.options.Cert)
@@ -70,7 +71,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				key, err = ioutil.ReadFile(h.options.Key)
 				if err != nil {
-					log.Panic(err)
+					h.logger.Panic(err)
 				}
 			} else {
 				key = []byte(h.options.Key)
@@ -79,7 +80,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			// make pair from certificate and pair
 			pair, err := tls.X509KeyPair(cert, key)
 			if err != nil {
-				log.Panic(err)
+				h.logger.Panic(err)
 			}
 
 			certificates = append(certificates, pair)
@@ -90,7 +91,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				chain, err = ioutil.ReadFile(h.options.Chain)
 				if err != nil {
-					log.Panic(err)
+					h.logger.Panic(err)
 				}
 			} else {
 				chain = []byte(h.options.Chain)
@@ -99,7 +100,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			// make pool of chains
 			caPool = x509.NewCertPool()
 			if !caPool.AppendCertsFromPEM(chain) {
-				log.Debug("CA chain is invalid")
+				h.logger.Debug("CA chain is invalid")
 			}
 		}
 
@@ -118,7 +119,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					defer span.Finish()
 
 					httpInputRequests.WithLabelValues(r.URL.Path).Inc()
-					processor.NewK8sProcessor(outputs, h.tracer).HandleHttpRequest(w, r)
+					processor.NewK8sProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -136,7 +137,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					defer span.Finish()
 
 					httpInputRequests.WithLabelValues(url).Inc()
-					processor.NewRancherProcessor(outputs, h.tracer).HandleHttpRequest(w, r)
+					processor.NewRancherProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -154,17 +155,17 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					defer span.Finish()
 
 					httpInputRequests.WithLabelValues(url).Inc()
-					processor.NewAlertmanagerProcessor(outputs, h.tracer).HandleHttpRequest(w, r)
+					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
 		}
 
 		listener, err := net.Listen("tcp", h.options.Listen)
 		if err != nil {
-			log.Panic(err)
+			h.logger.Panic(err)
 		}
 
-		log.Info("Http input is up. Listening...")
+		h.logger.Info("Http input is up. Listening...")
 
 		srv := &http.Server{Handler: mux}
 
@@ -177,23 +178,24 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 			err = srv.ServeTLS(listener, "", "")
 			if err != nil {
-				log.Panic(err)
+				h.logger.Panic(err)
 			}
 		} else {
 			err = srv.Serve(listener)
 			if err != nil {
-				log.Panic(err)
+				h.logger.Panic(err)
 			}
 		}
 
 	}(wg)
 }
 
-func NewHttpInput(options HttpInputOptions, tracer common.Tracer) *HttpInput {
+func NewHttpInput(options HttpInputOptions, logger common.Logger, tracer common.Tracer) *HttpInput {
 
 	return &HttpInput{
 		options: options,
 		tracer:  tracer,
+		logger:  logger,
 	}
 }
 

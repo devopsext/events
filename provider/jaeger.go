@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -44,9 +45,11 @@ type Jaeger struct {
 	options      JaegerOptions
 	callerOffset int
 	tracer       opentracing.Tracer
+	logger       common.Logger
 }
 
 type JaegerLogger struct {
+	logger common.Logger
 }
 
 func (js JaegerSpan) GetContext() common.TracerSpanContext {
@@ -71,15 +74,15 @@ func (js JaegerSpan) SetCarrier(object interface{}) common.TracerSpan {
 	}
 
 	if reflect.TypeOf(object) != reflect.TypeOf(http.Header{}) {
-		//log.Error(errors.New("Other than http.Header is not supported yet"))
+		js.jaeger.logger.Error(errors.New("Other than http.Header is not supported yet"))
 		return js
 	}
 
 	var h http.Header = object.(http.Header)
-	js.jaeger.tracer.Inject(js.span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
-	/*if err != nil {
-		log.Error(err)
-	}*/
+	err := js.jaeger.tracer.Inject(js.span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
+	if err != nil {
+		js.jaeger.logger.Error(err)
+	}
 	return js
 }
 
@@ -211,7 +214,7 @@ func (j *Jaeger) getOpentracingSpanContext(object interface{}) opentracing.SpanC
 	if ok {
 		spanContext, err := j.tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(h))
 		if err != nil {
-			//log.Error(err)
+			j.logger.Error(err)
 			return nil
 		}
 		return spanContext
@@ -258,22 +261,22 @@ func (j *Jaeger) SetCallerOffset(offset int) {
 	j.callerOffset = offset
 }
 
-func (jl *JaegerLogger) Error(msg string) {
-	//	log.Error(msg)
+func (j *JaegerLogger) Error(msg string) {
+	j.logger.Error(msg)
 }
 
-func (jl *JaegerLogger) Infof(msg string, args ...interface{}) {
+func (j *JaegerLogger) Infof(msg string, args ...interface{}) {
 
 	if utils.IsEmpty(msg) {
 		return
 	}
 
-	/*	msg = strings.TrimSpace(msg)
-		if args != nil {
-			log.Info(msg, args...)
-		} else {
-			log.Info(msg)
-		}*/
+	msg = strings.TrimSpace(msg)
+	if args != nil {
+		j.logger.Info(msg, args...)
+	} else {
+		j.logger.Info(msg)
+	}
 }
 
 func parseTags(sTags string) []opentracing.Tag {
@@ -300,9 +303,13 @@ func parseTags(sTags string) []opentracing.Tag {
 	return tags
 }
 
-func newJaegerTracer(options JaegerOptions) opentracing.Tracer {
+func newJaegerTracer(options JaegerOptions, logger common.Logger, stdout *Stdout) opentracing.Tracer {
 
 	disabled := utils.IsEmpty(options.AgentHost) && utils.IsEmpty(options.Endpoint)
+	if disabled {
+		stdout.Debug("Jaeger tracer is disabled.")
+	}
+
 	tags := parseTags(options.Tags)
 
 	cfg := &jaegerConfig.Configuration{
@@ -330,20 +337,22 @@ func newJaegerTracer(options JaegerOptions) opentracing.Tracer {
 	}
 
 	metricsFactory := prometheus.New()
-	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory), jaegerConfig.Logger(&JaegerLogger{}))
+	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory),
+		jaegerConfig.Logger(&JaegerLogger{logger: logger}))
 	if err != nil {
-		//log.Error(err)
+		stdout.Error(err)
 		return opentracing.NoopTracer{}
 	}
 	opentracing.SetGlobalTracer(tracer) //?
 	return tracer
 }
 
-func NewJaeger(options JaegerOptions) *Jaeger {
+func NewJaeger(options JaegerOptions, logger common.Logger, stdout *Stdout) *Jaeger {
 
 	return &Jaeger{
 		options:      options,
 		callerOffset: 0,
-		tracer:       newJaegerTracer(options),
+		tracer:       newJaegerTracer(options, logger, stdout),
+		logger:       logger,
 	}
 }

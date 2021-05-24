@@ -3,12 +3,10 @@ package render
 import (
 	"context"
 	"crypto/md5"
-	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -41,6 +39,7 @@ type GrafanaAliasColors struct {
 type Grafana struct {
 	client  *http.Client
 	options GrafanaOptions
+	logger  common.Logger
 	tracer  common.Tracer
 }
 
@@ -53,11 +52,11 @@ func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string
 	}
 
 	if len(boards) > 0 {
-		log.Info(len(boards))
+		g.logger.Info(len(boards))
 
 		board, _, err := c.GetDashboardByUID(ctx, boards[0].UID)
 		if err != nil {
-			log.Info(len(board.Panels))
+			g.logger.Info(len(board.Panels))
 			return nil
 		}
 		return &board
@@ -226,7 +225,7 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 
 	/*b := g.findDashboard(c, ctx, "New dashboard Copy")
 	if b != nil {
-		log.Info(b.ID)
+		g.logger.Info(b.ID)
 	}*/
 
 	params := sdk.SetDashboardParams{
@@ -236,30 +235,30 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 
 	status, err := c.SetDashboard(ctx, *board, params)
 	if err != nil {
-		log.Error(err)
+		g.logger.Error(err)
 		span.Error(err)
 		return nil, "", err
 	}
 
-	log.Debug("%s => %s", *status.UID, *status.Slug)
+	g.logger.Debug("%s => %s", *status.UID, *status.Slug)
 
 	if len(board.Rows) == 1 && len(board.Rows[0].Panels) == 1 {
 
 		URL := fmt.Sprintf("/render/d-solo/%s/%s?orgId=%s&panelId=%d&from=%d&to=%d&width=%d&height=%d&tz=%s",
 			*status.UID, *status.Slug, g.options.Org, board.Rows[0].Panels[0].ID, from, to, g.options.ImageWidth, g.options.ImageHeight, board.Timezone)
 
-		log.Debug("%s", URL)
+		g.logger.Debug("%s", URL)
 
 		bytes, err := g.renderImage(URL, g.options.ApiKey)
 		if err != nil {
-			log.Error(err)
+			g.logger.Error(err)
 			span.Error(err)
 			return nil, "", err
 		}
 
 		_, err = c.DeleteDashboard(ctx, *status.Slug)
 		if err != nil {
-			log.Error(err)
+			g.logger.Error(err)
 			span.Error(err)
 		}
 		return bytes, URL, nil
@@ -270,11 +269,11 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 	return nil, "", err
 }
 
-func makeClient(url string, timeout int) *http.Client {
+/*func makeClient(url string, timeout int, logger common.Logger) *http.Client {
 
 	if common.IsEmpty(url) {
 
-		log.Debug("Grafana url is not defined. Skipped.")
+		logger.Debug("Grafana url is not defined. Skipped.")
 		return nil
 	}
 
@@ -290,18 +289,19 @@ func makeClient(url string, timeout int) *http.Client {
 	}
 
 	return client
-}
+}*/
 
-func NewGrafana(options GrafanaOptions, tracer common.Tracer) *Grafana {
+func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Tracer) *Grafana {
 
 	if common.IsEmpty(options.URL) {
-		log.Debug("Grafana URL is not defined. Skipped")
+		logger.Debug("Grafana URL is not defined. Skipped")
 		return nil
 	}
 
 	return &Grafana{
 		client:  common.MakeHttpClient(options.Timeout),
 		options: options,
+		logger:  logger,
 		tracer:  tracer,
 	}
 }

@@ -44,6 +44,7 @@ type WorkchatOutput struct {
 	grafana  *render.Grafana
 	options  WorkchatOutputOptions
 	tracer   common.Tracer
+	logger   common.Logger
 }
 
 func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
@@ -51,7 +52,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	log.Debug("Post to Workchat (%s) => %s", URL, message)
+	w.logger.Debug("Post to Workchat (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
@@ -78,7 +79,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	//workchatOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
-	log.Debug("Response from Workchat => %s", string(b))
+	w.logger.Debug("Response from Workchat => %s", string(b))
 
 	var object interface{}
 
@@ -99,7 +100,7 @@ func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	mw := multipart.NewWriter(&body)
 	defer func() {
 		if err := mw.Close(); err != nil {
-			log.Warn("Failed to close writer")
+			w.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -151,7 +152,7 @@ func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	mw := multipart.NewWriter(&body)
 	defer func() {
 		if err := mw.Close(); err != nil {
-			log.Warn("Failed to close writer")
+			w.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -246,7 +247,7 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	photo, fileName, err := w.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		log.Error(err)
+		w.logger.Error(err)
 		w.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
@@ -261,12 +262,12 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		defer w.wg.Done()
 
 		if w.client == nil || w.message == nil {
-			log.Error(errors.New("No client or message"))
+			w.logger.Error(errors.New("No client or message"))
 			return
 		}
 
 		if event == nil {
-			log.Error(errors.New("Event is empty"))
+			w.logger.Error(errors.New("Event is empty"))
 			return
 		}
 
@@ -275,14 +276,14 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
-			log.Error(err)
+			w.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			log.Error(err)
+			w.logger.Error(err)
 			span.Error(err)
 			return
 		}
@@ -292,7 +293,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 			b, err := w.selector.Execute(jsonObject)
 			if err != nil {
-				log.Error(err)
+				w.logger.Error(err)
 			} else {
 				URLs = b.String()
 			}
@@ -300,21 +301,21 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 		if common.IsEmpty(URLs) {
 			err := errors.New("Workchat URLs are not found")
-			log.Error(err)
+			w.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		b, err := w.message.Execute(jsonObject)
 		if err != nil {
-			log.Error(err)
+			w.logger.Error(err)
 			span.Error(err)
 			return
 		}
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			log.Debug("Workchat message is empty")
+			w.logger.Debug("Workchat message is empty")
 			return
 		}
 
@@ -333,7 +334,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					log.Error(err)
+					w.logger.Error(err)
 					w.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			}
@@ -345,21 +346,23 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	options WorkchatOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
+	logger common.Logger,
 	tracer common.Tracer) *WorkchatOutput {
 
 	if common.IsEmpty(options.URL) {
-		log.Debug("Workchat URL is not defined. Skipped")
+		logger.Debug("Workchat URL is not defined. Skipped")
 		return nil
 	}
 
 	return &WorkchatOutput{
 		wg:       wg,
 		client:   common.MakeHttpClient(options.Timeout),
-		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options),
-		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options),
-		grafana:  render.NewGrafana(grafanaOptions, tracer),
+		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options, logger),
+		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options, logger),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer),
 		options:  options,
 		tracer:   tracer,
+		logger:   logger,
 	}
 }
 
