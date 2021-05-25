@@ -199,16 +199,16 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 	xaxis := sdk.Axis{Show: true}
 	graph.Xaxis = xaxis
 
-	graph.Legend.AlignAsTable = true
-	graph.Legend.Avg = true
-	graph.Legend.Min = true
-	graph.Legend.Max = true
-	graph.Legend.RightSide = false
-	graph.Legend.Show = true
-	graph.Legend.HideEmpty = true
-	graph.Legend.HideZero = false
-	graph.Legend.Values = true
-	graph.Legend.Current = true
+	graph.GraphPanel.Legend.AlignAsTable = true
+	graph.GraphPanel.Legend.Avg = true
+	graph.GraphPanel.Legend.Min = true
+	graph.GraphPanel.Legend.Max = true
+	graph.GraphPanel.Legend.RightSide = false
+	graph.GraphPanel.Legend.Show = true
+	graph.GraphPanel.Legend.HideEmpty = true
+	graph.GraphPanel.Legend.HideZero = false
+	graph.GraphPanel.Legend.Values = true
+	graph.GraphPanel.Legend.Current = true
 
 	target := sdk.Target{
 		RefID:        "A",
@@ -235,8 +235,7 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 
 	status, err := c.SetDashboard(ctx, *board, params)
 	if err != nil {
-		g.logger.Error(err)
-		span.Error(err)
+		g.logger.SpanError(span, err)
 		return nil, "", err
 	}
 
@@ -251,21 +250,18 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 
 		bytes, err := g.renderImage(URL, g.options.ApiKey)
 		if err != nil {
-			g.logger.Error(err)
-			span.Error(err)
+			g.logger.SpanError(span, err)
 			return nil, "", err
 		}
 
 		_, err = c.DeleteDashboard(ctx, *status.Slug)
 		if err != nil {
-			g.logger.Error(err)
-			span.Error(err)
+			g.logger.SpanError(span, err)
 		}
 		return bytes, URL, nil
 	}
 
 	err = errors.New("panel is not found")
-	span.Error(err)
 	return nil, "", err
 }
 

@@ -1,7 +1,6 @@
 package output
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -47,12 +46,12 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		defer k.wg.Done()
 
 		if k.producer == nil || k.message == nil {
-			k.logger.Error(errors.New("No producer or message"))
+			k.logger.Debug("No producer or message")
 			return
 		}
 
 		if event == nil {
-			k.logger.Error(errors.New("Event is empty"))
+			k.logger.Debug("Event is empty")
 			return
 		}
 
@@ -61,8 +60,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 
 		b, err := k.message.Execute(event)
 		if err != nil {
-			k.logger.Error(err)
-			span.Error(err)
+			k.logger.SpanError(span, err)
 			return
 		}
 

@@ -1,9 +1,11 @@
 package common
 
 type Logger interface {
-	Info(obj interface{}, args ...interface{})
-	Warn(obj interface{}, args ...interface{})
-	Error(obj interface{}, args ...interface{})
-	Debug(obj interface{}, args ...interface{})
-	Panic(obj interface{}, args ...interface{})
+	Info(obj interface{}, args ...interface{}) Logger
+	Warn(obj interface{}, args ...interface{}) Logger
+	Error(obj interface{}, args ...interface{}) Logger
+	SpanError(span TracerSpan, obj interface{}, args ...interface{}) Logger
+	Debug(obj interface{}, args ...interface{}) Logger
+	Panic(obj interface{}, args ...interface{}) Logger
+	Stack(offset int) Logger
 }

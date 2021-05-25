@@ -1,6 +1,8 @@
 package common
 
 type TracerSpanContext interface {
+	GetTraceID() string
+	GetSpanID() string
 }
 
 type TracerSpan interface {
@@ -8,6 +10,7 @@ type TracerSpan interface {
 	SetCarrier(object interface{}) TracerSpan
 	SetTag(key string, value interface{}) TracerSpan
 	Error(err error) TracerSpan
+	SetBaggageItem(restrictedKey, value string) TracerSpan
 	Finish()
 }
 

@@ -1,7 +1,6 @@
 package output
 
 import (
-	"errors"
 	"net"
 	"sync"
 
@@ -36,12 +35,12 @@ func (c *CollectorOutput) Send(event *common.Event) {
 		defer c.wg.Done()
 
 		if c.connection == nil || c.message == nil {
-			c.logger.Error(errors.New("No connection or message"))
+			c.logger.Debug("No connection or message")
 			return
 		}
 
 		if event == nil {
-			c.logger.Error(errors.New("Event is empty"))
+			c.logger.Debug("Event is empty")
 			return
 		}
 
@@ -50,8 +49,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 
 		b, err := c.message.Execute(event)
 		if err != nil {
-			c.logger.Error(err)
-			span.Error(err)
+			c.logger.SpanError(span, err)
 			return
 		}
 
@@ -65,8 +63,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 
 		_, err = c.connection.Write(b.Bytes())
 		if err != nil {
-			c.logger.Error(err)
-			span.Error(err)
+			c.logger.SpanError(span, err)
 		}
 
 		collectorOutputCount.WithLabelValues(c.options.Address).Inc()

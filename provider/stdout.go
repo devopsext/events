@@ -2,19 +2,22 @@ package provider
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"text/template"
-	"time"
 
 	"github.com/devopsext/events/common"
 	"github.com/sirupsen/logrus"
 )
 
 type StdoutOptions struct {
-	Format   string
-	Level    string
-	Template string
+	Format          string
+	Level           string
+	Template        string
+	TimestampFormat string
+	Version         string
+	TextColors      bool
 }
 
 type Stdout struct {
@@ -103,39 +106,61 @@ func exists(level logrus.Level, obj interface{}, args ...interface{}) (bool, str
 	return flag, message
 }
 
-func (so *Stdout) Info(obj interface{}, args ...interface{}) {
+func (so *Stdout) Info(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := exists(logrus.InfoLevel, obj, args...); exists {
 		so.log.WithFields(so.trace(3)).Infoln(message)
 	}
+	return so
 }
 
-func (so *Stdout) Warn(obj interface{}, args ...interface{}) {
+func (so *Stdout) Warn(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := exists(logrus.WarnLevel, obj, args...); exists {
 		so.log.WithFields(so.trace(3)).Warnln(message)
 	}
+	return so
 }
 
-func (so *Stdout) Error(obj interface{}, args ...interface{}) {
+func (so *Stdout) Error(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := exists(logrus.ErrorLevel, obj, args...); exists {
 		so.log.WithFields(so.trace(3)).Errorln(message)
 	}
+	return so
 }
 
-func (so *Stdout) Debug(obj interface{}, args ...interface{}) {
+func (so *Stdout) SpanError(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
+
+	if exists, message := exists(logrus.ErrorLevel, obj, args...); exists {
+		fields := common.AddTracerFields(span, so.trace(3))
+		so.log.WithFields(fields).Errorln(message)
+		if span != nil {
+			span.Error(errors.New(message))
+		}
+	}
+	return so
+}
+
+func (so *Stdout) Debug(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := exists(logrus.DebugLevel, obj, args...); exists {
 		so.log.WithFields(so.trace(3)).Debugln(message)
 	}
+	return so
 }
 
-func (so *Stdout) Panic(obj interface{}, args ...interface{}) {
+func (so *Stdout) Panic(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := exists(logrus.PanicLevel, obj, args...); exists {
 		so.log.WithFields(so.trace(3)).Panicln(message)
 	}
+	return so
+}
+
+func (so *Stdout) Stack(offset int) common.Logger {
+	so.callerOffset = so.callerOffset - offset
+	return so
 }
 
 func newLog(options StdoutOptions) *logrus.Logger {
@@ -144,17 +169,27 @@ func newLog(options StdoutOptions) *logrus.Logger {
 
 	switch options.Format {
 	case "json":
-		log.SetFormatter(&logrus.JSONFormatter{})
+		formatter := &logrus.JSONFormatter{}
+		formatter.TimestampFormat = options.TimestampFormat
+		log.SetFormatter(formatter)
 	case "text":
-		log.SetFormatter(&logrus.TextFormatter{})
+		formatter := &logrus.TextFormatter{}
+		formatter.TimestampFormat = options.TimestampFormat
+		formatter.ForceColors = options.TextColors
+		formatter.FullTimestamp = true
+		log.SetFormatter(formatter)
 	case "template":
 		t, err := template.New("").Parse(options.Template)
 		if err != nil {
 			log.Panic(err)
 		}
-		log.SetFormatter(&templateFormatter{template: t, timestampFormat: time.RFC3339})
+		log.SetFormatter(&templateFormatter{template: t, timestampFormat: options.TimestampFormat})
 	default:
-		log.SetFormatter(&logrus.TextFormatter{})
+		formatter := &logrus.TextFormatter{}
+		formatter.TimestampFormat = options.TimestampFormat
+		formatter.ForceColors = options.TextColors
+		formatter.FullTimestamp = true
+		log.SetFormatter(formatter)
 	}
 
 	switch options.Level {

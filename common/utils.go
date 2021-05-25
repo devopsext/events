@@ -9,6 +9,9 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/rs/xid"
+	"github.com/sirupsen/logrus"
 )
 
 func IsEmpty(s string) bool {
@@ -57,7 +60,7 @@ func GetCallerInfo(offset int) (string, string, int) {
 	frame, _ := frames.Next()
 
 	function := getLastPath(frame.Function, 1)
-	file := getLastPath(frame.File, 2)
+	file := getLastPath(frame.File, 3)
 	line := frame.Line
 
 	return function, file, line
@@ -78,4 +81,26 @@ func HasElem(s interface{}, elem interface{}) bool {
 		}
 	}
 	return false
+}
+
+func GetGuid() string {
+	guid := xid.New()
+	return guid.String()
+}
+
+func AddTracerFields(span TracerSpan, fields logrus.Fields) logrus.Fields {
+
+	if span == nil {
+		return fields
+	}
+
+	ctx := span.GetContext()
+	if ctx == nil {
+		return fields
+	}
+
+	fields["trace_id"] = ctx.GetTraceID()
+	fields["span_id"] = ctx.GetSpanID()
+
+	return fields
 }
