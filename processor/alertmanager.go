@@ -64,9 +64,8 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	if len(body) == 0 {
 
 		err := errors.New("Empty body")
-		p.logger.Error(err)
+		p.logger.SpanError(span, err)
 		http.Error(w, "empty body", http.StatusBadRequest)
-		span.Error(err)
 		return
 	}
 
@@ -75,9 +74,8 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 
-		p.logger.Error("Content-Type=%s, expect application/json", contentType)
+		p.logger.SpanError(span, "Content-Type=%s, expect application/json", contentType)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		span.Error(errors.New("Invalid content type"))
 		return
 	}
 
@@ -86,8 +84,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	data := template.Data{}
 	if err := json.Unmarshal(body, &data); err != nil {
 
-		p.logger.Error("Can't decode body: %v", err)
-		span.Error(err)
+		p.logger.SpanError(span, "Can't decode body: %v", err)
 
 		response = &AlertmanagerResponse{
 			Message: err.Error(),
@@ -104,15 +101,13 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.logger.Error("Can't encode response: %v", err)
+		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
-		span.Error(err)
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.logger.Error("Can't write response: %v", err)
+		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
-		span.Error(err)
 	}
 }
 

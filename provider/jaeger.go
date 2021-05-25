@@ -28,6 +28,7 @@ type JaegerOptions struct {
 	BufferFlushInterval int
 	QueueSize           int
 	Tags                string
+	Version             string
 }
 
 type JaegerSpanContext struct {
@@ -35,10 +36,11 @@ type JaegerSpanContext struct {
 }
 
 type JaegerSpan struct {
-	span        opentracing.Span
-	spanContext *JaegerSpanContext
-	context     context.Context
-	jaeger      *Jaeger
+	span         opentracing.Span
+	spanContext  *JaegerSpanContext
+	context      context.Context
+	jaeger       *Jaeger
+	callerOffset int
 }
 
 type Jaeger struct {
@@ -50,6 +52,22 @@ type Jaeger struct {
 
 type JaegerLogger struct {
 	logger common.Logger
+}
+
+func (jsc JaegerSpanContext) GetTraceID() string {
+
+	if jsc.context == nil {
+		return ""
+	}
+	return ""
+}
+
+func (jsc JaegerSpanContext) GetSpanID() string {
+
+	if jsc.context == nil {
+		return ""
+	}
+	return ""
 }
 
 func (js JaegerSpan) GetContext() common.TracerSpanContext {
@@ -146,13 +164,23 @@ func (js JaegerSpan) Error(err error) common.TracerSpan {
 		return nil
 	}
 
-	_, file, line := common.GetCallerInfo(js.jaeger.callerOffset + 3)
+	//_, file, line := common.GetCallerInfo(callerOffset + 3)
 
 	js.SetTag("error", true)
 	js.LogFields(map[string]interface{}{
 		"error.message": err.Error(),
-		"error.line":    fmt.Sprintf("%s:%d", file, line),
+		//	"error.file":    fmt.Sprintf("%s:%d", file, line),
 	})
+	return js
+}
+
+func (js JaegerSpan) SetBaggageItem(restrictedKey, value string) common.TracerSpan {
+
+	if js.span == nil {
+		return nil
+	}
+
+	js.span.SetBaggageItem(restrictedKey, value)
 	return js
 }
 
@@ -169,7 +197,7 @@ func (j *Jaeger) startSpanFromContext(ctx context.Context, offset int, opts ...o
 
 	span, context := opentracing.StartSpanFromContextWithTracer(ctx, j.tracer, operation, opts...)
 	if span != nil {
-		span.SetTag("caller.line", fmt.Sprintf("%s:%d", file, line))
+		span.SetTag("file", fmt.Sprintf("%s:%d", file, line))
 	}
 	return span, context
 }
@@ -202,9 +230,10 @@ func (j *Jaeger) StartSpan() common.TracerSpan {
 
 	s, ctx := j.startSpanFromContext(context.Background(), j.callerOffset+4)
 	return JaegerSpan{
-		span:    s,
-		context: ctx,
-		jaeger:  j,
+		span:         s,
+		context:      ctx,
+		jaeger:       j,
+		callerOffset: j.callerOffset,
 	}
 }
 
@@ -262,7 +291,7 @@ func (j *Jaeger) SetCallerOffset(offset int) {
 }
 
 func (j *JaegerLogger) Error(msg string) {
-	j.logger.Error(msg)
+	j.logger.Stack(-2).Error(msg).Stack(2)
 }
 
 func (j *JaegerLogger) Infof(msg string, args ...interface{}) {
@@ -273,9 +302,9 @@ func (j *JaegerLogger) Infof(msg string, args ...interface{}) {
 
 	msg = strings.TrimSpace(msg)
 	if args != nil {
-		j.logger.Info(msg, args...)
+		j.logger.Stack(-2).Info(msg, args...).Stack(2)
 	} else {
-		j.logger.Info(msg)
+		j.logger.Stack(-2).Info(msg).Stack(2)
 	}
 }
 
@@ -311,6 +340,10 @@ func newJaegerTracer(options JaegerOptions, logger common.Logger, stdout *Stdout
 	}
 
 	tags := parseTags(options.Tags)
+	tags = append(tags, opentracing.Tag{
+		Key:   "version",
+		Value: options.Version,
+	})
 
 	cfg := &jaegerConfig.Configuration{
 

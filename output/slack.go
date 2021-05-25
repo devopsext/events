@@ -52,7 +52,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
-		span.Error(err)
+		s.logger.SpanError(span, err)
 		return err
 	}
 
@@ -60,7 +60,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		span.Error(err)
+		s.logger.SpanError(span, err)
 		return err
 	}
 
@@ -68,7 +68,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		span.Error(err)
+		s.logger.SpanError(span, err)
 		return err
 	}
 
@@ -93,22 +93,18 @@ func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message
 	}()
 
 	if err := w.WriteField("initial_comment", message); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("title", title); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("content", content); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -134,28 +130,23 @@ func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, 
 	}()
 
 	if err := w.WriteField("initial_comment", message); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("title", title); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	fw, err := w.CreateFormFile("file", fileName)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if _, err := fw.Write(photo); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -169,7 +160,6 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, UR
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -181,7 +171,6 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, UR
 	query, ok := alert.Labels[s.options.AlertExpression]
 	if !ok {
 		err := errors.New("No alert expression")
-		span.Error(err)
 		return err
 	}
 
@@ -196,7 +185,6 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, UR
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -235,12 +223,12 @@ func (s *SlackOutput) Send(event *common.Event) {
 		defer s.wg.Done()
 
 		if s.client == nil || s.message == nil {
-			s.logger.Error(errors.New("No client or message"))
+			s.logger.Debug("No client or message")
 			return
 		}
 
 		if event == nil {
-			s.logger.Error(errors.New("Event is empty"))
+			s.logger.Debug("Event is empty")
 			return
 		}
 
@@ -249,15 +237,13 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
-			s.logger.Error(err)
-			span.Error(err)
+			s.logger.SpanError(span, err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			s.logger.Error(err)
-			span.Error(err)
+			s.logger.SpanError(span, err)
 			return
 		}
 
@@ -266,7 +252,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			b, err := s.selector.Execute(jsonObject)
 			if err != nil {
-				s.logger.Error(err)
+				s.logger.Debug(err)
 			} else {
 				URLs = b.String()
 			}
@@ -274,15 +260,13 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		if common.IsEmpty(URLs) {
 			err := errors.New("Slack URLs are not found")
-			s.logger.Error(err)
-			span.Error(err)
+			s.logger.SpanError(span, err)
 			return
 		}
 
 		b, err := s.message.Execute(jsonObject)
 		if err != nil {
-			s.logger.Error(err)
-			span.Error(err)
+			s.logger.SpanError(span, err)
 			return
 		}
 
@@ -307,7 +291,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					s.logger.Error(err)
 					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
 				}
 			}

@@ -95,7 +95,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
-		span.Error(err)
+		t.logger.SpanError(span, err)
 		return err
 	}
 
@@ -103,7 +103,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	resp, err := t.client.Do(req)
 	if err != nil {
-		span.Error(err)
+		t.logger.SpanError(span, err)
 		return err
 	}
 
@@ -111,7 +111,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		span.Error(err)
+		t.logger.SpanError(span, err)
 		return err
 	}
 
@@ -136,27 +136,22 @@ func (t *TelegramOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	}()
 
 	if err := w.WriteField("text", message); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("parse_mode", "HTML"); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("disable_web_page_preview", "true"); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("disable_notification", t.options.DisableNotification); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -181,38 +176,31 @@ func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	}()
 
 	if err := w.WriteField("caption", message); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("parse_mode", "HTML"); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("disable_web_page_preview", "true"); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.WriteField("disable_notification", t.options.DisableNotification); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	fw, err := w.CreateFormFile("photo", fileName)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if _, err := fw.Write(photo); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := w.Close(); err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -226,7 +214,6 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -238,7 +225,6 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 	query, ok := alert.Labels[t.options.AlertExpression]
 	if !ok {
 		err := errors.New("No alert expression")
-		span.Error(err)
 		return err
 	}
 
@@ -253,7 +239,6 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -278,7 +263,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	photo, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		t.logger.Error(err)
+		t.logger.SpanError(span, err)
 		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
@@ -293,12 +278,12 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		defer t.wg.Done()
 
 		if t.client == nil || t.message == nil {
-			t.logger.Error(errors.New("No client or message"))
+			t.logger.Debug("No client or message")
 			return
 		}
 
 		if event == nil {
-			t.logger.Error(errors.New("Event is empty"))
+			t.logger.Debug("Event is empty")
 			return
 		}
 
@@ -307,15 +292,13 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
-			t.logger.Error(err)
-			span.Error(err)
+			t.logger.SpanError(span, err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			t.logger.Error(err)
-			span.Error(err)
+			t.logger.SpanError(span, err)
 			return
 		}
 
@@ -324,7 +307,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			b, err := t.selector.Execute(jsonObject)
 			if err != nil {
-				t.logger.Error(err)
+				t.logger.Debug(err)
 			} else {
 				URLs = b.String()
 			}
@@ -332,15 +315,13 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		if common.IsEmpty(URLs) {
 			err := errors.New("Telegram URLs are not found")
-			t.logger.Error(err)
-			span.Error(err)
+			t.logger.SpanError(span, err)
 			return
 		}
 
 		b, err := t.message.Execute(jsonObject)
 		if err != nil {
-			t.logger.Error(err)
-			span.Error(err)
+			t.logger.SpanError(span, err)
 			return
 		}
 
@@ -365,7 +346,6 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if err := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					t.logger.Error(err)
 					t.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			}

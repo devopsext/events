@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/utils"
@@ -22,6 +23,7 @@ type DataDogOptions struct {
 	ServiceName string
 	LoggerHost  string
 	LoggerPort  int
+	Version     string
 }
 
 type DataDogTracerSpanContext struct {
@@ -43,6 +45,7 @@ type DataDogUDPLogger struct {
 	connection *net.UDPConn
 	stdout     *Stdout
 	log        *logrus.Logger
+	options    DataDogOptions
 }
 
 type DataDog struct {
@@ -50,6 +53,20 @@ type DataDog struct {
 	logger       common.Logger
 	udpLogger    *DataDogUDPLogger
 	callerOffset int
+}
+
+func (ddsc DataDogTracerSpanContext) GetTraceID() string {
+	if ddsc.context == nil {
+		return ""
+	}
+	return strconv.Itoa(int(ddsc.context.TraceID()))
+}
+
+func (ddsc DataDogTracerSpanContext) GetSpanID() string {
+	if ddsc.context == nil {
+		return ""
+	}
+	return strconv.Itoa(int(ddsc.context.SpanID()))
 }
 
 func (dds DataDogTracerSpan) GetContext() common.TracerSpanContext {
@@ -95,6 +112,14 @@ func (dds DataDogTracerSpan) SetTag(key string, value interface{}) common.Tracer
 	return dds
 }
 
+func (dds DataDogTracerSpan) SetBaggageItem(restrictedKey, value string) common.TracerSpan {
+	if dds.span == nil {
+		return nil
+	}
+	dds.span.SetBaggageItem(restrictedKey, value)
+	return dds
+}
+
 func (dds DataDogTracerSpan) Error(err error) common.TracerSpan {
 
 	if dds.span == nil {
@@ -122,7 +147,7 @@ func (dd *DataDog) startSpanFromContext(ctx context.Context, offset int, opts ..
 
 	span, context := tracer.StartSpanFromContext(ctx, operation, opts...)
 	if span != nil {
-		span.SetTag("caller.line", fmt.Sprintf("%s:%d", file, line))
+		span.SetTag("file", fmt.Sprintf("%s:%d", file, line))
 	}
 	return span, context
 }
@@ -141,7 +166,8 @@ func (dd *DataDog) startChildOfSpan(ctx context.Context, spanContext ddtrace.Spa
 
 func (dd *DataDog) StartSpan() common.TracerSpan {
 
-	s, ctx := dd.startSpanFromContext(context.Background(), dd.callerOffset+4)
+	s, ctx := dd.startSpanFromContext(context.Background(), dd.callerOffset+4) //tracer.WithSpanID(random.Uint64()))
+
 	return DataDogTracerSpan{
 		span:    s,
 		context: ctx,
@@ -201,59 +227,85 @@ func (dd *DataDog) SetCallerOffset(offset int) {
 	dd.callerOffset = offset
 }
 
-func (dd *DataDog) Info(obj interface{}, args ...interface{}) {
+func (dd *DataDog) Info(obj interface{}, args ...interface{}) common.Logger {
 
 	if dd.udpLogger == nil {
-		return
+		return dd
 	}
 
 	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
 		dd.udpLogger.log.WithFields(fields).Infoln(message)
 	}
+	return dd
 }
 
-func (dd *DataDog) Warn(obj interface{}, args ...interface{}) {
+func (dd *DataDog) Warn(obj interface{}, args ...interface{}) common.Logger {
 
 	if dd.udpLogger == nil {
-		return
+		return dd
 	}
 
 	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
 		dd.udpLogger.log.WithFields(fields).Warnln(message)
 	}
+	return dd
 }
 
-func (dd *DataDog) Error(obj interface{}, args ...interface{}) {
+func (dd *DataDog) Error(obj interface{}, args ...interface{}) common.Logger {
 
 	if dd.udpLogger == nil {
-		return
+		return dd
 	}
 
 	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
 		dd.udpLogger.log.WithFields(fields).Errorln(message)
 	}
+	return dd
 }
 
-func (dd *DataDog) Debug(obj interface{}, args ...interface{}) {
+func (dd *DataDog) SpanError(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if dd.udpLogger == nil {
-		return
+		return dd
+	}
+
+	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
+		fields = common.AddTracerFields(span, fields)
+		dd.udpLogger.log.WithFields(fields).Errorln(message)
+		if span != nil {
+			span.Error(errors.New(message))
+		}
+	}
+	return dd
+}
+
+func (dd *DataDog) Debug(obj interface{}, args ...interface{}) common.Logger {
+
+	if dd.udpLogger == nil {
+		return dd
 	}
 
 	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
 		dd.udpLogger.log.WithFields(fields).Debugln(message)
 	}
+	return dd
 }
 
-func (dd *DataDog) Panic(obj interface{}, args ...interface{}) {
+func (dd *DataDog) Panic(obj interface{}, args ...interface{}) common.Logger {
 
 	if dd.udpLogger == nil {
-		return
+		return dd
 	}
 
 	if exists, fields, message := dd.udpLogger.exists(obj, args...); exists {
 		dd.udpLogger.log.WithFields(fields).Panicln(message)
 	}
+	return dd
+}
+
+func (dd *DataDog) Stack(offset int) common.Logger {
+	dd.callerOffset = dd.callerOffset - offset
+	return dd
 }
 
 func (ddul *DataDogUDPLogger) exists(obj interface{}, args ...interface{}) (bool, logrus.Fields, string) {
@@ -277,10 +329,12 @@ func (ddul *DataDogUDPLogger) exists(obj interface{}, args ...interface{}) (bool
 		return false, nil, ""
 	}
 
-	function, file, line := common.GetCallerInfo(4)
+	function, file, line := common.GetCallerInfo(5)
 	fields := logrus.Fields{
-		"file": fmt.Sprintf("%s:%d", file, line),
-		"func": function,
+		"file":    fmt.Sprintf("%s:%d", file, line),
+		"func":    function,
+		"service": ddul.options.ServiceName,
+		"version": ddul.options.Version,
 	}
 	return true, fields, message
 }
@@ -305,14 +359,18 @@ func newDataDogUDPLogger(options DataDogOptions, stdout *Stdout) *DataDogUDPLogg
 		return nil
 	}
 
+	formatter := &logrus.JSONFormatter{}
+	formatter.TimestampFormat = time.RFC3339Nano
+
 	log := logrus.New()
-	log.SetFormatter(&logrus.JSONFormatter{})
+	log.SetFormatter(formatter)
 	log.SetOutput(connection)
 
 	return &DataDogUDPLogger{
 		connection: connection,
 		stdout:     stdout,
 		log:        log,
+		options:    options,
 	}
 }
 
@@ -328,9 +386,12 @@ func startDataDogTracer(options DataDogOptions, logger common.Logger, stdout *St
 		options.TracerHost,
 		strconv.Itoa(options.TracerPort),
 	)
-	tracer.Start(tracer.WithAgentAddr(addr),
+	tracer.Start(
+		tracer.WithAgentAddr(addr),
 		tracer.WithServiceName(options.ServiceName),
-		tracer.WithLogger(&DataDogTracerLogger{logger: logger}))
+		tracer.WithServiceVersion(options.Version),
+		tracer.WithLogger(&DataDogTracerLogger{logger: logger}),
+	)
 }
 
 func NewDataDog(options DataDogOptions, logger common.Logger, stdout *Stdout) *DataDog {

@@ -85,8 +85,7 @@ func (p *K8sProcessor) processNamespace(span common.TracerSpan, channel string, 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &namespace); err != nil {
-			p.logger.Error("Couldn't unmarshal namespace object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal namespace object: %v", err)
 		}
 	}
 
@@ -105,8 +104,7 @@ func (p *K8sProcessor) processNode(span common.TracerSpan, channel string, ar *a
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &node); err != nil {
-			p.logger.Error("Couldn't unmarshal node object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal node object: %v", err)
 		}
 	}
 
@@ -125,8 +123,7 @@ func (p *K8sProcessor) processReplicaSet(span common.TracerSpan, channel string,
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &replicaSet); err != nil {
-			p.logger.Error("Couldn't unmarshal replicaSet object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal replicaSet object: %v", err)
 		}
 	}
 
@@ -147,8 +144,7 @@ func (p *K8sProcessor) processStatefulSet(span common.TracerSpan, channel string
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &statefulSet); err != nil {
-			p.logger.Error("Couldn't unmarshal statefulSet object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal statefulSet object: %v", err)
 		}
 	}
 
@@ -169,8 +165,7 @@ func (p *K8sProcessor) processDaemonSet(span common.TracerSpan, channel string, 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &daemonSet); err != nil {
-			p.logger.Error("Couldn't unmarshal daemonSet object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal daemonSet object: %v", err)
 		}
 	}
 
@@ -192,8 +187,7 @@ func (p *K8sProcessor) processSecret(span common.TracerSpan, channel string, ar 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &secret); err != nil {
-			p.logger.Error("Couldn't unmarshal secret object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal secret object: %v", err)
 		}
 	}
 
@@ -214,8 +208,7 @@ func (p *K8sProcessor) processIngress(span common.TracerSpan, channel string, ar
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &ingress); err != nil {
-			p.logger.Error("Couldn't unmarshal ingress object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal ingress object: %v", err)
 		}
 	}
 
@@ -236,8 +229,7 @@ func (p *K8sProcessor) processJob(span common.TracerSpan, channel string, ar *ad
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &job); err != nil {
-			p.logger.Error("Couldn't unmarshal job object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal job object: %v", err)
 		}
 	}
 
@@ -258,8 +250,7 @@ func (p *K8sProcessor) processCronJob(span common.TracerSpan, channel string, ar
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &cronJob); err != nil {
-			p.logger.Error("Couldn't unmarshal cronjob object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal cronjob object: %v", err)
 		}
 	}
 
@@ -280,8 +271,7 @@ func (p *K8sProcessor) processConfigMap(span common.TracerSpan, channel string, 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &configMap); err != nil {
-			p.logger.Error("Couldn't unmarshal configMap object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal configMap object: %v", err)
 		}
 	}
 
@@ -302,8 +292,7 @@ func (p *K8sProcessor) processRole(span common.TracerSpan, channel string, ar *a
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &role); err != nil {
-			p.logger.Error("Couldn't unmarshal role object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal role object: %v", err)
 		}
 	}
 
@@ -324,8 +313,7 @@ func (p *K8sProcessor) processDeployment(span common.TracerSpan, channel string,
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &deployment); err != nil {
-			p.logger.Error("Couldn't unmarshal deployment object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal deployment object: %v", err)
 		}
 	}
 
@@ -346,8 +334,7 @@ func (p *K8sProcessor) processService(span common.TracerSpan, channel string, ar
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &service); err != nil {
-			p.logger.Error("Couldn't unmarshal service object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal service object: %v", err)
 		}
 	}
 
@@ -368,8 +355,7 @@ func (p *K8sProcessor) processPod(span common.TracerSpan, channel string, ar *ad
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &pod); err != nil {
-			p.logger.Error("Couldn't unmarshal pod object: %v", err)
-			span.Error(err)
+			p.logger.SpanError(span, "Couldn't unmarshal pod object: %v", err)
 		}
 	}
 
@@ -398,9 +384,8 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 	if len(body) == 0 {
 		err := errors.New("Empty body")
-		p.logger.Error(err)
+		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		span.Error(err)
 		return
 	}
 
@@ -409,9 +394,8 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
 
-		p.logger.Error("Content-Type=%s, expect application/json", contentType)
+		p.logger.SpanError(span, "Content-Type=%s, expect application/json", contentType)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		span.Error(errors.New("Invalid content type"))
 		return
 	}
 
@@ -419,8 +403,7 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	ar := admv1beta1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 
-		p.logger.Error("Can't decode body: %v", err)
-		span.Error(err)
+		p.logger.SpanError(span, "Can't decode body: %v", err)
 
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Result: &metav1.Status{
@@ -482,17 +465,13 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
-
-		p.logger.Error("Can't encode response: %v", err)
+		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
-		span.Error(err)
 	}
 
 	if _, err := w.Write(resp); err != nil {
-
-		p.logger.Error("Can't write response: %v", err)
+		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
-		span.Error(err)
 	}
 }
 

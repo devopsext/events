@@ -57,7 +57,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
-		span.Error(err)
+		w.logger.SpanError(span, err)
 		return nil, err
 	}
 
@@ -65,7 +65,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	resp, err := w.client.Do(req)
 	if err != nil {
-		span.Error(err)
+		w.logger.SpanError(span, err)
 		return nil, err
 	}
 
@@ -73,7 +73,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		span.Error(err)
+		w.logger.SpanError(span, err)
 		return nil, err
 	}
 
@@ -84,7 +84,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	var object interface{}
 
 	if err := json.Unmarshal(b, &object); err != nil {
-		span.Error(err)
+		w.logger.SpanError(span, err)
 		return nil, err
 	}
 
@@ -106,17 +106,14 @@ func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 
 	m := fmt.Sprintf("{\"text\":\"%s\"}", strings.ReplaceAll(message, "\n", "\\n"))
 	if err := mw.WriteField("message", m); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := mw.WriteField("notification_type", w.options.NotificationType); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := mw.Close(); err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -158,29 +155,24 @@ func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 
 	m := "{\"attachment\":{\"type\":\"image\",\"payload\":{\"is_reusable\":true}}}"
 	if err := mw.WriteField("message", m); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	fw, err := w.createFormFile(mw, "filedata", fileName, "image/png")
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if _, err := fw.Write(photo); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	if err := mw.Close(); err != nil {
-		span.Error(err)
 		return err
 	}
 
 	_, err = w.post(span.GetContext(), URL, mw.FormDataContentType(), body, message)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -194,7 +186,6 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -206,7 +197,6 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 	query, ok := alert.Labels[w.options.AlertExpression]
 	if !ok {
 		err := errors.New("No alert expression")
-		span.Error(err)
 		return err
 	}
 
@@ -221,7 +211,6 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		span.Error(err)
 		return err
 	}
 
@@ -247,7 +236,6 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	photo, fileName, err := w.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		w.logger.Error(err)
 		w.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
@@ -262,12 +250,12 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		defer w.wg.Done()
 
 		if w.client == nil || w.message == nil {
-			w.logger.Error(errors.New("No client or message"))
+			w.logger.Debug("No client or message")
 			return
 		}
 
 		if event == nil {
-			w.logger.Error(errors.New("Event is empty"))
+			w.logger.Debug("Event is empty")
 			return
 		}
 
@@ -276,15 +264,13 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			err := errors.New("Event data is empty")
-			w.logger.Error(err)
-			span.Error(err)
+			w.logger.SpanError(span, err)
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			w.logger.Error(err)
-			span.Error(err)
+			w.logger.SpanError(span, err)
 			return
 		}
 
@@ -293,7 +279,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 			b, err := w.selector.Execute(jsonObject)
 			if err != nil {
-				w.logger.Error(err)
+				w.logger.Debug(err)
 			} else {
 				URLs = b.String()
 			}
@@ -301,15 +287,13 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 		if common.IsEmpty(URLs) {
 			err := errors.New("Workchat URLs are not found")
-			w.logger.Error(err)
-			span.Error(err)
+			w.logger.SpanError(span, err)
 			return
 		}
 
 		b, err := w.message.Execute(jsonObject)
 		if err != nil {
-			w.logger.Error(err)
-			span.Error(err)
+			w.logger.SpanError(span, err)
 			return
 		}
 
@@ -334,7 +318,6 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			case "AlertmanagerEvent":
 
 				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					w.logger.Error(err)
 					w.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			}

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"reflect"
 	"strings"
+	"time"
 
 	"sync"
 	"syscall"
@@ -23,8 +24,6 @@ import (
 )
 
 var VERSION = "unknown"
-
-//var log = utils.GetLog()
 
 var env = utils.GetEnvironment()
 var logs = common.NewLogs()
@@ -57,9 +56,11 @@ var textTemplateOptions = render.TextTemplateOptions{
 
 var stdoutOptions = provider.StdoutOptions{
 
-	Format:   env.Get("EVENTS_STDOUT_FORMAT", "text").(string),
-	Level:    env.Get("EVENTS_STDOUT_LEVEL", "info").(string),
-	Template: env.Get("EVENTS_STDOUT_TEMPLATE", "{{.file}} {{.msg}}").(string),
+	Format:          env.Get("EVENTS_STDOUT_FORMAT", "text").(string),
+	Level:           env.Get("EVENTS_STDOUT_LEVEL", "info").(string),
+	Template:        env.Get("EVENTS_STDOUT_TEMPLATE", "{{.file}} {{.msg}}").(string),
+	TimestampFormat: env.Get("EVENTS_STDOUT_TIMESTAMP_FORMAT", time.RFC3339Nano).(string),
+	TextColors:      env.Get("EVENTS_STDOUT_TEXT_COLORS", true).(bool),
 }
 
 var httpInputOptions = input.HttpInputOptions{
@@ -198,6 +199,7 @@ func Execute() {
 		Short: "Events",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
+			stdoutOptions.Version = VERSION
 			stdout = provider.NewStdout(stdoutOptions)
 			stdout.SetCallerOffset(2)
 
@@ -205,18 +207,22 @@ func Execute() {
 				logs.Register(stdout)
 			}
 
-			jaeger := provider.NewJaeger(jaegerOptions, logs, stdout)
-			jaeger.SetCallerOffset(1)
-
-			if common.HasElem(rootOptions.Traces, "jaeger") {
-				traces.Register(jaeger)
-			}
-
+			datadogOptions.Version = VERSION
 			datadog := provider.NewDataDog(datadogOptions, logs, stdout)
 			datadog.SetCallerOffset(1)
 
 			if common.HasElem(rootOptions.Logs, "datadog") {
 				logs.Register(datadog)
+			}
+
+			logs.Info("Booting...")
+
+			jaegerOptions.Version = VERSION
+			jaeger := provider.NewJaeger(jaegerOptions, logs, stdout)
+			jaeger.SetCallerOffset(1)
+
+			if common.HasElem(rootOptions.Traces, "jaeger") {
+				traces.Register(jaeger)
 			}
 
 			if common.HasElem(rootOptions.Traces, "datadog") {
@@ -227,8 +233,6 @@ func Execute() {
 		Run: func(cmd *cobra.Command, args []string) {
 
 			var wg sync.WaitGroup
-
-			logs.Info("Booting...")
 
 			startMetrics(&wg)
 
@@ -296,6 +300,8 @@ func Execute() {
 	flags.StringVar(&stdoutOptions.Format, "stdout-format", stdoutOptions.Format, "Stdout format: json, text, template")
 	flags.StringVar(&stdoutOptions.Level, "stdout-level", stdoutOptions.Level, "Stdout level: info, warn, error, debug, panic")
 	flags.StringVar(&stdoutOptions.Template, "stdout-template", stdoutOptions.Template, "Stdout template")
+	flags.StringVar(&stdoutOptions.TimestampFormat, "stdout-timestamp-format", stdoutOptions.TimestampFormat, "Stdout timestamp format")
+	flags.BoolVar(&stdoutOptions.TextColors, "stdout-text-colors", stdoutOptions.TextColors, "Stdout text colors")
 
 	flags.StringVar(&httpInputOptions.K8sURL, "http-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")

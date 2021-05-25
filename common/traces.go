@@ -2,10 +2,12 @@ package common
 
 type TracesSpanContext struct {
 	contexts map[Tracer]TracerSpanContext
+	span     *TracesSpan
 }
 
 type TracesSpan struct {
 	spans       map[Tracer]TracerSpan
+	spanID      string
 	spanContext *TracesSpanContext
 	traces      *Traces
 	tracer      Tracer
@@ -13,6 +15,22 @@ type TracesSpan struct {
 
 type Traces struct {
 	tracers []Tracer
+}
+
+func (tssc TracesSpanContext) GetTraceID() string {
+
+	if tssc.span == nil {
+		return ""
+	}
+	return tssc.span.spanID
+}
+
+func (tssc TracesSpanContext) GetSpanID() string {
+
+	if tssc.span == nil {
+		return ""
+	}
+	return tssc.span.spanID
 }
 
 func (tss TracesSpan) GetContext() TracerSpanContext {
@@ -27,6 +45,7 @@ func (tss TracesSpan) GetContext() TracerSpanContext {
 
 	tss.spanContext = &TracesSpanContext{
 		contexts: make(map[Tracer]TracerSpanContext),
+		span:     &tss,
 	}
 
 	for t, s := range tss.spans {
@@ -52,6 +71,14 @@ func (tss TracesSpan) SetTag(key string, value interface{}) TracerSpan {
 
 	for _, s := range tss.spans {
 		s.SetTag(key, value)
+	}
+	return tss
+}
+
+func (tss TracesSpan) SetBaggageItem(restrictedKey, value string) TracerSpan {
+
+	for _, s := range tss.spans {
+		s.SetBaggageItem(restrictedKey, value)
 	}
 	return tss
 }
@@ -85,11 +112,14 @@ func (ts *Traces) StartSpan() TracerSpan {
 	span := TracesSpan{
 		traces: ts,
 		spans:  make(map[Tracer]TracerSpan),
+		spanID: GetGuid(),
 	}
 
 	for _, t := range ts.tracers {
 
 		s := t.StartSpan()
+		s.SetBaggageItem("traces-span-id", span.spanID)
+
 		if s != nil {
 			span.spans[t] = s
 		}
