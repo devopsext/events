@@ -1,5 +1,11 @@
 package common
 
+import (
+	"errors"
+
+	"github.com/devopsext/utils"
+)
+
 type Logs struct {
 	loggers []Logger
 }
@@ -7,6 +13,13 @@ type Logs struct {
 func (ls *Logs) Info(obj interface{}, args ...interface{}) Logger {
 	for _, l := range ls.loggers {
 		l.Info(obj, args...)
+	}
+	return ls
+}
+
+func (ls *Logs) SpanInfo(span TracerSpan, obj interface{}, args ...interface{}) Logger {
+	for _, l := range ls.loggers {
+		l.SpanInfo(span, obj, args...)
 	}
 	return ls
 }
@@ -29,12 +42,35 @@ func (ls *Logs) SpanError(span TracerSpan, obj interface{}, args ...interface{})
 	for _, l := range ls.loggers {
 		l.SpanError(span, obj, args...)
 	}
+	if span != nil && obj != nil {
+
+		message := ""
+		switch v := obj.(type) {
+		case error:
+			message = v.Error()
+		case string:
+			message = v
+		default:
+			message = "not implemented"
+		}
+
+		if !utils.IsEmpty(message) {
+			span.Error(errors.New(message))
+		}
+	}
 	return ls
 }
 
 func (ls *Logs) Debug(obj interface{}, args ...interface{}) Logger {
 	for _, l := range ls.loggers {
 		l.Debug(obj, args...)
+	}
+	return ls
+}
+
+func (ls *Logs) SpanDebug(span TracerSpan, obj interface{}, args ...interface{}) Logger {
+	for _, l := range ls.loggers {
+		l.SpanDebug(span, obj, args...)
 	}
 	return ls
 }

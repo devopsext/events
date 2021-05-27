@@ -1,5 +1,13 @@
 package common
 
+import (
+	"math/rand"
+	"sync"
+	"time"
+
+	"github.com/uber/jaeger-client-go/utils"
+)
+
 type TracesSpanContext struct {
 	contexts map[Tracer]TracerSpanContext
 	span     *TracesSpan
@@ -7,33 +15,26 @@ type TracesSpanContext struct {
 
 type TracesSpan struct {
 	spans       map[Tracer]TracerSpan
-	spanID      string
+	traceID     uint64
 	spanContext *TracesSpanContext
 	traces      *Traces
 	tracer      Tracer
 }
 
 type Traces struct {
-	tracers []Tracer
+	randomNumber func() uint64
+	tracers      []Tracer
 }
 
-func (tssc TracesSpanContext) GetTraceID() string {
+func (tssc TracesSpanContext) GetTraceID() uint64 {
 
 	if tssc.span == nil {
-		return ""
+		return 0
 	}
-	return tssc.span.spanID
+	return tssc.span.traceID
 }
 
-func (tssc TracesSpanContext) GetSpanID() string {
-
-	if tssc.span == nil {
-		return ""
-	}
-	return tssc.span.spanID
-}
-
-func (tss TracesSpan) GetContext() TracerSpanContext {
+func (tss *TracesSpan) GetContext() TracerSpanContext {
 
 	if len(tss.spans) <= 0 {
 		return nil
@@ -45,7 +46,7 @@ func (tss TracesSpan) GetContext() TracerSpanContext {
 
 	tss.spanContext = &TracesSpanContext{
 		contexts: make(map[Tracer]TracerSpanContext),
-		span:     &tss,
+		span:     tss,
 	}
 
 	for t, s := range tss.spans {
@@ -59,7 +60,7 @@ func (tss TracesSpan) GetContext() TracerSpanContext {
 	return tss.spanContext
 }
 
-func (tss TracesSpan) SetCarrier(object interface{}) TracerSpan {
+func (tss *TracesSpan) SetCarrier(object interface{}) TracerSpan {
 
 	for _, s := range tss.spans {
 		s.SetCarrier(object)
@@ -67,7 +68,7 @@ func (tss TracesSpan) SetCarrier(object interface{}) TracerSpan {
 	return tss
 }
 
-func (tss TracesSpan) SetTag(key string, value interface{}) TracerSpan {
+func (tss *TracesSpan) SetTag(key string, value interface{}) TracerSpan {
 
 	for _, s := range tss.spans {
 		s.SetTag(key, value)
@@ -75,7 +76,7 @@ func (tss TracesSpan) SetTag(key string, value interface{}) TracerSpan {
 	return tss
 }
 
-func (tss TracesSpan) SetBaggageItem(restrictedKey, value string) TracerSpan {
+func (tss *TracesSpan) SetBaggageItem(restrictedKey, value string) TracerSpan {
 
 	for _, s := range tss.spans {
 		s.SetBaggageItem(restrictedKey, value)
@@ -83,7 +84,7 @@ func (tss TracesSpan) SetBaggageItem(restrictedKey, value string) TracerSpan {
 	return tss
 }
 
-func (tss TracesSpan) Error(err error) TracerSpan {
+func (tss *TracesSpan) Error(err error) TracerSpan {
 
 	for _, s := range tss.spans {
 		s.Error(err)
@@ -91,7 +92,7 @@ func (tss TracesSpan) Error(err error) TracerSpan {
 	return tss
 }
 
-func (tss TracesSpan) Finish() {
+func (tss *TracesSpan) Finish() {
 	for _, s := range tss.spans {
 		s.Finish()
 	}
@@ -110,21 +111,51 @@ func (ts *Traces) StartSpan() TracerSpan {
 	}
 
 	span := TracesSpan{
-		traces: ts,
-		spans:  make(map[Tracer]TracerSpan),
-		spanID: GetGuid(),
+		traces:  ts,
+		spans:   make(map[Tracer]TracerSpan),
+		traceID: ts.randomNumber(),
+		tracer:  ts,
 	}
 
 	for _, t := range ts.tracers {
 
-		s := t.StartSpan()
-		s.SetBaggageItem("traces-span-id", span.spanID)
+		if !t.Enabled() {
+			continue
+		}
 
+		s := t.StartSpanWithTraceID(span.traceID)
 		if s != nil {
 			span.spans[t] = s
 		}
 	}
-	return span
+	return &span
+}
+
+func (ts *Traces) StartSpanWithTraceID(traceID uint64) TracerSpan {
+
+	if len(ts.tracers) <= 0 {
+		return nil
+	}
+
+	span := TracesSpan{
+		traces:  ts,
+		spans:   make(map[Tracer]TracerSpan),
+		traceID: traceID,
+		tracer:  ts,
+	}
+
+	for _, t := range ts.tracers {
+
+		if !t.Enabled() {
+			continue
+		}
+
+		s := t.StartSpanWithTraceID(span.traceID)
+		if s != nil {
+			span.spans[t] = s
+		}
+	}
+	return &span
 }
 
 func (ts *Traces) StartChildSpan(object interface{}) TracerSpan {
@@ -132,14 +163,24 @@ func (ts *Traces) StartChildSpan(object interface{}) TracerSpan {
 		return nil
 	}
 
+	var traceID uint64
 	spanCtx, spanCtxOk := object.(*TracesSpanContext)
+	if spanCtxOk {
+		traceID = spanCtx.GetTraceID()
+	}
 
 	span := TracesSpan{
-		traces: ts,
-		spans:  make(map[Tracer]TracerSpan),
+		traces:  ts,
+		spans:   make(map[Tracer]TracerSpan),
+		traceID: traceID,
+		tracer:  ts,
 	}
 
 	for _, t := range ts.tracers {
+
+		if !t.Enabled() {
+			continue
+		}
 
 		var s TracerSpan
 		if spanCtxOk {
@@ -149,24 +190,41 @@ func (ts *Traces) StartChildSpan(object interface{}) TracerSpan {
 		}
 		if s != nil {
 			span.spans[t] = s
+
+			// find first traceID if there is no on
+			sCtx := s.GetContext()
+			if sCtx != nil && span.traceID == 0 {
+				span.traceID = sCtx.GetTraceID()
+			}
 		}
 	}
-	return span
+	return &span
 }
 
 func (ts *Traces) StartFollowSpan(object interface{}) TracerSpan {
+
 	if len(ts.tracers) <= 0 {
 		return nil
 	}
 
+	var traceID uint64
 	spanCtx, spanCtxOk := object.(*TracesSpanContext)
+	if spanCtxOk {
+		traceID = spanCtx.GetTraceID()
+	}
 
 	span := TracesSpan{
-		traces: ts,
-		spans:  make(map[Tracer]TracerSpan),
+		traces:  ts,
+		spans:   make(map[Tracer]TracerSpan),
+		tracer:  ts,
+		traceID: traceID,
 	}
 
 	for _, t := range ts.tracers {
+
+		if !t.Enabled() {
+			continue
+		}
 
 		var s TracerSpan
 		if spanCtxOk {
@@ -176,11 +234,38 @@ func (ts *Traces) StartFollowSpan(object interface{}) TracerSpan {
 		}
 		if s != nil {
 			span.spans[t] = s
+
+			// find first traceID if there is no on
+			sCtx := s.GetContext()
+			if sCtx != nil && span.traceID == 0 {
+				span.traceID = sCtx.GetTraceID()
+			}
 		}
 	}
-	return span
+	return &span
+}
+
+func (ts *Traces) Enabled() bool {
+	return true
 }
 
 func NewTraces() *Traces {
-	return &Traces{}
+
+	ts := Traces{}
+
+	seedGenerator := utils.NewRand(time.Now().UnixNano())
+	pool := sync.Pool{
+		New: func() interface{} {
+			return rand.NewSource(seedGenerator.Int63())
+		},
+	}
+
+	ts.randomNumber = func() uint64 {
+		generator := pool.Get().(rand.Source)
+		number := uint64(generator.Int63())
+		pool.Put(generator)
+		return number
+	}
+
+	return &ts
 }

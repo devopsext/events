@@ -239,14 +239,14 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 		return nil, "", err
 	}
 
-	g.logger.Debug("%s => %s", *status.UID, *status.Slug)
+	g.logger.SpanDebug(span, "%s => %s", *status.UID, *status.Slug)
 
 	if len(board.Rows) == 1 && len(board.Rows[0].Panels) == 1 {
 
 		URL := fmt.Sprintf("/render/d-solo/%s/%s?orgId=%s&panelId=%d&from=%d&to=%d&width=%d&height=%d&tz=%s",
 			*status.UID, *status.Slug, g.options.Org, board.Rows[0].Panels[0].ID, from, to, g.options.ImageWidth, g.options.ImageHeight, board.Timezone)
 
-		g.logger.Debug("%s", URL)
+		g.logger.SpanDebug(span, "%s", URL)
 
 		bytes, err := g.renderImage(URL, g.options.ApiKey)
 		if err != nil {
@@ -264,28 +264,6 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 	err = errors.New("panel is not found")
 	return nil, "", err
 }
-
-/*func makeClient(url string, timeout int, logger common.Logger) *http.Client {
-
-	if common.IsEmpty(url) {
-
-		logger.Debug("Grafana url is not defined. Skipped.")
-		return nil
-	}
-
-	var transport = &http.Transport{
-		Dial:                (&net.Dialer{Timeout: time.Duration(timeout) * time.Second}).Dial,
-		TLSHandshakeTimeout: time.Duration(timeout) * time.Second,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
-	}
-
-	var client = &http.Client{
-		Timeout:   time.Duration(timeout) * time.Second,
-		Transport: transport,
-	}
-
-	return client
-}*/
 
 func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Tracer) *Grafana {
 

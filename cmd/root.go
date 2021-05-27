@@ -149,11 +149,22 @@ var jaegerOptions = provider.JaegerOptions{
 }
 
 var datadogOptions = provider.DataDogOptions{
-	TracerHost:  env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
-	TracerPort:  env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
 	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "").(string),
-	LoggerHost:  env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
-	LoggerPort:  env.Get("EVENTS_DATADOG_TRACER_PORT", 10518).(int),
+}
+
+var datadogTracerOptions = provider.DataDogTracerOptions{
+	Host:        env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
+	Port:        env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
+	Tags:        env.Get("EVENTS_DATADOG_TRACER_TAGS", "").(string),
+	ServiceName: env.Get("EVENTS_DATADOG_TRACER_SERVICE_NAME", "").(string),
+}
+
+var datadogLoggerOptions = provider.DataDogLoggerOptions{
+	Host:        env.Get("EVENTS_DATADOG_LOGGER_HOST", "").(string),
+	Port:        env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
+	Tags:        env.Get("EVENTS_DATADOG_LOGGER_TAGS", "").(string),
+	ServiceName: env.Get("EVENTS_DATADOG_LOGGER_SERVICE_NAME", "").(string),
+	Level:       env.Get("EVENTS_DATADOG_LEVEL", "info").(string),
 }
 
 func startMetrics(wg *sync.WaitGroup) {
@@ -207,12 +218,14 @@ func Execute() {
 				logs.Register(stdout)
 			}
 
-			datadogOptions.Version = VERSION
-			datadog := provider.NewDataDog(datadogOptions, logs, stdout)
-			datadog.SetCallerOffset(1)
+			datadogLoggerOptions.Version = VERSION
+			if utils.IsEmpty(datadogLoggerOptions.ServiceName) {
+				datadogLoggerOptions.ServiceName = datadogOptions.ServiceName
+			}
+			datadogLogger := provider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
 
 			if common.HasElem(rootOptions.Logs, "datadog") {
-				logs.Register(datadog)
+				logs.Register(datadogLogger)
 			}
 
 			logs.Info("Booting...")
@@ -225,8 +238,15 @@ func Execute() {
 				traces.Register(jaeger)
 			}
 
+			datadogTracerOptions.Version = VERSION
+			if utils.IsEmpty(datadogTracerOptions.ServiceName) {
+				datadogTracerOptions.ServiceName = datadogOptions.ServiceName
+			}
+			datadogTracer := provider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
+			datadogTracer.SetCallerOffset(1)
+
 			if common.HasElem(rootOptions.Traces, "datadog") {
-				traces.Register(datadog)
+				traces.Register(datadogTracer)
 			}
 
 		},
@@ -362,11 +382,18 @@ func Execute() {
 	flags.IntVar(&jaegerOptions.QueueSize, "jaeger-queue-size", jaegerOptions.QueueSize, "Jaeger queue size")
 	flags.StringVar(&jaegerOptions.Tags, "jaeger-tags", jaegerOptions.Tags, "Jaeger tags, comma separated list of name=value")
 
-	flags.StringVar(&datadogOptions.TracerHost, "datadog-tracer-host", datadogOptions.TracerHost, "DataDog tracer host")
-	flags.IntVar(&datadogOptions.TracerPort, "datadog-tracer-port", datadogOptions.TracerPort, "Datadog tracer port")
-	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name")
-	flags.StringVar(&datadogOptions.LoggerHost, "datadog-logger-host", datadogOptions.LoggerHost, "DataDog logger host")
-	flags.IntVar(&datadogOptions.LoggerPort, "datadog-logger-port", datadogOptions.LoggerPort, "Datadog logger port")
+	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name for tracer, logger")
+
+	flags.StringVar(&datadogTracerOptions.ServiceName, "datadog-tracer-service-name", datadogTracerOptions.ServiceName, "DataDog tracer service name")
+	flags.StringVar(&datadogTracerOptions.Host, "datadog-tracer-host", datadogTracerOptions.Host, "DataDog tracer host")
+	flags.IntVar(&datadogTracerOptions.Port, "datadog-tracer-port", datadogTracerOptions.Port, "Datadog tracer port")
+	flags.StringVar(&datadogTracerOptions.Tags, "datadog-tracer-tags", datadogTracerOptions.Tags, "DataDog tracer tags, comma separated list of name=value")
+
+	flags.StringVar(&datadogLoggerOptions.ServiceName, "datadog-logger-service-name", datadogLoggerOptions.ServiceName, "DataDog logger service name")
+	flags.StringVar(&datadogLoggerOptions.Host, "datadog-logger-host", datadogLoggerOptions.Host, "DataDog logger host")
+	flags.IntVar(&datadogLoggerOptions.Port, "datadog-logger-port", datadogLoggerOptions.Port, "Datadog logger port")
+	flags.StringVar(&datadogLoggerOptions.Tags, "datadog-logger-tags", datadogLoggerOptions.Tags, "DataDog logger tags, comma separated list of name=value")
+	flags.StringVar(&datadogLoggerOptions.Level, "datadog-logger-level", datadogLoggerOptions.Level, "DataDog logger level: info, warn, error, debug, panic")
 
 	interceptSyscall()
 

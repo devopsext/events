@@ -1,8 +1,7 @@
 package common
 
 type TracerSpanContext interface {
-	GetTraceID() string
-	GetSpanID() string
+	GetTraceID() uint64
 }
 
 type TracerSpan interface {
@@ -15,7 +14,9 @@ type TracerSpan interface {
 }
 
 type Tracer interface {
+	Enabled() bool
 	StartSpan() TracerSpan
+	StartSpanWithTraceID(traceID uint64) TracerSpan
 	StartChildSpan(object interface{}) TracerSpan
 	StartFollowSpan(object interface{}) TracerSpan
 }
