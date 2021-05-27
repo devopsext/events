@@ -7,6 +7,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -99,8 +100,6 @@ func AddTracerFields(span TracerSpan, fields logrus.Fields) logrus.Fields {
 		return fields
 	}
 
-	fields["trace_id"] = ctx.GetTraceID()
-	fields["span_id"] = ctx.GetSpanID()
-
+	fields["trace_id"] = strconv.FormatUint(ctx.GetTraceID(), 10)
 	return fields
 }

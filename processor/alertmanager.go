@@ -69,7 +69,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 		return
 	}
 
-	p.logger.Debug("Body => %s", body)
+	p.logger.SpanDebug(span, "Body => %s", body)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {

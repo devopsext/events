@@ -389,7 +389,7 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	p.logger.Debug("Body => %s", body)
+	p.logger.SpanDebug(span, "Body => %s", body)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
