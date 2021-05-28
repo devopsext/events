@@ -257,6 +257,21 @@ func (dd *DataDogTracer) Enabled() bool {
 	return dd.enabled
 }
 
+func (dd *DataDogLogger) addSpanFields(span common.TracerSpan, fields logrus.Fields) logrus.Fields {
+
+	if span == nil {
+		return fields
+	}
+
+	ctx := span.GetContext()
+	if ctx == nil {
+		return fields
+	}
+
+	fields["dd.trace_id"] = strconv.FormatUint(ctx.GetTraceID(), 10)
+	return fields
+}
+
 func (dd *DataDogLogger) Info(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, fields, message := dd.exists(logrus.InfoLevel, obj, args...); exists {
@@ -268,7 +283,7 @@ func (dd *DataDogLogger) Info(obj interface{}, args ...interface{}) common.Logge
 func (dd *DataDogLogger) SpanInfo(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, fields, message := dd.exists(logrus.InfoLevel, obj, args...); exists {
-		fields = common.AddTracerFields(span, fields)
+		fields = dd.addSpanFields(span, fields)
 		dd.log.WithFields(fields).Infoln(message)
 	}
 	return dd
@@ -277,6 +292,15 @@ func (dd *DataDogLogger) SpanInfo(span common.TracerSpan, obj interface{}, args 
 func (dd *DataDogLogger) Warn(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, fields, message := dd.exists(logrus.WarnLevel, obj, args...); exists {
+		dd.log.WithFields(fields).Warnln(message)
+	}
+	return dd
+}
+
+func (dd *DataDogLogger) SpanWarn(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
+
+	if exists, fields, message := dd.exists(logrus.WarnLevel, obj, args...); exists {
+		fields = dd.addSpanFields(span, fields)
 		dd.log.WithFields(fields).Warnln(message)
 	}
 	return dd
@@ -293,7 +317,7 @@ func (dd *DataDogLogger) Error(obj interface{}, args ...interface{}) common.Logg
 func (dd *DataDogLogger) SpanError(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, fields, message := dd.exists(logrus.ErrorLevel, obj, args...); exists {
-		fields = common.AddTracerFields(span, fields)
+		fields = dd.addSpanFields(span, fields)
 		dd.log.WithFields(fields).Errorln(message)
 	}
 	return dd
@@ -310,7 +334,7 @@ func (dd *DataDogLogger) Debug(obj interface{}, args ...interface{}) common.Logg
 func (dd *DataDogLogger) SpanDebug(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, fields, message := dd.exists(logrus.DebugLevel, obj, args...); exists {
-		fields = common.AddTracerFields(span, fields)
+		fields = dd.addSpanFields(span, fields)
 		dd.log.WithFields(fields).Debugln(message)
 	}
 	return dd
@@ -319,6 +343,15 @@ func (dd *DataDogLogger) SpanDebug(span common.TracerSpan, obj interface{}, args
 func (dd *DataDogLogger) Panic(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, fields, message := dd.exists(logrus.PanicLevel, obj, args...); exists {
+		dd.log.WithFields(fields).Panicln(message)
+	}
+	return dd
+}
+
+func (dd *DataDogLogger) SpanPanic(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
+
+	if exists, fields, message := dd.exists(logrus.PanicLevel, obj, args...); exists {
+		fields = dd.addSpanFields(span, fields)
 		dd.log.WithFields(fields).Panicln(message)
 	}
 	return dd
@@ -352,10 +385,11 @@ func (dd *DataDogLogger) exists(level logrus.Level, obj interface{}, args ...int
 
 	function, file, line := common.GetCallerInfo(dd.callerOffset + 5)
 	fields := logrus.Fields{
-		"file":    fmt.Sprintf("%s:%d", file, line),
-		"func":    function,
-		"service": dd.options.ServiceName,
-		"version": dd.options.Version,
+		"file":       fmt.Sprintf("%s:%d", file, line),
+		"func":       function,
+		"dd.service": dd.options.ServiceName,
+		"dd.version": dd.options.Version,
+		"dd.env":     "none",
 	}
 	return true, fields, message
 }
@@ -400,6 +434,7 @@ func startDataDogTracer(options DataDogTracerOptions, logger common.Logger, stdo
 	opts = append(opts, tracer.WithAgentAddr(addr))
 	opts = append(opts, tracer.WithServiceName(options.ServiceName))
 	opts = append(opts, tracer.WithServiceVersion(options.Version))
+	opts = append(opts, tracer.WithEnv("none")) // should be configurable
 	opts = append(opts, tracer.WithLogger(&DataDogTracerLogger{logger: logger}))
 
 	opts = setDataDogTracerTags(opts, options.Tags)

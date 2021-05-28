@@ -7,12 +7,10 @@ import (
 	"path"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/sirupsen/logrus"
 )
 
 func IsEmpty(s string) bool {
@@ -87,19 +85,4 @@ func HasElem(s interface{}, elem interface{}) bool {
 func GetGuid() string {
 	guid := xid.New()
 	return guid.String()
-}
-
-func AddTracerFields(span TracerSpan, fields logrus.Fields) logrus.Fields {
-
-	if span == nil {
-		return fields
-	}
-
-	ctx := span.GetContext()
-	if ctx == nil {
-		return fields
-	}
-
-	fields["trace_id"] = strconv.FormatUint(ctx.GetTraceID(), 10)
-	return fields
 }

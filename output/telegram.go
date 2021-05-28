@@ -90,7 +90,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	t.logger.Debug("Post to Telegram (%s) => %s", URL, message)
+	t.logger.SpanDebug(span, "Post to Telegram (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
@@ -117,7 +117,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	telegramOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
-	t.logger.Debug("Response from Telegram => %s", string(b))
+	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
 
 	return nil
 }
@@ -131,7 +131,7 @@ func (t *TelegramOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			t.logger.Warn("Failed to close writer")
+			t.logger.SpanWarn(span, "Failed to close writer")
 		}
 	}()
 
@@ -171,7 +171,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			t.logger.Warn("Failed to close writer")
+			t.logger.SpanWarn(span, "Failed to close writer")
 		}
 	}()
 
@@ -263,7 +263,6 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext,
 
 	photo, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		t.logger.SpanError(span, err)
 		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil
 	}
@@ -307,7 +306,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			b, err := t.selector.Execute(jsonObject)
 			if err != nil {
-				t.logger.Debug(err)
+				t.logger.SpanDebug(span, err)
 			} else {
 				URLs = b.String()
 			}
@@ -327,7 +326,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			t.logger.Debug("Telegram message is empty")
+			t.logger.SpanDebug(span, "Telegram message is empty")
 			return
 		}
 

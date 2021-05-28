@@ -31,6 +31,13 @@ func (ls *Logs) Warn(obj interface{}, args ...interface{}) Logger {
 	return ls
 }
 
+func (ls *Logs) SpanWarn(span TracerSpan, obj interface{}, args ...interface{}) Logger {
+	for _, l := range ls.loggers {
+		l.SpanWarn(span, obj, args...)
+	}
+	return ls
+}
+
 func (ls *Logs) Error(obj interface{}, args ...interface{}) Logger {
 	for _, l := range ls.loggers {
 		l.Error(obj, args...)
@@ -78,6 +85,13 @@ func (ls *Logs) SpanDebug(span TracerSpan, obj interface{}, args ...interface{})
 func (ls *Logs) Panic(obj interface{}, args ...interface{}) Logger {
 	for _, l := range ls.loggers {
 		l.Panic(obj, args...)
+	}
+	return ls
+}
+
+func (ls *Logs) SpanPanic(span TracerSpan, obj interface{}, args ...interface{}) Logger {
+	for _, l := range ls.loggers {
+		l.SpanPanic(span, obj, args...)
 	}
 	return ls
 }

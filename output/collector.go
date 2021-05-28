@@ -55,11 +55,11 @@ func (c *CollectorOutput) Send(event *common.Event) {
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			c.logger.Debug("Message to Collector is empty")
+			c.logger.SpanDebug(span, "Message to Collector is empty")
 			return
 		}
 
-		c.logger.Debug("Message to Collector => %s", message)
+		c.logger.SpanDebug(span, "Message to Collector => %s", message)
 
 		_, err = c.connection.Write(b.Bytes())
 		if err != nil {

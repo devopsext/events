@@ -52,7 +52,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	w.logger.Debug("Post to Workchat (%s) => %s", URL, message)
+	w.logger.SpanDebug(span, "Post to Workchat (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
@@ -79,7 +79,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 
 	//workchatOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
-	w.logger.Debug("Response from Workchat => %s", string(b))
+	w.logger.SpanDebug(span, "Response from Workchat => %s", string(b))
 
 	var object interface{}
 
@@ -100,7 +100,7 @@ func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	mw := multipart.NewWriter(&body)
 	defer func() {
 		if err := mw.Close(); err != nil {
-			w.logger.Warn("Failed to close writer")
+			w.logger.SpanWarn(span, "Failed to close writer")
 		}
 	}()
 
@@ -149,7 +149,7 @@ func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	mw := multipart.NewWriter(&body)
 	defer func() {
 		if err := mw.Close(); err != nil {
-			w.logger.Warn("Failed to close writer")
+			w.logger.SpanWarn(span, "Failed to close writer")
 		}
 	}()
 
@@ -279,7 +279,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 			b, err := w.selector.Execute(jsonObject)
 			if err != nil {
-				w.logger.Debug(err)
+				w.logger.SpanDebug(span, err)
 			} else {
 				URLs = b.String()
 			}
@@ -299,7 +299,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			w.logger.Debug("Workchat message is empty")
+			w.logger.SpanDebug(span, "Workchat message is empty")
 			return
 		}
 
