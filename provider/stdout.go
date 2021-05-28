@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strconv"
 	"text/template"
 
 	"github.com/devopsext/events/common"
@@ -63,7 +64,22 @@ func (f *templateFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(r), err
 }
 
-func (so *Stdout) trace(offset int) logrus.Fields {
+func (so *Stdout) addSpanFields(span common.TracerSpan, fields logrus.Fields) logrus.Fields {
+
+	if span == nil {
+		return fields
+	}
+
+	ctx := span.GetContext()
+	if ctx == nil {
+		return fields
+	}
+
+	fields["trace_id"] = strconv.FormatUint(ctx.GetTraceID(), 10)
+	return fields
+}
+
+func (so *Stdout) addCallerFields(offset int) logrus.Fields {
 
 	function, file, line := common.GetCallerInfo(so.callerOffset + offset)
 	return logrus.Fields{
@@ -108,7 +124,7 @@ func (so *Stdout) exists(level logrus.Level, obj interface{}, args ...interface{
 func (so *Stdout) Info(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.InfoLevel, obj, args...); exists {
-		so.log.WithFields(so.trace(3)).Infoln(message)
+		so.log.WithFields(so.addCallerFields(3)).Infoln(message)
 	}
 	return so
 }
@@ -116,7 +132,7 @@ func (so *Stdout) Info(obj interface{}, args ...interface{}) common.Logger {
 func (so *Stdout) SpanInfo(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.InfoLevel, obj, args...); exists {
-		fields := common.AddTracerFields(span, so.trace(3))
+		fields := so.addSpanFields(span, so.addCallerFields(3))
 		so.log.WithFields(fields).Infoln(message)
 	}
 	return so
@@ -125,7 +141,16 @@ func (so *Stdout) SpanInfo(span common.TracerSpan, obj interface{}, args ...inte
 func (so *Stdout) Warn(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.WarnLevel, obj, args...); exists {
-		so.log.WithFields(so.trace(3)).Warnln(message)
+		so.log.WithFields(so.addCallerFields(3)).Warnln(message)
+	}
+	return so
+}
+
+func (so *Stdout) SpanWarn(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
+
+	if exists, message := so.exists(logrus.WarnLevel, obj, args...); exists {
+		fields := so.addSpanFields(span, so.addCallerFields(3))
+		so.log.WithFields(fields).Warnln(message)
 	}
 	return so
 }
@@ -133,7 +158,7 @@ func (so *Stdout) Warn(obj interface{}, args ...interface{}) common.Logger {
 func (so *Stdout) Error(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.ErrorLevel, obj, args...); exists {
-		so.log.WithFields(so.trace(3)).Errorln(message)
+		so.log.WithFields(so.addCallerFields(3)).Errorln(message)
 	}
 	return so
 }
@@ -141,7 +166,7 @@ func (so *Stdout) Error(obj interface{}, args ...interface{}) common.Logger {
 func (so *Stdout) SpanError(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.ErrorLevel, obj, args...); exists {
-		fields := common.AddTracerFields(span, so.trace(3))
+		fields := so.addSpanFields(span, so.addCallerFields(3))
 		so.log.WithFields(fields).Errorln(message)
 	}
 	return so
@@ -150,7 +175,7 @@ func (so *Stdout) SpanError(span common.TracerSpan, obj interface{}, args ...int
 func (so *Stdout) Debug(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.DebugLevel, obj, args...); exists {
-		so.log.WithFields(so.trace(3)).Debugln(message)
+		so.log.WithFields(so.addCallerFields(3)).Debugln(message)
 	}
 	return so
 }
@@ -158,7 +183,7 @@ func (so *Stdout) Debug(obj interface{}, args ...interface{}) common.Logger {
 func (so *Stdout) SpanDebug(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.DebugLevel, obj, args...); exists {
-		fields := common.AddTracerFields(span, so.trace(3))
+		fields := so.addSpanFields(span, so.addCallerFields(3))
 		so.log.WithFields(fields).Debugln(message)
 	}
 	return so
@@ -167,7 +192,16 @@ func (so *Stdout) SpanDebug(span common.TracerSpan, obj interface{}, args ...int
 func (so *Stdout) Panic(obj interface{}, args ...interface{}) common.Logger {
 
 	if exists, message := so.exists(logrus.PanicLevel, obj, args...); exists {
-		so.log.WithFields(so.trace(3)).Panicln(message)
+		so.log.WithFields(so.addCallerFields(3)).Panicln(message)
+	}
+	return so
+}
+
+func (so *Stdout) SpanPanic(span common.TracerSpan, obj interface{}, args ...interface{}) common.Logger {
+
+	if exists, message := so.exists(logrus.PanicLevel, obj, args...); exists {
+		fields := so.addSpanFields(span, so.addCallerFields(3))
+		so.log.WithFields(fields).Panicln(message)
 	}
 	return so
 }

@@ -47,7 +47,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	s.logger.Debug("Post to Slack (%s) => %s", URL, message)
+	s.logger.SpanDebug(span, "Post to Slack (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
@@ -74,7 +74,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 
 	//slackOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
-	s.logger.Debug("Response from Slack => %s", string(b))
+	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
 
 	return nil
 }
@@ -88,7 +88,7 @@ func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			s.logger.Warn("Failed to close writer")
+			s.logger.SpanWarn(span, "Failed to close writer")
 		}
 	}()
 
@@ -125,7 +125,7 @@ func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, 
 	w := multipart.NewWriter(&body)
 	defer func() {
 		if err := w.Close(); err != nil {
-			s.logger.Warn("Failed to close writer")
+			s.logger.SpanWarn(span, "Failed to close writer")
 		}
 	}()
 
@@ -208,7 +208,6 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, UR
 
 	photo, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		s.logger.Error(err)
 		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
 		return nil
 	}
@@ -252,7 +251,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			b, err := s.selector.Execute(jsonObject)
 			if err != nil {
-				s.logger.Debug(err)
+				s.logger.SpanDebug(span, err)
 			} else {
 				URLs = b.String()
 			}
@@ -272,7 +271,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		message := b.String()
 		if common.IsEmpty(message) {
-			s.logger.Debug("Slack message is empty")
+			s.logger.SpanDebug(span, "Slack message is empty")
 			return
 		}
 
