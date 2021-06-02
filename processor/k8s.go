@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/devopsext/events/common"
-	"github.com/prometheus/client_golang/prometheus"
+
 	admv1beta1 "k8s.io/api/admission/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -22,15 +22,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
-var k8sProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var k8sProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_k8s_processor_requests",
 	Help: "Count of all k8s processor requests",
-}, []string{"k8s_processor_user", "k8s_processor_operation", "k8s_processor_channel", "k8s_processor_namespace", "k8s_processor_kind"})
+}, []string{"k8s_processor_user", "k8s_processor_operation", "k8s_processor_channel", "k8s_processor_namespace", "k8s_processor_kind"})*/
 
 type K8sProcessor struct {
 	outputs *common.Outputs
 	tracer  common.Tracer
 	logger  common.Logger
+	counter common.Counter
 }
 
 type K8sUser struct {
@@ -446,7 +447,8 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 			p.processPod(span, channel, req)
 		}
 
-		k8sProcessorRequests.WithLabelValues(req.UserInfo.Username, string(req.Operation), channel, req.Namespace, req.Kind.Kind).Inc()
+		p.counter.Inc(req.UserInfo.Username, string(req.Operation), channel, req.Namespace, req.Kind.Kind)
+		//k8sProcessorRequests.WithLabelValues(req.UserInfo.Username, string(req.Operation), channel, req.Namespace, req.Kind.Kind).Inc()
 
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Allowed: true,
@@ -475,14 +477,16 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func NewK8sProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer) *K8sProcessor {
+func NewK8sProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *K8sProcessor {
+
 	return &K8sProcessor{
 		outputs: outputs,
 		logger:  logger,
 		tracer:  tracer,
+		counter: metricer.Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}),
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(k8sProcessorRequests)
-}
+}*/

@@ -18,7 +18,6 @@ type TracesSpan struct {
 	traceID     uint64
 	spanContext *TracesSpanContext
 	traces      *Traces
-	tracer      Tracer
 }
 
 type Traces struct {
@@ -114,7 +113,6 @@ func (ts *Traces) StartSpan() TracerSpan {
 		traces:  ts,
 		spans:   make(map[Tracer]TracerSpan),
 		traceID: ts.randomNumber(),
-		tracer:  ts,
 	}
 
 	for _, t := range ts.tracers {
@@ -141,7 +139,6 @@ func (ts *Traces) StartSpanWithTraceID(traceID uint64) TracerSpan {
 		traces:  ts,
 		spans:   make(map[Tracer]TracerSpan),
 		traceID: traceID,
-		tracer:  ts,
 	}
 
 	for _, t := range ts.tracers {
@@ -159,6 +156,7 @@ func (ts *Traces) StartSpanWithTraceID(traceID uint64) TracerSpan {
 }
 
 func (ts *Traces) StartChildSpan(object interface{}) TracerSpan {
+
 	if len(ts.tracers) <= 0 {
 		return nil
 	}
@@ -173,7 +171,6 @@ func (ts *Traces) StartChildSpan(object interface{}) TracerSpan {
 		traces:  ts,
 		spans:   make(map[Tracer]TracerSpan),
 		traceID: traceID,
-		tracer:  ts,
 	}
 
 	for _, t := range ts.tracers {
@@ -216,7 +213,6 @@ func (ts *Traces) StartFollowSpan(object interface{}) TracerSpan {
 	span := TracesSpan{
 		traces:  ts,
 		spans:   make(map[Tracer]TracerSpan),
-		tracer:  ts,
 		traceID: traceID,
 	}
 

@@ -15,13 +15,12 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var slackOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var slackOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_slack_output_count",
 	Help: "Count of all slack outputs",
-}, []string{})
+}, []string{})*/
 
 type SlackOutputOptions struct {
 	MessageTemplate  string
@@ -321,6 +320,6 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(slackOutputCount)
-}
+}*/

@@ -14,13 +14,12 @@ import (
 
 	"github.com/devopsext/events/common"
 	"github.com/grafana-tools/sdk"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var grafanaRenderCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var grafanaRenderCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_grafana_render_count",
 	Help: "Count of all grafana renders",
-}, []string{""})
+}, []string{""})*/
 
 type GrafanaOptions struct {
 	URL         string
@@ -280,6 +279,6 @@ func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Trac
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(grafanaRenderCount)
-}
+}*/

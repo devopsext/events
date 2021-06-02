@@ -3,6 +3,7 @@ module github.com/devopsext/events
 go 1.16
 
 require (
+	github.com/DataDog/datadog-go v4.7.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/Shopify/sarama v1.29.0
 	github.com/VictoriaMetrics/metricsql v0.15.0

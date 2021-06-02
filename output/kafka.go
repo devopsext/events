@@ -9,13 +9,12 @@ import (
 	"github.com/devopsext/events/render"
 
 	"github.com/Shopify/sarama"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var kafkaOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var kafkaOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_kafka_output_count",
 	Help: "Count of all kafka output count",
-}, []string{"kafka_output_brokers", "kafka_output_topic"})
+}, []string{"kafka_output_brokers", "kafka_output_topic"})*/
 
 type KafkaOutputOptions struct {
 	ClientID           string
@@ -77,7 +76,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			Value: sarama.ByteEncoder(b.Bytes()),
 		}
 
-		kafkaOutputCount.WithLabelValues(k.options.Brokers, k.options.Topic).Inc()
+		//kafkaOutputCount.WithLabelValues(k.options.Brokers, k.options.Topic).Inc()
 	}()
 }
 
@@ -127,9 +126,14 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	config.Net.ReadTimeout = time.Second * time.Duration(options.NetReadTimeout)
 	config.Net.WriteTimeout = time.Second * time.Duration(options.NetWriteTimeout)
 
+	producer := makeKafkaProducer(wg, options.Brokers, options.Topic, config, logger)
+	if producer == nil {
+		return nil
+	}
+
 	return &KafkaOutput{
 		wg:       wg,
-		producer: makeKafkaProducer(wg, options.Brokers, options.Topic, config, logger),
+		producer: producer,
 		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options, logger),
 		options:  options,
 		logger:   logger,
@@ -137,6 +141,6 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(kafkaOutputCount)
-}
+}*/
