@@ -17,13 +17,12 @@ import (
 	"github.com/devopsext/events/render"
 
 	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var telegramOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var telegramOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_telegram_output_count",
 	Help: "Count of all telegram outputs",
-}, []string{"telegram_output_bot"})
+}, []string{"telegram_output_bot"})*/
 
 type TelegramOutputOptions struct {
 	MessageTemplate     string
@@ -115,7 +114,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 		return err
 	}
 
-	telegramOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
+	//telegramOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
 
 	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
 
@@ -376,6 +375,6 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(telegramOutputCount)
-}
+}*/

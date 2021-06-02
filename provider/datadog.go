@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/utils"
 	"github.com/sirupsen/logrus"
@@ -37,6 +38,13 @@ type DataDogLoggerOptions struct {
 	ServiceName string
 	Version     string
 	Level       string
+}
+
+type DataDogMetricerOptions struct {
+	Host    string
+	Port    int
+	Tags    string
+	Version string
 }
 
 type DataDogTracerSpanContext struct {
@@ -67,6 +75,20 @@ type DataDogLogger struct {
 	log          *logrus.Logger
 	options      DataDogLoggerOptions
 	callerOffset int
+}
+
+type DataDogMetricerCounter struct {
+	metricer    *DataDogMetricer
+	name        string
+	description string
+	labels      []string
+}
+
+type DataDogMetricer struct {
+	options      DataDogMetricerOptions
+	logger       common.Logger
+	callerOffset int
+	client       *statsd.Client
 }
 
 func (ddsc DataDogTracerSpanContext) GetTraceID() uint64 {
@@ -257,6 +279,43 @@ func (dd *DataDogTracer) Enabled() bool {
 	return dd.enabled
 }
 
+func startDataDogTracer(options DataDogTracerOptions, logger common.Logger, stdout *Stdout) bool {
+
+	disabled := utils.IsEmpty(options.Host)
+	if disabled {
+		stdout.Debug("DataDog tracer is disabled.")
+	}
+
+	addr := net.JoinHostPort(
+		options.Host,
+		strconv.Itoa(options.Port),
+	)
+
+	var opts []tracer.StartOption
+	opts = append(opts, tracer.WithAgentAddr(addr))
+	opts = append(opts, tracer.WithServiceName(options.ServiceName))
+	opts = append(opts, tracer.WithServiceVersion(options.Version))
+	opts = append(opts, tracer.WithEnv("none")) // should be configurable
+	opts = append(opts, tracer.WithLogger(&DataDogTracerLogger{logger: logger}))
+
+	opts = setDataDogTracerTags(opts, options.Tags)
+
+	tracer.Start(opts...)
+	return !disabled
+}
+
+func NewDataDogTracer(options DataDogTracerOptions, logger common.Logger, stdout *Stdout) *DataDogTracer {
+
+	enabled := startDataDogTracer(options, logger, stdout)
+
+	return &DataDogTracer{
+		options:      options,
+		callerOffset: 0,
+		logger:       logger,
+		enabled:      enabled,
+	}
+}
+
 func (dd *DataDogLogger) addSpanFields(span common.TracerSpan, fields logrus.Fields) logrus.Fields {
 
 	if span == nil {
@@ -418,43 +477,6 @@ func setDataDogTracerTags(opts []tracer.StartOption, sTags string) []tracer.Star
 	return opts
 }
 
-func startDataDogTracer(options DataDogTracerOptions, logger common.Logger, stdout *Stdout) bool {
-
-	disabled := utils.IsEmpty(options.Host)
-	if disabled {
-		stdout.Debug("DataDog tracer is disabled.")
-	}
-
-	addr := net.JoinHostPort(
-		options.Host,
-		strconv.Itoa(options.Port),
-	)
-
-	var opts []tracer.StartOption
-	opts = append(opts, tracer.WithAgentAddr(addr))
-	opts = append(opts, tracer.WithServiceName(options.ServiceName))
-	opts = append(opts, tracer.WithServiceVersion(options.Version))
-	opts = append(opts, tracer.WithEnv("none")) // should be configurable
-	opts = append(opts, tracer.WithLogger(&DataDogTracerLogger{logger: logger}))
-
-	opts = setDataDogTracerTags(opts, options.Tags)
-
-	tracer.Start(opts...)
-	return !disabled
-}
-
-func NewDataDogTracer(options DataDogTracerOptions, logger common.Logger, stdout *Stdout) *DataDogTracer {
-
-	enabled := startDataDogTracer(options, logger, stdout)
-
-	return &DataDogTracer{
-		options:      options,
-		callerOffset: 0,
-		logger:       logger,
-		enabled:      enabled,
-	}
-}
-
 func NewDataDogLogger(options DataDogLoggerOptions, logger common.Logger, stdout *Stdout) *DataDogLogger {
 
 	if utils.IsEmpty(options.Host) {
@@ -504,5 +526,78 @@ func NewDataDogLogger(options DataDogLoggerOptions, logger common.Logger, stdout
 		log:          log,
 		options:      options,
 		callerOffset: 0,
+	}
+}
+
+func (ddmc *DataDogMetricerCounter) getGlobalTags() []string {
+
+	var tags []string
+
+	for _, v := range strings.Split(ddmc.metricer.options.Tags, ",") {
+		tags = append(tags, strings.Replace(v, "=", ":", 1))
+	}
+	return tags
+}
+
+func (ddmc *DataDogMetricerCounter) getLabelTags(labelValues ...string) []string {
+
+	var tags []string
+
+	tags = append(tags, ddmc.getGlobalTags()...)
+
+	for k, v := range ddmc.labels {
+
+		value := ""
+		if len(labelValues) > (k - 1) {
+			value = labelValues[k]
+			tag := fmt.Sprintf("%s:%s", v, value)
+			tags = append(tags, tag)
+		}
+	}
+	return tags
+}
+
+func (ddmc *DataDogMetricerCounter) Inc(labelValues ...string) common.Counter {
+
+	err := ddmc.metricer.client.Incr(fmt.Sprintf("%s.increment", ddmc.name), ddmc.getLabelTags(labelValues...), 1)
+	if err != nil {
+		ddmc.metricer.logger.Error(err)
+	}
+	return ddmc
+}
+
+func (ddm *DataDogMetricer) SetCallerOffset(offset int) {
+	ddm.callerOffset = offset
+}
+
+func (ddm *DataDogMetricer) Counter(name, description string, labels []string) common.Counter {
+
+	return &DataDogMetricerCounter{
+		metricer:    ddm,
+		name:        name,
+		description: description,
+		labels:      labels,
+	}
+}
+
+func NewDataDogMetricer(options DataDogMetricerOptions, logger common.Logger, stdout *Stdout) *DataDogMetricer {
+
+	if utils.IsEmpty(options.Host) {
+		return nil
+	}
+
+	client, err := statsd.New(fmt.Sprintf("%s:%d", options.Host, options.Port))
+	if err != nil {
+		logger.Error(err)
+		return nil
+	}
+
+	logger.Info("Datadog metrics are up...")
+
+	return &DataDogMetricer{
+		options:      options,
+		logger:       logger,
+		callerOffset: 0,
+		client:       client,
 	}
 }

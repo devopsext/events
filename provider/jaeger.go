@@ -15,7 +15,6 @@ import (
 	opentracingLog "github.com/opentracing/opentracing-go/log"
 	"github.com/uber/jaeger-client-go"
 	jaegerConfig "github.com/uber/jaeger-client-go/config"
-	"github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
 type JaegerOptions struct {
@@ -409,9 +408,7 @@ func newJaegerTracer(options JaegerOptions, logger common.Logger, stdout *Stdout
 		},
 	}
 
-	metricsFactory := prometheus.New()
-
-	tracer, _, err := cfg.NewTracer(jaegerConfig.Metrics(metricsFactory), jaegerConfig.Logger(&JaegerLogger{logger: logger}))
+	tracer, _, err := cfg.NewTracer(jaegerConfig.Logger(&JaegerLogger{logger: logger}))
 	if err != nil {
 		stdout.Error(err)
 		return opentracing.NoopTracer{}, false

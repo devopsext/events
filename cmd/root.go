@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"reflect"
@@ -19,7 +17,6 @@ import (
 	"github.com/devopsext/events/provider"
 	"github.com/devopsext/events/render"
 	utils "github.com/devopsext/utils"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -28,25 +25,21 @@ var VERSION = "unknown"
 var env = utils.GetEnvironment()
 var logs = common.NewLogs()
 var traces = common.NewTraces()
+var metrics = common.NewMetrics()
 var stdout *provider.Stdout
+var mainWG sync.WaitGroup
 
 type RootOptions struct {
 	Logs    []string
-	Metrics string
+	Metrics []string
 	Traces  []string
-
-	PrometheusURL    string
-	PrometheusListen string
 }
 
 var rootOptions = RootOptions{
 
 	Logs:    strings.Split(env.Get("EVENTS_LOGS", "stdout").(string), ","),
-	Metrics: env.Get("EVENTS_METRICS", "prometheus").(string),
+	Metrics: strings.Split(env.Get("EVENTS_METRICS", "prometheus").(string), ","),
 	Traces:  strings.Split(env.Get("EVENTS_TRACES", "").(string), ","),
-
-	PrometheusURL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
-	PrometheusListen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
 }
 
 var textTemplateOptions = render.TextTemplateOptions{
@@ -61,6 +54,12 @@ var stdoutOptions = provider.StdoutOptions{
 	Template:        env.Get("EVENTS_STDOUT_TEMPLATE", "{{.file}} {{.msg}}").(string),
 	TimestampFormat: env.Get("EVENTS_STDOUT_TIMESTAMP_FORMAT", time.RFC3339Nano).(string),
 	TextColors:      env.Get("EVENTS_STDOUT_TEXT_COLORS", true).(bool),
+}
+
+var prometheusOptions = provider.PrometheusOptions{
+
+	URL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
+	Listen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
 }
 
 var httpInputOptions = input.HttpInputOptions{
@@ -164,32 +163,13 @@ var datadogLoggerOptions = provider.DataDogLoggerOptions{
 	Port:        env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
 	Tags:        env.Get("EVENTS_DATADOG_LOGGER_TAGS", "").(string),
 	ServiceName: env.Get("EVENTS_DATADOG_LOGGER_SERVICE_NAME", "").(string),
-	Level:       env.Get("EVENTS_DATADOG_LEVEL", "info").(string),
+	Level:       env.Get("EVENTS_DATADOG_LOGGER_LEVEL", "info").(string),
 }
 
-func startMetrics(wg *sync.WaitGroup) {
-
-	wg.Add(1)
-
-	go func(wg *sync.WaitGroup) {
-
-		defer wg.Done()
-
-		logs.Info("Start metrics...")
-
-		http.Handle(rootOptions.PrometheusURL, promhttp.Handler())
-
-		listener, err := net.Listen("tcp", rootOptions.PrometheusListen)
-		if err != nil {
-			logs.Panic(err)
-		}
-
-		logs.Info("Metrics are up. Listening...")
-		err = http.Serve(listener, nil)
-		if err != nil {
-			logs.Panic(err)
-		}
-	}(wg)
+var datadogMetricerOptions = provider.DataDogMetricerOptions{
+	Host: env.Get("EVENTS_DATADOG_METRICER_HOST", "").(string),
+	Port: env.Get("EVENTS_DATADOG_METRICER_PORT", 10518).(int),
+	Tags: env.Get("EVENTS_DATADOG_METRICER_TAGS", "").(string),
 }
 
 func interceptSyscall() {
@@ -213,7 +193,6 @@ func Execute() {
 			stdoutOptions.Version = VERSION
 			stdout = provider.NewStdout(stdoutOptions)
 			stdout.SetCallerOffset(2)
-
 			if common.HasElem(rootOptions.Logs, "stdout") {
 				logs.Register(stdout)
 			}
@@ -223,17 +202,34 @@ func Execute() {
 				datadogLoggerOptions.ServiceName = datadogOptions.ServiceName
 			}
 			datadogLogger := provider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
-
 			if common.HasElem(rootOptions.Logs, "datadog") {
 				logs.Register(datadogLogger)
 			}
 
 			logs.Info("Booting...")
 
+			// Metrics
+
+			prometheusOptions.Version = VERSION
+			prometheus := provider.NewPrometheus(prometheusOptions, logs, stdout)
+			prometheus.SetCallerOffset(1)
+			if common.HasElem(rootOptions.Metrics, "prometheus") {
+				prometheus.Start(&mainWG)
+				metrics.Register(prometheus)
+			}
+
+			datadogMetricerOptions.Version = VERSION
+			datadogMetricer := provider.NewDataDogMetricer(datadogMetricerOptions, logs, stdout)
+			datadogMetricer.SetCallerOffset(1)
+			if common.HasElem(rootOptions.Metrics, "datadog") {
+				metrics.Register(datadogMetricer)
+			}
+
+			// Tracing
+
 			jaegerOptions.Version = VERSION
 			jaeger := provider.NewJaeger(jaegerOptions, logs, stdout)
 			jaeger.SetCallerOffset(1)
-
 			if common.HasElem(rootOptions.Traces, "jaeger") {
 				traces.Register(jaeger)
 			}
@@ -244,7 +240,6 @@ func Execute() {
 			}
 			datadogTracer := provider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
 			datadogTracer.SetCallerOffset(1)
-
 			if common.HasElem(rootOptions.Traces, "datadog") {
 				traces.Register(datadogTracer)
 			}
@@ -252,11 +247,7 @@ func Execute() {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
-			var wg sync.WaitGroup
-
-			startMetrics(&wg)
-
-			var httpInput common.Input = input.NewHttpInput(httpInputOptions, logs, traces)
+			var httpInput common.Input = input.NewHttpInput(httpInputOptions, logs, traces, metrics)
 			if reflect.ValueOf(httpInput).IsNil() {
 				logs.Panic("Http input is invalid. Terminating...")
 			}
@@ -266,54 +257,51 @@ func Execute() {
 
 			outputs := common.NewOutputs(textTemplateOptions.TimeFormat, logs)
 
-			var collectorOutput common.Output = output.NewCollectorOutput(&wg, collectorOutputOptions, textTemplateOptions, logs, traces)
+			var collectorOutput common.Output = output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, logs, traces)
 			if reflect.ValueOf(collectorOutput).IsNil() {
 				logs.Warn("Collector output is invalid. Skipping...")
 			} else {
 				outputs.Add(&collectorOutput)
 			}
 
-			var kafkaOutput common.Output = output.NewKafkaOutput(&wg, kafkaOutputOptions, textTemplateOptions, logs, traces)
+			var kafkaOutput common.Output = output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, logs, traces)
 			if reflect.ValueOf(kafkaOutput).IsNil() {
 				logs.Warn("Kafka output is invalid. Skipping...")
 			} else {
 				outputs.Add(&kafkaOutput)
 			}
 
-			var telegramOutput common.Output = output.NewTelegramOutput(&wg, telegramOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
+			var telegramOutput common.Output = output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
 			if reflect.ValueOf(telegramOutput).IsNil() {
 				logs.Warn("Telegram output is invalid. Skipping...")
 			} else {
 				outputs.Add(&telegramOutput)
 			}
 
-			var slackOutput common.Output = output.NewSlackOutput(&wg, slackOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
+			var slackOutput common.Output = output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
 			if reflect.ValueOf(slackOutput).IsNil() {
 				logs.Warn("Slack output is invalid. Skipping...")
 			} else {
 				outputs.Add(&slackOutput)
 			}
 
-			var workchatOutput common.Output = output.NewWorkchatOutput(&wg, workchatOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
+			var workchatOutput common.Output = output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
 			if reflect.ValueOf(workchatOutput).IsNil() {
 				logs.Warn("Workchat output is invalid. Skipping...")
 			} else {
 				outputs.Add(&workchatOutput)
 			}
 
-			inputs.Start(&wg, outputs)
-			wg.Wait()
+			inputs.Start(&mainWG, outputs)
+			mainWG.Wait()
 		},
 	}
 
 	flags := rootCmd.PersistentFlags()
 
 	flags.StringSliceVar(&rootOptions.Logs, "logs", rootOptions.Logs, "Log providers: stdout, datadog")
-	flags.StringVar(&rootOptions.Metrics, "metrics", rootOptions.Metrics, "Metric providers")
+	flags.StringSliceVar(&rootOptions.Metrics, "metrics", rootOptions.Metrics, "Metric providers: prometheus, datadog")
 	flags.StringSliceVar(&rootOptions.Traces, "traces", rootOptions.Traces, "Trace providers: jaeger, datadog")
-
-	flags.StringVar(&rootOptions.PrometheusURL, "prometheus-url", rootOptions.PrometheusURL, "Prometheus endpoint url")
-	flags.StringVar(&rootOptions.PrometheusListen, "prometheus-listen", rootOptions.PrometheusListen, "Prometheus listen")
 
 	flags.StringVar(&textTemplateOptions.TimeFormat, "template-time-format", textTemplateOptions.TimeFormat, "Template time format")
 
@@ -322,6 +310,9 @@ func Execute() {
 	flags.StringVar(&stdoutOptions.Template, "stdout-template", stdoutOptions.Template, "Stdout template")
 	flags.StringVar(&stdoutOptions.TimestampFormat, "stdout-timestamp-format", stdoutOptions.TimestampFormat, "Stdout timestamp format")
 	flags.BoolVar(&stdoutOptions.TextColors, "stdout-text-colors", stdoutOptions.TextColors, "Stdout text colors")
+
+	flags.StringVar(&prometheusOptions.URL, "prometheus-url", prometheusOptions.URL, "Prometheus endpoint url")
+	flags.StringVar(&prometheusOptions.Listen, "prometheus-listen", prometheusOptions.Listen, "Prometheus listen")
 
 	flags.StringVar(&httpInputOptions.K8sURL, "http-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
@@ -394,6 +385,10 @@ func Execute() {
 	flags.IntVar(&datadogLoggerOptions.Port, "datadog-logger-port", datadogLoggerOptions.Port, "Datadog logger port")
 	flags.StringVar(&datadogLoggerOptions.Tags, "datadog-logger-tags", datadogLoggerOptions.Tags, "DataDog logger tags, comma separated list of name=value")
 	flags.StringVar(&datadogLoggerOptions.Level, "datadog-logger-level", datadogLoggerOptions.Level, "DataDog logger level: info, warn, error, debug, panic")
+
+	flags.StringVar(&datadogMetricerOptions.Host, "datadog-metricer-host", datadogMetricerOptions.Host, "DataDog metricer host")
+	flags.IntVar(&datadogMetricerOptions.Port, "datadog-metricer-port", datadogMetricerOptions.Port, "Datadog metricer port")
+	flags.StringVar(&datadogMetricerOptions.Tags, "datadog-metricer-tags", datadogMetricerOptions.Tags, "DataDog metricer tags, comma separated list of name=value")
 
 	interceptSyscall()
 

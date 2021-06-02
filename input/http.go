@@ -13,13 +13,12 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/processor"
 	"github.com/devopsext/utils"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var httpInputRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var httpInputRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_http_input_requests",
 	Help: "Count of all http input requests",
-}, []string{"input_url"})
+}, []string{"input_url"})*/
 
 type HttpInputOptions struct {
 	K8sURL          string
@@ -33,9 +32,10 @@ type HttpInputOptions struct {
 }
 
 type HttpInput struct {
-	options HttpInputOptions
-	tracer  common.Tracer
-	logger  common.Logger
+	options  HttpInputOptions
+	tracer   common.Tracer
+	logger   common.Logger
+	metricer common.Metricer
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -118,8 +118,8 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
 
-					httpInputRequests.WithLabelValues(r.URL.Path).Inc()
-					processor.NewK8sProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
+					//httpInputRequests.WithLabelValues(r.URL.Path).Inc()
+					processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.metricer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -136,7 +136,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
 
-					httpInputRequests.WithLabelValues(url).Inc()
+					//httpInputRequests.WithLabelValues(url).Inc()
 					processor.NewRancherProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
@@ -154,7 +154,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
 
-					httpInputRequests.WithLabelValues(url).Inc()
+					//httpInputRequests.WithLabelValues(url).Inc()
 					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
@@ -190,15 +190,16 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func NewHttpInput(options HttpInputOptions, logger common.Logger, tracer common.Tracer) *HttpInput {
+func NewHttpInput(options HttpInputOptions, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *HttpInput {
 
 	return &HttpInput{
-		options: options,
-		tracer:  tracer,
-		logger:  logger,
+		options:  options,
+		tracer:   tracer,
+		logger:   logger,
+		metricer: metricer,
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(httpInputRequests)
-}
+}*/

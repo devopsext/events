@@ -10,13 +10,12 @@ import (
 
 	"github.com/devopsext/events/common"
 	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var AlertmanagerProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var AlertmanagerProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_alertmanager_processor_requests",
 	Help: "Count of all alertmanager processor requests",
-}, []string{})
+}, []string{})*/
 
 type AlertmanagerProcessor struct {
 	outputs *common.Outputs
@@ -119,6 +118,6 @@ func NewAlertmanagerProcessor(outputs *common.Outputs, logger common.Logger, tra
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(AlertmanagerProcessorRequests)
-}
+}*/

@@ -19,13 +19,12 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-var workchatOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+/*var workchatOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "events_workchat_output_count",
 	Help: "Count of all workchat outputs",
-}, []string{})
+}, []string{})*/
 
 type WorkchatOutputOptions struct {
 	MessageTemplate  string
@@ -349,6 +348,6 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	}
 }
 
-func init() {
+/*func init() {
 	prometheus.Register(workchatOutputCount)
-}
+}*/
