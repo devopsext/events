@@ -3,9 +3,11 @@ package provider
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/devopsext/events/common"
+	"github.com/devopsext/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -14,6 +16,7 @@ type PrometheusOptions struct {
 	URL     string
 	Listen  string
 	Version string
+	Prefix  string
 }
 
 type PrometheusCounter struct {
@@ -36,10 +39,23 @@ func (p *Prometheus) SetCallerOffset(offset int) {
 	p.callerOffset = offset
 }
 
-func (p *Prometheus) Counter(name, description string, labels []string) common.Counter {
+func (p *Prometheus) Counter(name, description string, labels []string, prefixes ...string) common.Counter {
+
+	var names []string
+
+	if !utils.IsEmpty(p.options.Prefix) {
+		names = append(names, p.options.Prefix)
+	}
+
+	for _, v := range prefixes {
+		names = append(names, v)
+	}
+
+	names = append(names, name)
+	newName := strings.Join(names, "_")
 
 	config := prometheus.CounterOpts{
-		Name: name,
+		Name: newName,
 		Help: description,
 	}
 

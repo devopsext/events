@@ -17,11 +17,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
-/*var slackOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_slack_output_count",
-	Help: "Count of all slack outputs",
-}, []string{})*/
-
 type SlackOutputOptions struct {
 	MessageTemplate  string
 	SelectorTemplate string
@@ -39,6 +34,27 @@ type SlackOutput struct {
 	options  SlackOutputOptions
 	tracer   common.Tracer
 	logger   common.Logger
+	counter  common.Counter
+}
+
+// assume that url is => https://slack.com/api/files.upload?token=%s&channels=%s
+
+func (s *SlackOutput) getToken(URL string) string {
+
+	u, err := url.Parse(URL)
+	if err != nil {
+		return ""
+	}
+	return u.Query().Get("token")
+}
+
+func (s *SlackOutput) getChannel(URL string) string {
+
+	u, err := url.Parse(URL)
+	if err != nil {
+		return ""
+	}
+	return u.Query().Get("channels")
 }
 
 func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
@@ -71,9 +87,8 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 		return err
 	}
 
-	//slackOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
-
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
+	s.counter.Inc(s.getChannel(URL))
 
 	return nil
 }
@@ -301,7 +316,8 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
 	logger common.Logger,
-	tracer common.Tracer) *SlackOutput {
+	tracer common.Tracer,
+	metricer common.Metricer) *SlackOutput {
 
 	if common.IsEmpty(options.URL) {
 		logger.Debug("Slack URL is not defined. Skipped")
@@ -313,13 +329,10 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		client:   common.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),
 		options:  options,
 		logger:   logger,
 		tracer:   tracer,
+		counter:  metricer.Counter("requests", "Count of all slack outputs", []string{"channel"}, "slack", "output"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(slackOutputCount)
-}*/

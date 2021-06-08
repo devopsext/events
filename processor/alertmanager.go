@@ -12,15 +12,11 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
-/*var AlertmanagerProcessorRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_alertmanager_processor_requests",
-	Help: "Count of all alertmanager processor requests",
-}, []string{})*/
-
 type AlertmanagerProcessor struct {
 	outputs *common.Outputs
 	tracer  common.Tracer
 	logger  common.Logger
+	counter common.Counter
 }
 
 type AlertmanagerResponse struct {
@@ -36,6 +32,7 @@ func (p *AlertmanagerProcessor) processData(span common.TracerSpan, channel stri
 
 	for _, alert := range data.Alerts {
 
+		status := p.prepareStatus(alert.Status)
 		e := &common.Event{
 			Channel: channel,
 			Type:    "AlertmanagerEvent",
@@ -45,6 +42,7 @@ func (p *AlertmanagerProcessor) processData(span common.TracerSpan, channel stri
 			e.SetSpanContext(span.GetContext())
 		}
 		p.outputs.Send(e)
+		p.counter.Inc(status, channel)
 	}
 }
 
@@ -110,14 +108,12 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	}
 }
 
-func NewAlertmanagerProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer) *AlertmanagerProcessor {
+func NewAlertmanagerProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *AlertmanagerProcessor {
+
 	return &AlertmanagerProcessor{
 		outputs: outputs,
 		tracer:  tracer,
 		logger:  logger,
+		counter: metricer.Counter("requests", "Count of all alertmanager processor requests", []string{"status", "channel"}, "alertmanager", "processor"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(AlertmanagerProcessorRequests)
-}*/

@@ -19,11 +19,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
-/*var telegramOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_telegram_output_count",
-	Help: "Count of all telegram outputs",
-}, []string{"telegram_output_bot"})*/
-
 type TelegramOutputOptions struct {
 	MessageTemplate     string
 	SelectorTemplate    string
@@ -42,9 +37,10 @@ type TelegramOutput struct {
 	options  TelegramOutputOptions
 	tracer   common.Tracer
 	logger   common.Logger
+	counter  common.Counter
 }
 
-// assume that url => https://api.telegram.org/bot508526210:sdsdfsdfsdf/sendMessage?chat_id=-324234234
+// assume that url is => https://api.telegram.org/botID:botToken/sendMessage?chat_id=%s
 
 func (t *TelegramOutput) getBotID(URL string) string {
 
@@ -114,9 +110,8 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 		return err
 	}
 
-	//telegramOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
-
 	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
+	t.counter.Inc(t.getChatID(URL))
 
 	return nil
 }
@@ -356,7 +351,8 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
 	logger common.Logger,
-	tracer common.Tracer) *TelegramOutput {
+	tracer common.Tracer,
+	metricer common.Metricer) *TelegramOutput {
 
 	if common.IsEmpty(options.URL) {
 		logger.Debug("Telegram URL is not defined. Skipped")
@@ -368,13 +364,10 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		client:   common.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),
 		options:  options,
 		logger:   logger,
 		tracer:   tracer,
+		counter:  metricer.Counter("requests", "Count of all telegram outputs", []string{"chat_id"}, "telegram", "output"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(telegramOutputCount)
-}*/

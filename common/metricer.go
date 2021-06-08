@@ -5,5 +5,5 @@ type Counter interface {
 }
 
 type Metricer interface {
-	Counter(name, description string, labels []string) Counter
+	Counter(name, description string, labels []string, prefixes ...string) Counter
 }

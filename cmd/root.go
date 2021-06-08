@@ -60,6 +60,7 @@ var prometheusOptions = provider.PrometheusOptions{
 
 	URL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
 	Listen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
+	Prefix: env.Get("EVENTS_PROMETHEUS_PREFIX", "events").(string),
 }
 
 var httpInputOptions = input.HttpInputOptions{
@@ -167,9 +168,10 @@ var datadogLoggerOptions = provider.DataDogLoggerOptions{
 }
 
 var datadogMetricerOptions = provider.DataDogMetricerOptions{
-	Host: env.Get("EVENTS_DATADOG_METRICER_HOST", "").(string),
-	Port: env.Get("EVENTS_DATADOG_METRICER_PORT", 10518).(int),
-	Tags: env.Get("EVENTS_DATADOG_METRICER_TAGS", "").(string),
+	Host:   env.Get("EVENTS_DATADOG_METRICER_HOST", "").(string),
+	Port:   env.Get("EVENTS_DATADOG_METRICER_PORT", 10518).(int),
+	Tags:   env.Get("EVENTS_DATADOG_METRICER_TAGS", "").(string),
+	Prefix: env.Get("EVENTS_DATADOG_METRICER_PREFIX", "events").(string),
 }
 
 func interceptSyscall() {
@@ -257,35 +259,35 @@ func Execute() {
 
 			outputs := common.NewOutputs(textTemplateOptions.TimeFormat, logs)
 
-			var collectorOutput common.Output = output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, logs, traces)
+			var collectorOutput common.Output = output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, logs, traces, metrics)
 			if reflect.ValueOf(collectorOutput).IsNil() {
 				logs.Warn("Collector output is invalid. Skipping...")
 			} else {
 				outputs.Add(&collectorOutput)
 			}
 
-			var kafkaOutput common.Output = output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, logs, traces)
+			var kafkaOutput common.Output = output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, logs, traces, metrics)
 			if reflect.ValueOf(kafkaOutput).IsNil() {
 				logs.Warn("Kafka output is invalid. Skipping...")
 			} else {
 				outputs.Add(&kafkaOutput)
 			}
 
-			var telegramOutput common.Output = output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
+			var telegramOutput common.Output = output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaOptions, logs, traces, metrics)
 			if reflect.ValueOf(telegramOutput).IsNil() {
 				logs.Warn("Telegram output is invalid. Skipping...")
 			} else {
 				outputs.Add(&telegramOutput)
 			}
 
-			var slackOutput common.Output = output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
+			var slackOutput common.Output = output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaOptions, logs, traces, metrics)
 			if reflect.ValueOf(slackOutput).IsNil() {
 				logs.Warn("Slack output is invalid. Skipping...")
 			} else {
 				outputs.Add(&slackOutput)
 			}
 
-			var workchatOutput common.Output = output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaOptions, logs, traces)
+			var workchatOutput common.Output = output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaOptions, logs, traces, metrics)
 			if reflect.ValueOf(workchatOutput).IsNil() {
 				logs.Warn("Workchat output is invalid. Skipping...")
 			} else {
@@ -313,6 +315,7 @@ func Execute() {
 
 	flags.StringVar(&prometheusOptions.URL, "prometheus-url", prometheusOptions.URL, "Prometheus endpoint url")
 	flags.StringVar(&prometheusOptions.Listen, "prometheus-listen", prometheusOptions.Listen, "Prometheus listen")
+	flags.StringVar(&prometheusOptions.Prefix, "prometheus-prefix", prometheusOptions.Prefix, "Prometheus prefix")
 
 	flags.StringVar(&httpInputOptions.K8sURL, "http-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
@@ -389,6 +392,7 @@ func Execute() {
 	flags.StringVar(&datadogMetricerOptions.Host, "datadog-metricer-host", datadogMetricerOptions.Host, "DataDog metricer host")
 	flags.IntVar(&datadogMetricerOptions.Port, "datadog-metricer-port", datadogMetricerOptions.Port, "Datadog metricer port")
 	flags.StringVar(&datadogMetricerOptions.Tags, "datadog-metricer-tags", datadogMetricerOptions.Tags, "DataDog metricer tags, comma separated list of name=value")
+	flags.StringVar(&datadogMetricerOptions.Prefix, "datadog-metricer-prefix", datadogMetricerOptions.Prefix, "DataDog metricer prefix")
 
 	interceptSyscall()
 

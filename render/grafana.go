@@ -16,11 +16,6 @@ import (
 	"github.com/grafana-tools/sdk"
 )
 
-/*var grafanaRenderCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_grafana_render_count",
-	Help: "Count of all grafana renders",
-}, []string{""})*/
-
 type GrafanaOptions struct {
 	URL         string
 	Timeout     int
@@ -40,6 +35,7 @@ type Grafana struct {
 	options GrafanaOptions
 	logger  common.Logger
 	tracer  common.Tracer
+	counter common.Counter
 }
 
 func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string) *sdk.Board {
@@ -253,6 +249,8 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 			return nil, "", err
 		}
 
+		g.counter.Inc(title)
+
 		_, err = c.DeleteDashboard(ctx, *status.Slug)
 		if err != nil {
 			g.logger.SpanError(span, err)
@@ -264,7 +262,7 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 	return nil, "", err
 }
 
-func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Tracer) *Grafana {
+func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *Grafana {
 
 	if common.IsEmpty(options.URL) {
 		logger.Debug("Grafana URL is not defined. Skipped")
@@ -276,9 +274,6 @@ func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Trac
 		options: options,
 		logger:  logger,
 		tracer:  tracer,
+		counter: metricer.Counter("requests", "Count of all grafana outputs", []string{"title"}, "grafana"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(grafanaRenderCount)
-}*/
