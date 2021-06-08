@@ -17,7 +17,7 @@ func (msc *MetricsCounter) Inc(values ...string) Counter {
 	return msc
 }
 
-func (ms *Metrics) Counter(name, description string, labels []string) Counter {
+func (ms *Metrics) Counter(name, description string, labels []string, prefixes ...string) Counter {
 
 	if len(ms.metricers) <= 0 {
 		return nil
@@ -30,7 +30,7 @@ func (ms *Metrics) Counter(name, description string, labels []string) Counter {
 
 	for _, m := range ms.metricers {
 
-		c := m.Counter(name, description, labels)
+		c := m.Counter(name, description, labels, prefixes...)
 		if c != nil {
 			counter.counters[m] = c
 		}

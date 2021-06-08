@@ -11,11 +11,6 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-/*var kafkaOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_kafka_output_count",
-	Help: "Count of all kafka output count",
-}, []string{"kafka_output_brokers", "kafka_output_topic"})*/
-
 type KafkaOutputOptions struct {
 	ClientID           string
 	Template           string
@@ -36,6 +31,7 @@ type KafkaOutput struct {
 	options  KafkaOutputOptions
 	tracer   common.Tracer
 	logger   common.Logger
+	counter  common.Counter
 }
 
 func (k *KafkaOutput) Send(event *common.Event) {
@@ -76,7 +72,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			Value: sarama.ByteEncoder(b.Bytes()),
 		}
 
-		//kafkaOutputCount.WithLabelValues(k.options.Brokers, k.options.Topic).Inc()
+		k.counter.Inc(k.options.Topic)
 	}()
 }
 
@@ -107,7 +103,7 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 }
 
 func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions,
-	logger common.Logger, tracer common.Tracer) *KafkaOutput {
+	logger common.Logger, tracer common.Tracer, metricer common.Metricer) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
@@ -138,9 +134,6 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		options:  options,
 		logger:   logger,
 		tracer:   tracer,
+		counter:  metricer.Counter("requests", "Count of all kafka outputs", []string{"topic"}, "kafka", "output"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(kafkaOutputCount)
-}*/

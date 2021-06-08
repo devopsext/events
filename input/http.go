@@ -15,11 +15,6 @@ import (
 	"github.com/devopsext/utils"
 )
 
-/*var httpInputRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_http_input_requests",
-	Help: "Count of all http input requests",
-}, []string{"input_url"})*/
-
 type HttpInputOptions struct {
 	K8sURL          string
 	RancherURL      string
@@ -36,6 +31,7 @@ type HttpInput struct {
 	tracer   common.Tracer
 	logger   common.Logger
 	metricer common.Metricer
+	counter  common.Counter
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -118,7 +114,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
 
-					//httpInputRequests.WithLabelValues(r.URL.Path).Inc()
+					h.counter.Inc(r.URL.Path)
 					processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.metricer).HandleHttpRequest(w, r)
 				})
 			}
@@ -136,7 +132,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
 
-					//httpInputRequests.WithLabelValues(url).Inc()
+					h.counter.Inc(r.URL.Path)
 					processor.NewRancherProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
 				})
 			}
@@ -154,8 +150,8 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
 
-					//httpInputRequests.WithLabelValues(url).Inc()
-					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
+					h.counter.Inc(r.URL.Path)
+					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer, h.metricer).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -197,9 +193,6 @@ func NewHttpInput(options HttpInputOptions, logger common.Logger, tracer common.
 		tracer:   tracer,
 		logger:   logger,
 		metricer: metricer,
+		counter:  metricer.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(httpInputRequests)
-}*/

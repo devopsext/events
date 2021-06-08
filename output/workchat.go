@@ -18,13 +18,9 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
+	"github.com/devopsext/utils"
 	"github.com/prometheus/alertmanager/template"
 )
-
-/*var workchatOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_workchat_output_count",
-	Help: "Count of all workchat outputs",
-}, []string{})*/
 
 type WorkchatOutputOptions struct {
 	MessageTemplate  string
@@ -44,6 +40,35 @@ type WorkchatOutput struct {
 	options  WorkchatOutputOptions
 	tracer   common.Tracer
 	logger   common.Logger
+	counter  common.Counter
+}
+
+// assume that url is => https://graph.workplace.com/v9.0/me/messages?access_token=%s&recipient=%s
+
+func (w *WorkchatOutput) getThread(URL string) string {
+
+	u, err := url.Parse(URL)
+	if err != nil {
+		return ""
+	}
+
+	recipientJson := u.Query().Get("recipient")
+	if utils.IsEmpty(recipientJson) {
+		return ""
+	}
+
+	var object map[string]interface{}
+
+	if err := json.Unmarshal([]byte(recipientJson), &object); err != nil {
+		return ""
+	}
+
+	threadKey := object["thread_key"]
+	if threadKey == nil {
+		return ""
+	}
+
+	return threadKey.(string)
 }
 
 func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
@@ -76,9 +101,8 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 		return nil, err
 	}
 
-	//workchatOutputCount.WithLabelValues(t.getBotID(URL)).Inc()
-
 	w.logger.SpanDebug(span, "Response from Workchat => %s", string(b))
+	w.counter.Inc(w.getThread(URL))
 
 	var object interface{}
 
@@ -132,9 +156,7 @@ func escapeQuotes(s string) string {
 
 func (w *WorkchatOutput) createFormFile(writer *multipart.Writer, fieldname, filename, contentType string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
-			escapeQuotes(fieldname), escapeQuotes(filename)))
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, escapeQuotes(fieldname), escapeQuotes(filename)))
 	h.Set("Content-Type", contentType)
 	return writer.CreatePart(h)
 }
@@ -329,7 +351,8 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
 	logger common.Logger,
-	tracer common.Tracer) *WorkchatOutput {
+	tracer common.Tracer,
+	metricer common.Metricer) *WorkchatOutput {
 
 	if common.IsEmpty(options.URL) {
 		logger.Debug("Workchat URL is not defined. Skipped")
@@ -341,13 +364,10 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		client:   common.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),
 		options:  options,
 		tracer:   tracer,
 		logger:   logger,
+		counter:  metricer.Counter("requests", "Count of all workchar outputs", []string{"thread"}, "workchat", "output"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(workchatOutputCount)
-}*/

@@ -45,6 +45,7 @@ type DataDogMetricerOptions struct {
 	Port    int
 	Tags    string
 	Version string
+	Prefix  string
 }
 
 type DataDogTracerSpanContext struct {
@@ -82,6 +83,7 @@ type DataDogMetricerCounter struct {
 	name        string
 	description string
 	labels      []string
+	prefix      string
 }
 
 type DataDogMetricer struct {
@@ -559,7 +561,12 @@ func (ddmc *DataDogMetricerCounter) getLabelTags(labelValues ...string) []string
 
 func (ddmc *DataDogMetricerCounter) Inc(labelValues ...string) common.Counter {
 
-	err := ddmc.metricer.client.Incr(fmt.Sprintf("%s.increment", ddmc.name), ddmc.getLabelTags(labelValues...), 1)
+	newName := ddmc.name
+	if !utils.IsEmpty(ddmc.prefix) {
+		newName = fmt.Sprintf("%s.%s", ddmc.prefix, newName)
+	}
+
+	err := ddmc.metricer.client.Incr(newName, ddmc.getLabelTags(labelValues...), 1)
 	if err != nil {
 		ddmc.metricer.logger.Error(err)
 	}
@@ -570,13 +577,24 @@ func (ddm *DataDogMetricer) SetCallerOffset(offset int) {
 	ddm.callerOffset = offset
 }
 
-func (ddm *DataDogMetricer) Counter(name, description string, labels []string) common.Counter {
+func (ddm *DataDogMetricer) Counter(name, description string, labels []string, prefixes ...string) common.Counter {
+
+	var names []string
+
+	if !utils.IsEmpty(ddm.options.Prefix) {
+		names = append(names, ddm.options.Prefix)
+	}
+
+	if len(prefixes) > 0 {
+		names = append(names, strings.Join(prefixes, "_"))
+	}
 
 	return &DataDogMetricerCounter{
 		metricer:    ddm,
 		name:        name,
 		description: description,
 		labels:      labels,
+		prefix:      strings.Join(names, "."),
 	}
 }
 

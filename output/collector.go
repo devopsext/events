@@ -8,11 +8,6 @@ import (
 	"github.com/devopsext/events/render"
 )
 
-/*var collectorOutputCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "events_collector_output_count",
-	Help: "Count of all collector output count",
-}, []string{"collector_output_address"})*/
-
 type CollectorOutputOptions struct {
 	Address  string
 	Template string
@@ -25,6 +20,7 @@ type CollectorOutput struct {
 	message    *render.TextTemplate
 	tracer     common.Tracer
 	logger     common.Logger
+	counter    common.Counter
 }
 
 func (c *CollectorOutput) Send(event *common.Event) {
@@ -65,7 +61,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			c.logger.SpanError(span, err)
 		}
 
-		//collectorOutputCount.WithLabelValues(c.options.Address).Inc()
+		c.counter.Inc(c.options.Address)
 	}()
 }
 
@@ -99,7 +95,7 @@ func makeCollectorOutputConnection(address string, logger common.Logger) *net.UD
 }
 
 func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions,
-	logger common.Logger, tracer common.Tracer) *CollectorOutput {
+	logger common.Logger, tracer common.Tracer, metricer common.Metricer) *CollectorOutput {
 
 	connection := makeCollectorOutputConnection(options.Address, logger)
 	if connection == nil {
@@ -113,9 +109,6 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 		connection: connection,
 		tracer:     tracer,
 		logger:     logger,
+		counter:    metricer.Counter("requests", "Count of all collector outputs", []string{"address"}, "collector", "output"),
 	}
 }
-
-/*func init() {
-	prometheus.Register(collectorOutputCount)
-}*/
