@@ -13,7 +13,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/devopsext/events/common"
+	sreCommon "github.com/devopsext/sre/common"
 	utils "github.com/devopsext/utils"
 )
 
@@ -29,7 +29,7 @@ type TextTemplate struct {
 	options  TextTemplateOptions
 	layout   string
 	vars     interface{}
-	logger   common.Logger
+	logger   sreCommon.Logger
 }
 
 // replaceAll replaces all occurrences of a value in a string with the given
@@ -169,7 +169,7 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 	return &b, nil
 }
 
-func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger common.Logger) *TextTemplate {
+func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger sreCommon.Logger) *TextTemplate {
 
 	var tpl = TextTemplate{}
 
@@ -194,7 +194,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 		"toString":        tpl.fToString,
 	}
 
-	if common.IsEmpty(fileOrVar) {
+	if sreCommon.IsEmpty(fileOrVar) {
 		logger.Warn("Template %s is empty.", name)
 		return nil
 	}

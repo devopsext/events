@@ -3,12 +3,14 @@ package common
 import (
 	"encoding/json"
 	"time"
+
+	sreCommon "github.com/devopsext/sre/common"
 )
 
 type Outputs struct {
 	timeFormat string
 	list       []*Output
-	logger     Logger
+	logger     sreCommon.Logger
 }
 
 func (ots *Outputs) Add(o *Output) {
@@ -60,7 +62,7 @@ func (ots *Outputs) Send(e *Event) {
 	}
 }
 
-func NewOutputs(timeFormat string, logger Logger) *Outputs {
+func NewOutputs(timeFormat string, logger sreCommon.Logger) *Outputs {
 	return &Outputs{
 		timeFormat: timeFormat,
 		logger:     logger,

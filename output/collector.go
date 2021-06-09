@@ -6,6 +6,7 @@ import (
 
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
+	sreCommon "github.com/devopsext/sre/common"
 )
 
 type CollectorOutputOptions struct {
@@ -18,9 +19,9 @@ type CollectorOutput struct {
 	options    CollectorOutputOptions
 	connection *net.UDPConn
 	message    *render.TextTemplate
-	tracer     common.Tracer
-	logger     common.Logger
-	counter    common.Counter
+	tracer     sreCommon.Tracer
+	logger     sreCommon.Logger
+	counter    sreCommon.Counter
 }
 
 func (c *CollectorOutput) Send(event *common.Event) {
@@ -49,7 +50,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if common.IsEmpty(message) {
+		if sreCommon.IsEmpty(message) {
 			c.logger.SpanDebug(span, "Message to Collector is empty")
 			return
 		}
@@ -65,9 +66,9 @@ func (c *CollectorOutput) Send(event *common.Event) {
 	}()
 }
 
-func makeCollectorOutputConnection(address string, logger common.Logger) *net.UDPConn {
+func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net.UDPConn {
 
-	if common.IsEmpty(address) {
+	if sreCommon.IsEmpty(address) {
 
 		logger.Debug("Collector address is not defined. Skipped.")
 		return nil
@@ -95,7 +96,7 @@ func makeCollectorOutputConnection(address string, logger common.Logger) *net.UD
 }
 
 func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions,
-	logger common.Logger, tracer common.Tracer, metricer common.Metricer) *CollectorOutput {
+	logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *CollectorOutput {
 
 	connection := makeCollectorOutputConnection(options.Address, logger)
 	if connection == nil {

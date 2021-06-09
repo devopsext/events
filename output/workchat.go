@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 
+	sreCommon "github.com/devopsext/sre/common"
+
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
@@ -38,9 +40,9 @@ type WorkchatOutput struct {
 	selector *render.TextTemplate
 	grafana  *render.Grafana
 	options  WorkchatOutputOptions
-	tracer   common.Tracer
-	logger   common.Logger
-	counter  common.Counter
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	counter  sreCommon.Counter
 }
 
 // assume that url is => https://graph.workplace.com/v9.0/me/messages?access_token=%s&recipient=%s
@@ -71,7 +73,7 @@ func (w *WorkchatOutput) getThread(URL string) string {
 	return threadKey.(string)
 }
 
-func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
+func (w *WorkchatOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
 
 	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -114,7 +116,7 @@ func (w *WorkchatOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	return object, nil
 }
 
-func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message string) error {
+func (w *WorkchatOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) error {
 
 	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -144,7 +146,7 @@ func (w *WorkchatOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	return err
 }
 
-func (w *WorkchatOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL, message string, err error) error {
+func (w *WorkchatOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message string, err error) error {
 	return w.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
 }
 
@@ -161,7 +163,7 @@ func (w *WorkchatOutput) createFormFile(writer *multipart.Writer, fieldname, fil
 	return writer.CreatePart(h)
 }
 
-func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName string, photo []byte) error {
+func (w *WorkchatOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, photo []byte) error {
 
 	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -200,7 +202,7 @@ func (w *WorkchatOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	return w.sendMessage(span.GetContext(), URL, message)
 }
 
-func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
+func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) error {
 
 	span := w.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -306,7 +308,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			}
 		}
 
-		if common.IsEmpty(URLs) {
+		if sreCommon.IsEmpty(URLs) {
 			err := errors.New("Workchat URLs are not found")
 			w.logger.SpanError(span, err)
 			return
@@ -319,7 +321,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if common.IsEmpty(message) {
+		if sreCommon.IsEmpty(message) {
 			w.logger.SpanDebug(span, "Workchat message is empty")
 			return
 		}
@@ -329,7 +331,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)
-			if common.IsEmpty(URL) {
+			if sreCommon.IsEmpty(URL) {
 				continue
 			}
 
@@ -350,18 +352,18 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	options WorkchatOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
-	logger common.Logger,
-	tracer common.Tracer,
-	metricer common.Metricer) *WorkchatOutput {
+	logger sreCommon.Logger,
+	tracer sreCommon.Tracer,
+	metricer sreCommon.Metricer) *WorkchatOutput {
 
-	if common.IsEmpty(options.URL) {
+	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Workchat URL is not defined. Skipped")
 		return nil
 	}
 
 	return &WorkchatOutput{
 		wg:       wg,
-		client:   common.MakeHttpClient(options.Timeout),
+		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options, logger),
 		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),

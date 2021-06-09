@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	sreCommon "github.com/devopsext/sre/common"
+
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
@@ -32,9 +34,9 @@ type SlackOutput struct {
 	selector *render.TextTemplate
 	grafana  *render.Grafana
 	options  SlackOutputOptions
-	tracer   common.Tracer
-	logger   common.Logger
-	counter  common.Counter
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	counter  sreCommon.Counter
 }
 
 // assume that url is => https://slack.com/api/files.upload?token=%s&channels=%s
@@ -57,7 +59,7 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
+func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -93,7 +95,7 @@ func (s *SlackOutput) post(spanCtx common.TracerSpanContext, URL, contentType st
 	return nil
 }
 
-func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message, title, content string) error {
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) error {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -125,12 +127,12 @@ func (s *SlackOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message
 	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (s *SlackOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL, message, title string, err error) error {
+func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title string, err error) error {
 
 	return s.sendMessage(spanCtx, URL, message, title, err.Error())
 }
 
-func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName, title string, photo []byte) error {
+func (s *SlackOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName, title string, photo []byte) error {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -167,7 +169,7 @@ func (s *SlackOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, 
 	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
+func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) error {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -271,7 +273,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			}
 		}
 
-		if common.IsEmpty(URLs) {
+		if sreCommon.IsEmpty(URLs) {
 			err := errors.New("Slack URLs are not found")
 			s.logger.SpanError(span, err)
 			return
@@ -284,7 +286,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if common.IsEmpty(message) {
+		if sreCommon.IsEmpty(message) {
 			s.logger.SpanDebug(span, "Slack message is empty")
 			return
 		}
@@ -294,7 +296,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)
-			if common.IsEmpty(URL) {
+			if sreCommon.IsEmpty(URL) {
 				continue
 			}
 
@@ -315,18 +317,18 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
-	logger common.Logger,
-	tracer common.Tracer,
-	metricer common.Metricer) *SlackOutput {
+	logger sreCommon.Logger,
+	tracer sreCommon.Tracer,
+	metricer sreCommon.Metricer) *SlackOutput {
 
-	if common.IsEmpty(options.URL) {
+	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Slack URL is not defined. Skipped")
 		return nil
 	}
 
 	return &SlackOutput{
 		wg:       wg,
-		client:   common.MakeHttpClient(options.Timeout),
+		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
 		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devopsext/events/common"
+	sreCommon "github.com/devopsext/sre/common"
 	"github.com/grafana-tools/sdk"
 )
 
@@ -33,9 +33,9 @@ type GrafanaAliasColors struct {
 type Grafana struct {
 	client  *http.Client
 	options GrafanaOptions
-	logger  common.Logger
-	tracer  common.Tracer
-	counter common.Counter
+	logger  sreCommon.Logger
+	tracer  sreCommon.Tracer
+	counter sreCommon.Counter
 }
 
 func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string) *sdk.Board {
@@ -95,7 +95,7 @@ func (g *Grafana) renderImage(imageURL string, apiKey string) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
+func (g *Grafana) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
 
 	span := g.tracer.StartChildSpan(spanCtx)
@@ -262,15 +262,15 @@ func (g *Grafana) GenerateDashboard(spanCtx common.TracerSpanContext,
 	return nil, "", err
 }
 
-func NewGrafana(options GrafanaOptions, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *Grafana {
+func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *Grafana {
 
-	if common.IsEmpty(options.URL) {
+	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Grafana URL is not defined. Skipped")
 		return nil
 	}
 
 	return &Grafana{
-		client:  common.MakeHttpClient(options.Timeout),
+		client:  sreCommon.MakeHttpClient(options.Timeout),
 		options: options,
 		logger:  logger,
 		tracer:  tracer,

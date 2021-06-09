@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/devopsext/events/common"
-
+	sreCommon "github.com/devopsext/sre/common"
 	admv1beta1 "k8s.io/api/admission/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -24,9 +24,9 @@ import (
 
 type K8sProcessor struct {
 	outputs *common.Outputs
-	tracer  common.Tracer
-	logger  common.Logger
-	counter common.Counter
+	tracer  sreCommon.Tracer
+	logger  sreCommon.Logger
+	counter sreCommon.Counter
 }
 
 type K8sUser struct {
@@ -53,7 +53,7 @@ func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
 	return strings.Title(strings.ToLower(string(operation)))
 }
 
-func (p *K8sProcessor) sendEvent(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
+func (p *K8sProcessor) sendEvent(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
 
 	user := &K8sUser{Name: ar.UserInfo.Username, ID: ar.UserInfo.UID}
 	operation := p.prepareOperation(ar.Operation)
@@ -79,7 +79,7 @@ func (p *K8sProcessor) sendEvent(span common.TracerSpan, channel string, ar *adm
 
 }
 
-func (p *K8sProcessor) processNamespace(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var namespace *corev1.Namespace
 
@@ -98,7 +98,7 @@ func (p *K8sProcessor) processNamespace(span common.TracerSpan, channel string, 
 	p.sendEvent(span, channel, ar, name, namespace)
 }
 
-func (p *K8sProcessor) processNode(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var node *corev1.Node
 
@@ -117,7 +117,7 @@ func (p *K8sProcessor) processNode(span common.TracerSpan, channel string, ar *a
 	p.sendEvent(span, channel, ar, name, node)
 }
 
-func (p *K8sProcessor) processReplicaSet(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var replicaSet *appsv1.ReplicaSet
 
@@ -138,7 +138,7 @@ func (p *K8sProcessor) processReplicaSet(span common.TracerSpan, channel string,
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
 }
 
-func (p *K8sProcessor) processStatefulSet(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var statefulSet *appsv1.StatefulSet
 
@@ -159,7 +159,7 @@ func (p *K8sProcessor) processStatefulSet(span common.TracerSpan, channel string
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
 }
 
-func (p *K8sProcessor) processDaemonSet(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var daemonSet *appsv1.DaemonSet
 
@@ -181,7 +181,7 @@ func (p *K8sProcessor) processDaemonSet(span common.TracerSpan, channel string, 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
 }
 
-func (p *K8sProcessor) processSecret(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var secret *corev1.Secret
 
@@ -202,7 +202,7 @@ func (p *K8sProcessor) processSecret(span common.TracerSpan, channel string, ar 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
 }
 
-func (p *K8sProcessor) processIngress(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var ingress *netv1beta1.Ingress
 
@@ -223,7 +223,7 @@ func (p *K8sProcessor) processIngress(span common.TracerSpan, channel string, ar
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
 }
 
-func (p *K8sProcessor) processJob(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var job *batchv1.Job
 
@@ -244,7 +244,7 @@ func (p *K8sProcessor) processJob(span common.TracerSpan, channel string, ar *ad
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
 }
 
-func (p *K8sProcessor) processCronJob(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var cronJob *batchv1beta.CronJob
 
@@ -265,7 +265,7 @@ func (p *K8sProcessor) processCronJob(span common.TracerSpan, channel string, ar
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
 }
 
-func (p *K8sProcessor) processConfigMap(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var configMap *corev1.ConfigMap
 
@@ -286,7 +286,7 @@ func (p *K8sProcessor) processConfigMap(span common.TracerSpan, channel string, 
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
 }
 
-func (p *K8sProcessor) processRole(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var role *rbacv1.Role
 
@@ -307,7 +307,7 @@ func (p *K8sProcessor) processRole(span common.TracerSpan, channel string, ar *a
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
 }
 
-func (p *K8sProcessor) processDeployment(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var deployment *appsv1.Deployment
 
@@ -328,7 +328,7 @@ func (p *K8sProcessor) processDeployment(span common.TracerSpan, channel string,
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
 }
 
-func (p *K8sProcessor) processService(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var service *corev1.Service
 
@@ -349,7 +349,7 @@ func (p *K8sProcessor) processService(span common.TracerSpan, channel string, ar
 	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
 }
 
-func (p *K8sProcessor) processPod(span common.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var pod *corev1.Pod
 
@@ -473,7 +473,7 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func NewK8sProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *K8sProcessor {
+func NewK8sProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *K8sProcessor {
 
 	return &K8sProcessor{
 		outputs: outputs,

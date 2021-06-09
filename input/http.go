@@ -7,11 +7,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/processor"
+	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
 )
 
@@ -24,14 +26,31 @@ type HttpInputOptions struct {
 	Cert            string
 	Key             string
 	Chain           string
+	HeaderTraceID   string
 }
 
 type HttpInput struct {
 	options  HttpInputOptions
-	tracer   common.Tracer
-	logger   common.Logger
-	metricer common.Metricer
-	counter  common.Counter
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	metricer sreCommon.Metricer
+	counter  sreCommon.Counter
+}
+
+func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
+
+	s := r.Header.Get(h.options.HeaderTraceID)
+	if utils.IsEmpty(s) {
+		return h.tracer.StartSpan()
+	}
+
+	traceID, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		h.logger.Error("Invalid %s with value %s: %s", h.options.HeaderTraceID, s, err)
+		return h.tracer.StartSpan()
+	}
+
+	return h.tracer.StartSpanWithTraceID(uint64(traceID))
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -109,7 +128,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
-					span := h.tracer.StartSpan()
+					span := h.startSpanFromRequest(r)
 					span.SetCarrier(r.Header)
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
@@ -127,7 +146,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
-					span := h.tracer.StartSpan()
+					span := h.startSpanFromRequest(r)
 					span.SetCarrier(r.Header)
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
@@ -145,7 +164,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
-					span := h.tracer.StartSpan()
+					span := h.startSpanFromRequest(r)
 					span.SetCarrier(r.Header)
 					span.SetTag("path", r.URL.Path)
 					defer span.Finish()
@@ -186,7 +205,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func NewHttpInput(options HttpInputOptions, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *HttpInput {
+func NewHttpInput(options HttpInputOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *HttpInput {
 
 	return &HttpInput{
 		options:  options,
