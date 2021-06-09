@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
+	sreCommon "github.com/devopsext/sre/common"
 
 	"github.com/prometheus/alertmanager/template"
 )
@@ -35,9 +36,9 @@ type TelegramOutput struct {
 	selector *render.TextTemplate
 	grafana  *render.Grafana
 	options  TelegramOutputOptions
-	tracer   common.Tracer
-	logger   common.Logger
-	counter  common.Counter
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	counter  sreCommon.Counter
 }
 
 // assume that url is => https://api.telegram.org/botID:botToken/sendMessage?chat_id=%s
@@ -80,7 +81,7 @@ func (t *TelegramOutput) getSendPhotoURL(URL string) string {
 	return strings.Replace(URL, "sendMessage", "sendPhoto", -1)
 }
 
-func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
+func (t *TelegramOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -116,7 +117,7 @@ func (t *TelegramOutput) post(spanCtx common.TracerSpanContext, URL, contentType
 	return nil
 }
 
-func (t *TelegramOutput) sendMessage(spanCtx common.TracerSpanContext, URL, message string) error {
+func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) error {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -152,11 +153,11 @@ func (t *TelegramOutput) sendMessage(spanCtx common.TracerSpanContext, URL, mess
 	return t.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (t *TelegramOutput) sendErrorMessage(spanCtx common.TracerSpanContext, URL, message string, err error) error {
+func (t *TelegramOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message string, err error) error {
 	return t.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
 }
 
-func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, message, fileName string, photo []byte) error {
+func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, photo []byte) error {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -201,7 +202,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx common.TracerSpanContext, URL, messag
 	return t.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (t *TelegramOutput) sendAlertmanagerImage(spanCtx common.TracerSpanContext, URL, message string, alert template.Alert) error {
+func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) error {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -306,7 +307,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			}
 		}
 
-		if common.IsEmpty(URLs) {
+		if sreCommon.IsEmpty(URLs) {
 			err := errors.New("Telegram URLs are not found")
 			t.logger.SpanError(span, err)
 			return
@@ -319,7 +320,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if common.IsEmpty(message) {
+		if sreCommon.IsEmpty(message) {
 			t.logger.SpanDebug(span, "Telegram message is empty")
 			return
 		}
@@ -329,7 +330,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)
-			if common.IsEmpty(URL) {
+			if sreCommon.IsEmpty(URL) {
 				continue
 			}
 
@@ -350,18 +351,18 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	options TelegramOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
-	logger common.Logger,
-	tracer common.Tracer,
-	metricer common.Metricer) *TelegramOutput {
+	logger sreCommon.Logger,
+	tracer sreCommon.Tracer,
+	metricer sreCommon.Metricer) *TelegramOutput {
 
-	if common.IsEmpty(options.URL) {
+	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Telegram URL is not defined. Skipped")
 		return nil
 	}
 
 	return &TelegramOutput{
 		wg:       wg,
-		client:   common.MakeHttpClient(options.Timeout),
+		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options, logger),
 		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),

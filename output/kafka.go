@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	sreCommon "github.com/devopsext/sre/common"
+
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 
@@ -29,9 +31,9 @@ type KafkaOutput struct {
 	producer *sarama.AsyncProducer
 	message  *render.TextTemplate
 	options  KafkaOutputOptions
-	tracer   common.Tracer
-	logger   common.Logger
-	counter  common.Counter
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	counter  sreCommon.Counter
 }
 
 func (k *KafkaOutput) Send(event *common.Event) {
@@ -60,7 +62,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if common.IsEmpty(message) {
+		if sreCommon.IsEmpty(message) {
 			k.logger.SpanDebug(span, "Message to Kafka is empty")
 			return
 		}
@@ -76,16 +78,16 @@ func (k *KafkaOutput) Send(event *common.Event) {
 	}()
 }
 
-func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config *sarama.Config, logger common.Logger) *sarama.AsyncProducer {
+func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config *sarama.Config, logger sreCommon.Logger) *sarama.AsyncProducer {
 
 	brks := strings.Split(brokers, ",")
-	if len(brks) == 0 || common.IsEmpty(brokers) {
+	if len(brks) == 0 || sreCommon.IsEmpty(brokers) {
 
 		logger.Debug("Kafka brokers are not defined. Skipped.")
 		return nil
 	}
 
-	if common.IsEmpty(topic) {
+	if sreCommon.IsEmpty(topic) {
 
 		logger.Debug("Kafka topic is not defined. Skipped.")
 		return nil
@@ -103,12 +105,12 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 }
 
 func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions,
-	logger common.Logger, tracer common.Tracer, metricer common.Metricer) *KafkaOutput {
+	logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
 
-	if !common.IsEmpty(options.ClientID) {
+	if !sreCommon.IsEmpty(options.ClientID) {
 		config.ClientID = options.ClientID
 	}
 

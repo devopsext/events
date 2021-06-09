@@ -14,8 +14,9 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/input"
 	"github.com/devopsext/events/output"
-	"github.com/devopsext/events/provider"
 	"github.com/devopsext/events/render"
+	sreCommon "github.com/devopsext/sre/common"
+	sreProvider "github.com/devopsext/sre/provider"
 	utils "github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
@@ -23,10 +24,10 @@ import (
 var VERSION = "unknown"
 
 var env = utils.GetEnvironment()
-var logs = common.NewLogs()
-var traces = common.NewTraces()
-var metrics = common.NewMetrics()
-var stdout *provider.Stdout
+var logs = sreCommon.NewLogs()
+var traces = sreCommon.NewTraces()
+var metrics = sreCommon.NewMetrics()
+var stdout *sreProvider.Stdout
 var mainWG sync.WaitGroup
 
 type RootOptions struct {
@@ -47,7 +48,7 @@ var textTemplateOptions = render.TextTemplateOptions{
 	TimeFormat: env.Get("EVENTS_TEMPLATE_TIME_FORMAT", "2006-01-02T15:04:05.999Z").(string),
 }
 
-var stdoutOptions = provider.StdoutOptions{
+var stdoutOptions = sreProvider.StdoutOptions{
 
 	Format:          env.Get("EVENTS_STDOUT_FORMAT", "text").(string),
 	Level:           env.Get("EVENTS_STDOUT_LEVEL", "info").(string),
@@ -56,7 +57,7 @@ var stdoutOptions = provider.StdoutOptions{
 	TextColors:      env.Get("EVENTS_STDOUT_TEXT_COLORS", true).(bool),
 }
 
-var prometheusOptions = provider.PrometheusOptions{
+var prometheusOptions = sreProvider.PrometheusOptions{
 
 	URL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
 	Listen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
@@ -73,6 +74,7 @@ var httpInputOptions = input.HttpInputOptions{
 	Cert:            env.Get("EVENTS_HTTP_CERT", "").(string),
 	Key:             env.Get("EVENTS_HTTP_KEY", "").(string),
 	Chain:           env.Get("EVENTS_HTTP_CHAIN", "").(string),
+	HeaderTraceID:   env.Get("EVENTS_HTTP_HEADER_TRACE_ID", "X-Trace-ID").(string),
 }
 
 var collectorOutputOptions = output.CollectorOutputOptions{
@@ -136,7 +138,7 @@ var grafanaOptions = render.GrafanaOptions{
 	ImageHeight: env.Get("EVENTS_GRAFANA_IMAGE_HEIGHT", 640).(int),
 }
 
-var jaegerOptions = provider.JaegerOptions{
+var jaegerOptions = sreProvider.JaegerOptions{
 	ServiceName:         env.Get("EVENTS_JAEGER_SERVICE_NAME", "events").(string),
 	AgentHost:           env.Get("EVENTS_JAEGER_AGENT_HOST", "").(string),
 	AgentPort:           env.Get("EVENTS_JAEGER_AGENT_PORT", 6831).(int),
@@ -148,29 +150,26 @@ var jaegerOptions = provider.JaegerOptions{
 	Tags:                env.Get("EVENTS_JAEGER_TAGS", "").(string),
 }
 
-var datadogOptions = provider.DataDogOptions{
+var datadogOptions = sreProvider.DataDogOptions{
 	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "").(string),
+	Environment: env.Get("EVENTS_DATADOG_ENVIRONMENT", "none").(string),
+	Tags:        env.Get("EVENTS_DATADOG_TAGS", "").(string),
 }
 
-var datadogTracerOptions = provider.DataDogTracerOptions{
-	Host:        env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
-	Port:        env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
-	Tags:        env.Get("EVENTS_DATADOG_TRACER_TAGS", "").(string),
-	ServiceName: env.Get("EVENTS_DATADOG_TRACER_SERVICE_NAME", "").(string),
+var datadogTracerOptions = sreProvider.DataDogTracerOptions{
+	Host: env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
+	Port: env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
 }
 
-var datadogLoggerOptions = provider.DataDogLoggerOptions{
-	Host:        env.Get("EVENTS_DATADOG_LOGGER_HOST", "").(string),
-	Port:        env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
-	Tags:        env.Get("EVENTS_DATADOG_LOGGER_TAGS", "").(string),
-	ServiceName: env.Get("EVENTS_DATADOG_LOGGER_SERVICE_NAME", "").(string),
-	Level:       env.Get("EVENTS_DATADOG_LOGGER_LEVEL", "info").(string),
+var datadogLoggerOptions = sreProvider.DataDogLoggerOptions{
+	Host:  env.Get("EVENTS_DATADOG_LOGGER_HOST", "").(string),
+	Port:  env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
+	Level: env.Get("EVENTS_DATADOG_LOGGER_LEVEL", "info").(string),
 }
 
-var datadogMetricerOptions = provider.DataDogMetricerOptions{
+var datadogMetricerOptions = sreProvider.DataDogMetricerOptions{
 	Host:   env.Get("EVENTS_DATADOG_METRICER_HOST", "").(string),
 	Port:   env.Get("EVENTS_DATADOG_METRICER_PORT", 10518).(int),
-	Tags:   env.Get("EVENTS_DATADOG_METRICER_TAGS", "").(string),
 	Prefix: env.Get("EVENTS_DATADOG_METRICER_PREFIX", "events").(string),
 }
 
@@ -193,17 +192,18 @@ func Execute() {
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
 			stdoutOptions.Version = VERSION
-			stdout = provider.NewStdout(stdoutOptions)
+			stdout = sreProvider.NewStdout(stdoutOptions)
 			stdout.SetCallerOffset(2)
 			if common.HasElem(rootOptions.Logs, "stdout") {
 				logs.Register(stdout)
 			}
 
 			datadogLoggerOptions.Version = VERSION
-			if utils.IsEmpty(datadogLoggerOptions.ServiceName) {
-				datadogLoggerOptions.ServiceName = datadogOptions.ServiceName
-			}
-			datadogLogger := provider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
+			datadogLoggerOptions.ServiceName = datadogOptions.ServiceName
+			datadogLoggerOptions.Environment = datadogOptions.Environment
+			datadogLoggerOptions.Tags = datadogOptions.Tags
+
+			datadogLogger := sreProvider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
 			if common.HasElem(rootOptions.Logs, "datadog") {
 				logs.Register(datadogLogger)
 			}
@@ -213,7 +213,7 @@ func Execute() {
 			// Metrics
 
 			prometheusOptions.Version = VERSION
-			prometheus := provider.NewPrometheus(prometheusOptions, logs, stdout)
+			prometheus := sreProvider.NewPrometheus(prometheusOptions, logs, stdout)
 			prometheus.SetCallerOffset(1)
 			if common.HasElem(rootOptions.Metrics, "prometheus") {
 				prometheus.Start(&mainWG)
@@ -221,7 +221,11 @@ func Execute() {
 			}
 
 			datadogMetricerOptions.Version = VERSION
-			datadogMetricer := provider.NewDataDogMetricer(datadogMetricerOptions, logs, stdout)
+			datadogMetricerOptions.ServiceName = datadogOptions.ServiceName
+			datadogMetricerOptions.Environment = datadogOptions.Environment
+			datadogMetricerOptions.Tags = datadogOptions.Tags
+
+			datadogMetricer := sreProvider.NewDataDogMetricer(datadogMetricerOptions, logs, stdout)
 			datadogMetricer.SetCallerOffset(1)
 			if common.HasElem(rootOptions.Metrics, "datadog") {
 				metrics.Register(datadogMetricer)
@@ -230,17 +234,18 @@ func Execute() {
 			// Tracing
 
 			jaegerOptions.Version = VERSION
-			jaeger := provider.NewJaeger(jaegerOptions, logs, stdout)
+			jaeger := sreProvider.NewJaeger(jaegerOptions, logs, stdout)
 			jaeger.SetCallerOffset(1)
 			if common.HasElem(rootOptions.Traces, "jaeger") {
 				traces.Register(jaeger)
 			}
 
 			datadogTracerOptions.Version = VERSION
-			if utils.IsEmpty(datadogTracerOptions.ServiceName) {
-				datadogTracerOptions.ServiceName = datadogOptions.ServiceName
-			}
-			datadogTracer := provider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
+			datadogTracerOptions.ServiceName = datadogOptions.ServiceName
+			datadogTracerOptions.Environment = datadogOptions.Environment
+			datadogTracerOptions.Tags = datadogOptions.Tags
+
+			datadogTracer := sreProvider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
 			datadogTracer.SetCallerOffset(1)
 			if common.HasElem(rootOptions.Traces, "datadog") {
 				traces.Register(datadogTracer)
@@ -325,6 +330,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.Cert, "http-cert", httpInputOptions.Cert, "Http cert file or content")
 	flags.StringVar(&httpInputOptions.Key, "http-key", httpInputOptions.Key, "Http key file or content")
 	flags.StringVar(&httpInputOptions.Chain, "http-chain", httpInputOptions.Chain, "Http CA chain file or content")
+	flags.StringVar(&httpInputOptions.HeaderTraceID, "http-header-trace-id", httpInputOptions.HeaderTraceID, "Http trace ID header")
 
 	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
 	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-topic", kafkaOutputOptions.Topic, "Kafka topic")
@@ -376,22 +382,19 @@ func Execute() {
 	flags.IntVar(&jaegerOptions.QueueSize, "jaeger-queue-size", jaegerOptions.QueueSize, "Jaeger queue size")
 	flags.StringVar(&jaegerOptions.Tags, "jaeger-tags", jaegerOptions.Tags, "Jaeger tags, comma separated list of name=value")
 
-	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name for tracer, logger")
+	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name")
+	flags.StringVar(&datadogOptions.Environment, "datadog-environment", datadogOptions.Environment, "DataDog environment")
+	flags.StringVar(&datadogOptions.Tags, "datadog-tags", datadogOptions.Tags, "DataDog tags")
 
-	flags.StringVar(&datadogTracerOptions.ServiceName, "datadog-tracer-service-name", datadogTracerOptions.ServiceName, "DataDog tracer service name")
 	flags.StringVar(&datadogTracerOptions.Host, "datadog-tracer-host", datadogTracerOptions.Host, "DataDog tracer host")
 	flags.IntVar(&datadogTracerOptions.Port, "datadog-tracer-port", datadogTracerOptions.Port, "Datadog tracer port")
-	flags.StringVar(&datadogTracerOptions.Tags, "datadog-tracer-tags", datadogTracerOptions.Tags, "DataDog tracer tags, comma separated list of name=value")
 
-	flags.StringVar(&datadogLoggerOptions.ServiceName, "datadog-logger-service-name", datadogLoggerOptions.ServiceName, "DataDog logger service name")
 	flags.StringVar(&datadogLoggerOptions.Host, "datadog-logger-host", datadogLoggerOptions.Host, "DataDog logger host")
 	flags.IntVar(&datadogLoggerOptions.Port, "datadog-logger-port", datadogLoggerOptions.Port, "Datadog logger port")
-	flags.StringVar(&datadogLoggerOptions.Tags, "datadog-logger-tags", datadogLoggerOptions.Tags, "DataDog logger tags, comma separated list of name=value")
 	flags.StringVar(&datadogLoggerOptions.Level, "datadog-logger-level", datadogLoggerOptions.Level, "DataDog logger level: info, warn, error, debug, panic")
 
 	flags.StringVar(&datadogMetricerOptions.Host, "datadog-metricer-host", datadogMetricerOptions.Host, "DataDog metricer host")
 	flags.IntVar(&datadogMetricerOptions.Port, "datadog-metricer-port", datadogMetricerOptions.Port, "Datadog metricer port")
-	flags.StringVar(&datadogMetricerOptions.Tags, "datadog-metricer-tags", datadogMetricerOptions.Tags, "DataDog metricer tags, comma separated list of name=value")
 	flags.StringVar(&datadogMetricerOptions.Prefix, "datadog-metricer-prefix", datadogMetricerOptions.Prefix, "DataDog metricer prefix")
 
 	interceptSyscall()

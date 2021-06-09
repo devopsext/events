@@ -2,6 +2,8 @@ package common
 
 import (
 	"encoding/json"
+
+	sreCommon "github.com/devopsext/sre/common"
 )
 
 type Event struct {
@@ -10,8 +12,8 @@ type Event struct {
 	Channel     string      `json:"channel"`
 	Type        string      `json:"type"`
 	Data        interface{} `json:"data"`
-	spanContext TracerSpanContext
-	logger      Logger
+	spanContext sreCommon.TracerSpanContext
+	logger      sreCommon.Logger
 }
 
 func (e *Event) JsonObject() (interface{}, error) {
@@ -36,14 +38,14 @@ func (e *Event) JsonObject() (interface{}, error) {
 	return object, nil
 }
 
-func (e *Event) SetSpanContext(context TracerSpanContext) {
+func (e *Event) SetSpanContext(context sreCommon.TracerSpanContext) {
 	e.spanContext = context
 }
 
-func (e *Event) GetSpanContext() TracerSpanContext {
+func (e *Event) GetSpanContext() sreCommon.TracerSpanContext {
 	return e.spanContext
 }
 
-func (e *Event) SetLogger(logger Logger) {
+func (e *Event) SetLogger(logger sreCommon.Logger) {
 	e.logger = logger
 }

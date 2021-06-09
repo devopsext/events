@@ -9,14 +9,15 @@ import (
 	"strings"
 
 	"github.com/devopsext/events/common"
+	sreCommon "github.com/devopsext/sre/common"
 	"github.com/prometheus/alertmanager/template"
 )
 
 type AlertmanagerProcessor struct {
 	outputs *common.Outputs
-	tracer  common.Tracer
-	logger  common.Logger
-	counter common.Counter
+	tracer  sreCommon.Tracer
+	logger  sreCommon.Logger
+	counter sreCommon.Counter
 }
 
 type AlertmanagerResponse struct {
@@ -28,7 +29,7 @@ func (p *AlertmanagerProcessor) prepareStatus(status string) string {
 	return strings.Title(strings.ToLower(status))
 }
 
-func (p *AlertmanagerProcessor) processData(span common.TracerSpan, channel string, data *template.Data) {
+func (p *AlertmanagerProcessor) processData(span sreCommon.TracerSpan, channel string, data *template.Data) {
 
 	for _, alert := range data.Alerts {
 
@@ -108,7 +109,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	}
 }
 
-func NewAlertmanagerProcessor(outputs *common.Outputs, logger common.Logger, tracer common.Tracer, metricer common.Metricer) *AlertmanagerProcessor {
+func NewAlertmanagerProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *AlertmanagerProcessor {
 
 	return &AlertmanagerProcessor{
 		outputs: outputs,
