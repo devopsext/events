@@ -106,8 +106,8 @@ github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ3
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/devopsext/sre v0.0.2 h1:r7Q0h6MxiX+snaHihx+kXtSTlZ79ALH0gTJFiSKwrT4=
-github.com/devopsext/sre v0.0.2/go.mod h1:M2HHhZB6h3SfoR6zOlGCSQjy6DltDovreSrcStusho8=
+github.com/devopsext/sre v0.0.3 h1:T9MVAbjXlKw2flYKsYgt8Aa9GKZL8lr6+9T+y7fhLX0=
+github.com/devopsext/sre v0.0.3/go.mod h1:M2HHhZB6h3SfoR6zOlGCSQjy6DltDovreSrcStusho8=
 github.com/devopsext/utils v0.0.3 h1:4RupnVRV0KhKFthRxPkwg253pHjelvVa2skE4bwCT/o=
 github.com/devopsext/utils v0.0.3/go.mod h1:GzShbhGFuJHt5Ew1in7qghL2YCX5+RAW7h4YmJ7DPDA=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
