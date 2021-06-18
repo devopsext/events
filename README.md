@@ -16,6 +16,13 @@ Http service which inmplements an endpoint to listen events in Kubernetes cluste
 
 ## Build
 
+Set proper GOROOT and PATH variables
+```sh
+export GOROOT="$HOME/go/root/1.16.4"
+export PATH="$PATH:$GOROOT/bin"
+```
+
+Clone repository
 ```sh
 git clone https://github.com/devopsext/events.git
 cd events/
