@@ -3,7 +3,7 @@
 Http service which inmplements an endpoint to listen events in Kubernetes cluster (webhook), as well as alerts from Alertmanager. By receiving events and alerts, the service processes them based on their kind and generates human readable message which sends to Kafka, Telegram, Slack or Workchat.
 
 [![GoDoc](https://godoc.org/github.com/devopsext/events?status.svg)](https://godoc.org/github.com/devopsext/events)
-[![build status](https://travis-ci.com/devopsext/events.svg?branch=main)](https://travis-ci.com/devopsext/events)
+[![build status](https://travis-ci.com/devopsext/events.svg?branch=master)](https://travis-ci.com/devopsext/events)
 
 ## Features
 
@@ -12,7 +12,7 @@ Http service which inmplements an endpoint to listen events in Kubernetes cluste
 - Support golang templates as patterns of messages for channels and channel selectors
 - Template functions: regexReplaceAll, regexMatch, replaceAll, toLower, toTitle, toUpper, toJSON, split, join, isEmpty, getEnv, getVar, timeFormat, jsonEscape, toString
 - Support channels like: Kafka, Telegram, Slack, Workchat. All templates in place
-- Provide SRE metrics, logs, traces out of the box (see [](https://github.com/devopsext/sre))
+- Provide SRE metrics, logs, traces out of the box (see [devopsext/sre](https://github.com/devopsext/sre))
 
 ## Build
 
