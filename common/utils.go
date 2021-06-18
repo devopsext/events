@@ -7,16 +7,10 @@ import (
 	"path"
 	"reflect"
 	"runtime"
-	"strings"
 	"time"
 
-	"github.com/rs/xid"
+	"github.com/devopsext/utils"
 )
-
-func IsEmpty(s string) bool {
-	s1 := strings.TrimSpace(s)
-	return len(s1) == 0
-}
 
 func MakeHttpClient(timeout int) *http.Client {
 
@@ -40,7 +34,7 @@ func getLastPath(s string, limit int) string {
 	dir := s
 	var arr []string
 
-	for !IsEmpty(dir) {
+	for !utils.IsEmpty(dir) {
 		if index >= limit {
 			break
 		}
@@ -80,9 +74,4 @@ func HasElem(s interface{}, elem interface{}) bool {
 		}
 	}
 	return false
-}
-
-func GetGuid() string {
-	guid := xid.New()
-	return guid.String()
 }

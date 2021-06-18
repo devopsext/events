@@ -3,7 +3,7 @@
 Http service which inmplements an endpoint to listen events in Kubernetes cluster (webhook), as well as alerts from Alertmanager. By receiving events and alerts, the service processes them based on their kind and generates human readable message which sends to Kafka, Telegram, Slack or Workchat.
 
 [![GoDoc](https://godoc.org/github.com/devopsext/events?status.svg)](https://godoc.org/github.com/devopsext/events)
-[![build status](https://img.shields.io/travis/devopsext/events/master.svg?style=flat-square)](https://travis-ci.org/devopsext/events)
+[![build status](https://travis-ci.com/devopsext/events.svg?branch=main)](https://travis-ci.com/devopsext/events)
 
 ## Features
 
@@ -12,8 +12,7 @@ Http service which inmplements an endpoint to listen events in Kubernetes cluste
 - Support golang templates as patterns of messages for channels and channel selectors
 - Template functions: regexReplaceAll, regexMatch, replaceAll, toLower, toTitle, toUpper, toJSON, split, join, isEmpty, getEnv, getVar, timeFormat, jsonEscape, toString
 - Support channels like: Kafka, Telegram, Slack, Workchat. All templates in place
-- Provide Prometheus metrics out of the box
-
+- Provide SRE metrics, logs, traces out of the box (see [](https://github.com/devopsext/sre))
 
 ## Build
 
@@ -309,9 +308,9 @@ In a case of Grafana images based on alert rules which come from Alertmanager, s
 ```sh
 export EVENTS_GRAFANA_URL="Place Grafana URL in case of Alertmanger images or leave it empty"
 export EVENTS_GRAFANA_API_KEY="Place Grafana API key"
-export EVENTS_LOG_FORMAT="stdout"
-export EVENTS_LOG_LEVEL="debug"
-export EVENTS_LOG_TEMPLATE="{{.msg}}"
+export EVENTS_STDOUT_FORMAT="template"
+export EVENTS_STDOUT_LEVEL="debug"
+export EVENTS_STDOUT_TEMPLATE="{{.msg}}"
 ```
 </details>
 
@@ -439,6 +438,17 @@ Available Commands:
   version     Print the version number
 
 Flags:
+      --datadog-environment string             DataDog environment (default "none")
+      --datadog-logger-host string             DataDog logger host
+      --datadog-logger-level string            DataDog logger level: info, warn, error, debug, panic (default "info")
+      --datadog-logger-port int                Datadog logger port (default 10518)
+      --datadog-metricer-host string           DataDog metricer host
+      --datadog-metricer-port int              Datadog metricer port (default 10518)
+      --datadog-metricer-prefix string         DataDog metricer prefix (default "events")
+      --datadog-service-name string            DataDog service name
+      --datadog-tags string                    DataDog tags
+      --datadog-tracer-host string             DataDog tracer host
+      --datadog-tracer-port int                Datadog tracer port (default 8126)
       --grafana-api-key string                 Grafana API key (default "admin:admin")
       --grafana-datasource string              Grafana datasource (default "Prometheus")
       --grafana-image-height int               Grafan image height (default 640)
@@ -451,11 +461,21 @@ Flags:
       --http-alertmanager-url string           Http Alertmanager url
       --http-cert string                       Http cert file or content
       --http-chain string                      Http CA chain file or content
+      --http-header-trace-id string            Http trace ID header (default "X-Trace-ID")
       --http-k8s-url string                    Http K8s url
       --http-key string                        Http key file or content
       --http-listen string                     Http listen (default ":80")
       --http-rancher-url string                Http Rancher url
       --http-tls                               Http TLS
+      --jaeger-agent-host string               Jaeger agent host
+      --jaeger-agent-port int                  Jaeger agent port (default 6831)
+      --jaeger-buffer-flush-interval int       Jaeger buffer flush interval
+      --jaeger-endpoint string                 Jaeger endpoint
+      --jaeger-password string                 Jaeger password
+      --jaeger-queue-size int                  Jaeger queue size
+      --jaeger-service-name string             Jaeger service name (default "events")
+      --jaeger-tags string                     Jaeger tags, comma separated list of name=value
+      --jaeger-user string                     Jaeger user
       --kafka-brokers string                   Kafka brokers
       --kafka-client-id string                 Kafka client id (default "events_kafka")
       --kafka-flush-frequency int              Kafka Producer flush frequency (default 1)
@@ -466,16 +486,21 @@ Flags:
       --kafka-net-read-timeout int             Kafka Net read timeout (default 30)
       --kafka-net-write-timeout int            Kafka Net write timeout (default 30)
       --kafka-topic string                     Kafka topic (default "events")
-      --log-format string                      Log format: json, text, stdout (default "stdout")
-      --log-level string                       Log level: info, warn, error, debug, panic (default "debug")
-      --log-template string                    Log template (default "{{.msg}}")
+      --logs strings                           Log providers: stdout, datadog (default [stdout])
+      --metrics strings                        Metric providers: prometheus, datadog (default [prometheus])
       --prometheus-listen string               Prometheus listen (default "127.0.0.1:8080")
+      --prometheus-prefix string               Prometheus prefix (default "events")
       --prometheus-url string                  Prometheus endpoint url (default "/metrics")
       --slack-alert-expression string          Slack alert expression (default "g0.expr")
       --slack-message-template string          Slack message template
       --slack-selector-template string         Slack selector template
       --slack-timeout int                      Slack timeout (default 30)
       --slack-url string                       Slack URL
+      --stdout-format string                   Stdout format: json, text, template (default "stdout")
+      --stdout-level string                    Stdout level: info, warn, error, debug, panic (default "debug")
+      --stdout-template string                 Stdout template (default "{{.file}} {{.msg}}")
+      --stdout-text-colors                     Stdout text colors (default true)
+      --stdout-timestamp-format string         Stdout timestamp format (default "2006-01-02T15:04:05.999999999Z07:00")
       --telegram-alert-expression string       Telegram alert expression (default "g0.expr")
       --telegram-disable-notification string   Telegram disable notification (default "false")
       --telegram-message-template string       Telegram message template
@@ -483,13 +508,13 @@ Flags:
       --telegram-timeout int                   Telegram timeout (default 30)
       --telegram-url string                    Telegram URL
       --template-time-format string            Template time format (default "2006-01-02T15:04:05.999Z")
+      --traces strings                         Trace providers: jaeger, datadog
       --workchat-alert-expression string       Workchat alert expression (default "g0.expr")
       --workchat-message-template string       Workchat message template
       --workchat-notification-type string      Workchat notification type (default "REGULAR")
       --workchat-selector-template string      Workchat selector template
       --workchat-timeout int                   Workchat timeout (default 30)
       --workchat-url string                    Workchat URL
-
 ```
 
 <details>
@@ -497,14 +522,21 @@ Flags:
 <br>
 For containerization purpose all command switches have environment variables analogs.
 
-- EVENTS_LOG_FORMAT
-- EVENTS_LOG_LEVEL
-- EVENTS_LOG_TEMPLATE
+- EVENTS_LOGS
+- EVENTS_METRICS
+- EVENTS_TRACES
+- EVENTS_TEMPLATE_TIME_FORMAT
+
+- EVENTS_STDOUT_FORMAT
+- EVENTS_STDOUT_LEVEL
+- EVENTS_STDOUT_TEMPLATE
+- EVENTS_STDOUT_TIMESTAMP_FORMAT
+- EVENTS_STDOUT_TEXT_COLORS
 
 - EVENTS_PROMETHEUS_URL
 - EVENTS_PROMETHEUS_LISTEN
+- EVENTS_PROMETHEUS_PREFIX
 
-- EVENTS_TEMPLATE_TIME_FORMAT
 - EVENTS_HTTP_K8S_URL
 - EVENTS_HTTP_RANCHER_URL
 - EVENTS_HTTP_ALERTMANAGER_URL
@@ -513,6 +545,7 @@ For containerization purpose all command switches have environment variables ana
 - EVENTS_HTTP_CERT
 - EVENTS_HTTP_KEY
 - EVENTS_HTTP_CHAIN
+- EVENTS_HTTP_HEADER_TRACE_ID
 
 - EVENTS_COLLECTOR_ADDRESS
 - EVENTS_COLLECTOR_MESSAGE_TEMPLATE
@@ -556,4 +589,30 @@ For containerization purpose all command switches have environment variables ana
 - EVENTS_GRAFANA_PERIOD
 - EVENTS_GRAFANA_IMAGE_WIDTH
 - EVENTS_GRAFANA_IMAGE_HEIGHT
+
+- EVENTS_JAEGER_SERVICE_NAME
+- EVENTS_JAEGER_AGENT_HOST
+- EVENTS_JAEGER_AGENT_PORT
+- EVENTS_JAEGER_ENDPOINT
+- EVENTS_JAEGER_USER
+- EVENTS_JAEGER_PASSWORD
+- EVENTS_JAEGER_BUFFER_FLUSH_INTERVAL
+- EVENTS_JAEGER_QUEUE_SIZE
+- EVENTS_JAEGER_TAGS
+
+- EVENTS_DATADOG_SERVICE_NAME
+- EVENTS_DATADOG_ENVIRONMENT
+- EVENTS_DATADOG_TAGS
+
+- EVENTS_DATADOG_TRACER_HOST
+- EVENTS_DATADOG_TRACER_PORT
+
+- EVENTS_DATADOG_LOGGER_HOST
+- EVENTS_DATADOG_LOGGER_PORT
+- EVENTS_DATADOG_LOGGER_LEVEL
+
+- EVENTS_DATADOG_METRICER_HOST
+- EVENTS_DATADOG_METRICER_PORT
+- EVENTS_DATADOG_METRICER_PREFIX
+
 </details>
