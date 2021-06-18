@@ -193,9 +193,11 @@ func Execute() {
 
 			stdoutOptions.Version = VERSION
 			stdout = sreProvider.NewStdout(stdoutOptions)
-			stdout.SetCallerOffset(2)
-			if common.HasElem(rootOptions.Logs, "stdout") {
-				logs.Register(stdout)
+			if stdout != nil {
+				stdout.SetCallerOffset(2)
+				if common.HasElem(rootOptions.Logs, "stdout") {
+					logs.Register(stdout)
+				}
 			}
 
 			datadogLoggerOptions.Version = VERSION
@@ -204,7 +206,7 @@ func Execute() {
 			datadogLoggerOptions.Tags = datadogOptions.Tags
 
 			datadogLogger := sreProvider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
-			if common.HasElem(rootOptions.Logs, "datadog") {
+			if datadogLogger != nil && common.HasElem(rootOptions.Logs, "datadog") {
 				logs.Register(datadogLogger)
 			}
 
@@ -214,10 +216,12 @@ func Execute() {
 
 			prometheusOptions.Version = VERSION
 			prometheus := sreProvider.NewPrometheus(prometheusOptions, logs, stdout)
-			prometheus.SetCallerOffset(1)
-			if common.HasElem(rootOptions.Metrics, "prometheus") {
-				prometheus.Start(&mainWG)
-				metrics.Register(prometheus)
+			if prometheus != nil {
+				prometheus.SetCallerOffset(1)
+				if common.HasElem(rootOptions.Metrics, "prometheus") {
+					prometheus.Start(&mainWG)
+					metrics.Register(prometheus)
+				}
 			}
 
 			datadogMetricerOptions.Version = VERSION
@@ -226,18 +230,22 @@ func Execute() {
 			datadogMetricerOptions.Tags = datadogOptions.Tags
 
 			datadogMetricer := sreProvider.NewDataDogMetricer(datadogMetricerOptions, logs, stdout)
-			datadogMetricer.SetCallerOffset(1)
-			if common.HasElem(rootOptions.Metrics, "datadog") {
-				metrics.Register(datadogMetricer)
+			if datadogMetricer != nil {
+				datadogMetricer.SetCallerOffset(1)
+				if common.HasElem(rootOptions.Metrics, "datadog") {
+					metrics.Register(datadogMetricer)
+				}
 			}
 
 			// Tracing
 
 			jaegerOptions.Version = VERSION
 			jaeger := sreProvider.NewJaeger(jaegerOptions, logs, stdout)
-			jaeger.SetCallerOffset(1)
-			if common.HasElem(rootOptions.Traces, "jaeger") {
-				traces.Register(jaeger)
+			if jaeger != nil {
+				jaeger.SetCallerOffset(1)
+				if common.HasElem(rootOptions.Traces, "jaeger") {
+					traces.Register(jaeger)
+				}
 			}
 
 			datadogTracerOptions.Version = VERSION
@@ -246,9 +254,11 @@ func Execute() {
 			datadogTracerOptions.Tags = datadogOptions.Tags
 
 			datadogTracer := sreProvider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
-			datadogTracer.SetCallerOffset(1)
-			if common.HasElem(rootOptions.Traces, "datadog") {
-				traces.Register(datadogTracer)
+			if datadogTracer != nil {
+				datadogTracer.SetCallerOffset(1)
+				if common.HasElem(rootOptions.Traces, "datadog") {
+					traces.Register(datadogTracer)
+				}
 			}
 
 		},
