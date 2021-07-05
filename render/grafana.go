@@ -262,7 +262,7 @@ func (g *Grafana) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	return nil, "", err
 }
 
-func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *Grafana {
+func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *Grafana {
 
 	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Grafana URL is not defined. Skipped")
@@ -274,6 +274,6 @@ func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommo
 		options: options,
 		logger:  logger,
 		tracer:  tracer,
-		counter: metricer.Counter("requests", "Count of all grafana outputs", []string{"title"}, "grafana"),
+		counter: meter.Counter("requests", "Count of all grafana outputs", []string{"title"}, "grafana"),
 	}
 }

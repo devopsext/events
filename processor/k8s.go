@@ -473,12 +473,12 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func NewK8sProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *K8sProcessor {
+func NewK8sProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *K8sProcessor {
 
 	return &K8sProcessor{
 		outputs: outputs,
 		logger:  logger,
 		tracer:  tracer,
-		counter: metricer.Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
+		counter: meter.Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
 	}
 }

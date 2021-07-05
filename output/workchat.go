@@ -354,7 +354,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	grafanaOptions render.GrafanaOptions,
 	logger sreCommon.Logger,
 	tracer sreCommon.Tracer,
-	metricer sreCommon.Metricer) *WorkchatOutput {
+	meter sreCommon.Meter) *WorkchatOutput {
 
 	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Workchat URL is not defined. Skipped")
@@ -366,10 +366,10 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, meter),
 		options:  options,
 		tracer:   tracer,
 		logger:   logger,
-		counter:  metricer.Counter("requests", "Count of all workchar outputs", []string{"thread"}, "workchat", "output"),
+		counter:  meter.Counter("requests", "Count of all workchar outputs", []string{"thread"}, "workchat", "output"),
 	}
 }

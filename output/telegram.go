@@ -353,7 +353,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	grafanaOptions render.GrafanaOptions,
 	logger sreCommon.Logger,
 	tracer sreCommon.Tracer,
-	metricer sreCommon.Metricer) *TelegramOutput {
+	meter sreCommon.Meter) *TelegramOutput {
 
 	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Telegram URL is not defined. Skipped")
@@ -365,10 +365,10 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, meter),
 		options:  options,
 		logger:   logger,
 		tracer:   tracer,
-		counter:  metricer.Counter("requests", "Count of all telegram outputs", []string{"chat_id"}, "telegram", "output"),
+		counter:  meter.Counter("requests", "Count of all telegram outputs", []string{"chat_id"}, "telegram", "output"),
 	}
 }

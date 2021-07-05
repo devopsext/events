@@ -105,7 +105,7 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 }
 
 func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions,
-	logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *KafkaOutput {
+	logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
@@ -136,6 +136,6 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		options:  options,
 		logger:   logger,
 		tracer:   tracer,
-		counter:  metricer.Counter("requests", "Count of all kafka outputs", []string{"topic"}, "kafka", "output"),
+		counter:  meter.Counter("requests", "Count of all kafka outputs", []string{"topic"}, "kafka", "output"),
 	}
 }
