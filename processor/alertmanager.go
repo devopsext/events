@@ -109,12 +109,12 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	}
 }
 
-func NewAlertmanagerProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *AlertmanagerProcessor {
+func NewAlertmanagerProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *AlertmanagerProcessor {
 
 	return &AlertmanagerProcessor{
 		outputs: outputs,
 		tracer:  tracer,
 		logger:  logger,
-		counter: metricer.Counter("requests", "Count of all alertmanager processor requests", []string{"status", "channel"}, "alertmanager", "processor"),
+		counter: meter.Counter("requests", "Count of all alertmanager processor requests", []string{"status", "channel"}, "alertmanager", "processor"),
 	}
 }

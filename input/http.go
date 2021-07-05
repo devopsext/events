@@ -30,11 +30,11 @@ type HttpInputOptions struct {
 }
 
 type HttpInput struct {
-	options  HttpInputOptions
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	metricer sreCommon.Metricer
-	counter  sreCommon.Counter
+	options HttpInputOptions
+	tracer  sreCommon.Tracer
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
+	counter sreCommon.Counter
 }
 
 func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
@@ -134,7 +134,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					defer span.Finish()
 
 					h.counter.Inc(r.URL.Path)
-					processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.metricer).HandleHttpRequest(w, r)
+					processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.meter).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -170,7 +170,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 					defer span.Finish()
 
 					h.counter.Inc(r.URL.Path)
-					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer, h.metricer).HandleHttpRequest(w, r)
+					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer, h.meter).HandleHttpRequest(w, r)
 				})
 			}
 		}
@@ -205,13 +205,13 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func NewHttpInput(options HttpInputOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *HttpInput {
+func NewHttpInput(options HttpInputOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *HttpInput {
 
 	return &HttpInput{
-		options:  options,
-		tracer:   tracer,
-		logger:   logger,
-		metricer: metricer,
-		counter:  metricer.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
+		options: options,
+		tracer:  tracer,
+		logger:  logger,
+		meter:   meter,
+		counter: meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
 	}
 }

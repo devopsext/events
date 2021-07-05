@@ -96,7 +96,7 @@ func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net
 }
 
 func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions,
-	logger sreCommon.Logger, tracer sreCommon.Tracer, metricer sreCommon.Metricer) *CollectorOutput {
+	logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *CollectorOutput {
 
 	connection := makeCollectorOutputConnection(options.Address, logger)
 	if connection == nil {
@@ -110,6 +110,6 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 		connection: connection,
 		tracer:     tracer,
 		logger:     logger,
-		counter:    metricer.Counter("requests", "Count of all collector outputs", []string{"address"}, "collector", "output"),
+		counter:    meter.Counter("requests", "Count of all collector outputs", []string{"address"}, "collector", "output"),
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/devopsext/events/output"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/sre/provider"
 	sreProvider "github.com/devopsext/sre/provider"
 	utils "github.com/devopsext/utils"
 	"github.com/spf13/cobra"
@@ -151,26 +152,45 @@ var jaegerOptions = sreProvider.JaegerOptions{
 }
 
 var datadogOptions = sreProvider.DataDogOptions{
-	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "").(string),
+	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "events").(string),
 	Environment: env.Get("EVENTS_DATADOG_ENVIRONMENT", "none").(string),
 	Tags:        env.Get("EVENTS_DATADOG_TAGS", "").(string),
+	Debug:       false,
 }
 
 var datadogTracerOptions = sreProvider.DataDogTracerOptions{
-	Host: env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
-	Port: env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
+	AgentHost: env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
+	AgentPort: env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
 }
 
 var datadogLoggerOptions = sreProvider.DataDogLoggerOptions{
-	Host:  env.Get("EVENTS_DATADOG_LOGGER_HOST", "").(string),
-	Port:  env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
-	Level: env.Get("EVENTS_DATADOG_LOGGER_LEVEL", "info").(string),
+	AgentHost: env.Get("EVENTS_DATADOG_LOGGER_HOST", "").(string),
+	AgentPort: env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
+	Level:     env.Get("EVENTS_DATADOG_LOGGER_LEVEL", "info").(string),
 }
 
-var datadogMetricerOptions = sreProvider.DataDogMetricerOptions{
-	Host:   env.Get("EVENTS_DATADOG_METRICER_HOST", "").(string),
-	Port:   env.Get("EVENTS_DATADOG_METRICER_PORT", 10518).(int),
-	Prefix: env.Get("EVENTS_DATADOG_METRICER_PREFIX", "events").(string),
+var datadogMeterOptions = sreProvider.DataDogMeterOptions{
+	AgentHost: env.Get("EVENTS_DATADOG_METER_HOST", "").(string),
+	AgentPort: env.Get("EVENTS_DATADOG_METER_PORT", 10518).(int),
+	Prefix:    env.Get("EVENTS_DATADOG_METER_PREFIX", "events").(string),
+}
+
+var opentelemetryOptions = sreProvider.OpentelemetryOptions{
+	ServiceName: env.Get("EVENTS_OPENTELEMETRY_SERVICE_NAME", "events").(string),
+	Environment: env.Get("EVENTS_OPENTELEMETRY_ENVIRONMENT", "none").(string),
+	Attributes:  env.Get("EVENTS_OPENTELEMETRY_ATTRIBUTES", "").(string),
+}
+
+var opentelemetryTracerOptions = sreProvider.OpentelemetryTracerOptions{
+	AgentHost: env.Get("EVENTS_OPENTELEMETRY_TRACER_HOST", "").(string),
+	AgentPort: env.Get("EVENTS_OPENTELEMETRY_TRACER_PORT", 4317).(int),
+}
+
+var opentelemetryMeterOptions = sreProvider.OpentelemetryMeterOptions{
+	AgentHost:     env.Get("EVENTS_OPENTELEMETRY_METER_HOST", "").(string),
+	AgentPort:     env.Get("EVENTS_OPENTELEMETRY_METER_PORT", 4317).(int),
+	Prefix:        env.Get("EVENTS_OPENTELEMETRY_METER_PREFIX", "events").(string),
+	CollectPeriod: int64(env.Get("EVENTS_OPENTELEMETRY_METER_COLLECT_PERIOD", 1000).(int)),
 }
 
 func interceptSyscall() {
@@ -193,20 +213,18 @@ func Execute() {
 
 			stdoutOptions.Version = VERSION
 			stdout = sreProvider.NewStdout(stdoutOptions)
-			if stdout != nil {
+			if common.HasElem(rootOptions.Logs, "stdout") && stdout != nil {
 				stdout.SetCallerOffset(2)
-				if common.HasElem(rootOptions.Logs, "stdout") {
-					logs.Register(stdout)
-				}
+				logs.Register(stdout)
 			}
 
 			datadogLoggerOptions.Version = VERSION
 			datadogLoggerOptions.ServiceName = datadogOptions.ServiceName
 			datadogLoggerOptions.Environment = datadogOptions.Environment
 			datadogLoggerOptions.Tags = datadogOptions.Tags
-
+			datadogLoggerOptions.Debug = datadogOptions.Debug
 			datadogLogger := sreProvider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
-			if datadogLogger != nil && common.HasElem(rootOptions.Logs, "datadog") {
+			if common.HasElem(rootOptions.Logs, "datadog") && datadogLogger != nil {
 				logs.Register(datadogLogger)
 			}
 
@@ -215,44 +233,42 @@ func Execute() {
 			// Metrics
 
 			prometheusOptions.Version = VERSION
-			prometheus := sreProvider.NewPrometheus(prometheusOptions, logs, stdout)
-			if prometheus != nil {
-				prometheus.SetCallerOffset(1)
-				if common.HasElem(rootOptions.Metrics, "prometheus") {
-					prometheus.Start(&mainWG)
-					metrics.Register(prometheus)
-				}
+			prometheus := sreProvider.NewPrometheusMeter(prometheusOptions, logs, stdout)
+			if common.HasElem(rootOptions.Metrics, "prometheus") && prometheus != nil {
+				prometheus.Start(&mainWG)
+				metrics.Register(prometheus)
 			}
 
-			datadogMetricerOptions.Version = VERSION
-			datadogMetricerOptions.ServiceName = datadogOptions.ServiceName
-			datadogMetricerOptions.Environment = datadogOptions.Environment
-			datadogMetricerOptions.Tags = datadogOptions.Tags
+			datadogMeterOptions.Version = VERSION
+			datadogMeterOptions.ServiceName = datadogOptions.ServiceName
+			datadogMeterOptions.Environment = datadogOptions.Environment
+			datadogMeterOptions.Tags = datadogOptions.Tags
+			datadogMetricer := sreProvider.NewDataDogMeter(datadogMeterOptions, logs, stdout)
+			if common.HasElem(rootOptions.Metrics, "datadog") && datadogMetricer != nil {
+				metrics.Register(datadogMetricer)
+			}
 
-			datadogMetricer := sreProvider.NewDataDogMetricer(datadogMetricerOptions, logs, stdout)
-			if datadogMetricer != nil {
-				datadogMetricer.SetCallerOffset(1)
-				if common.HasElem(rootOptions.Metrics, "datadog") {
-					metrics.Register(datadogMetricer)
-				}
+			opentelemetryMeterOptions.Version = VERSION
+			opentelemetryMeterOptions.ServiceName = opentelemetryOptions.ServiceName
+			opentelemetryMeterOptions.Environment = opentelemetryOptions.Environment
+			opentelemetryMeterOptions.Attributes = opentelemetryOptions.Attributes
+			opentelemetryMeter := provider.NewOpentelemetryMeter(opentelemetryMeterOptions, logs, stdout)
+			if common.HasElem(rootOptions.Metrics, "opentelemetry") && opentelemetryMeter != nil {
+				metrics.Register(opentelemetryMeter)
 			}
 
 			// Tracing
 
 			jaegerOptions.Version = VERSION
-			jaeger := sreProvider.NewJaeger(jaegerOptions, logs, stdout)
-			if jaeger != nil {
-				jaeger.SetCallerOffset(1)
-				if common.HasElem(rootOptions.Traces, "jaeger") {
-					traces.Register(jaeger)
-				}
+			jaeger := sreProvider.NewJaegerTracer(jaegerOptions, logs, stdout)
+			if common.HasElem(rootOptions.Traces, "jaeger") && jaeger != nil {
+				traces.Register(jaeger)
 			}
 
 			datadogTracerOptions.Version = VERSION
 			datadogTracerOptions.ServiceName = datadogOptions.ServiceName
 			datadogTracerOptions.Environment = datadogOptions.Environment
 			datadogTracerOptions.Tags = datadogOptions.Tags
-
 			datadogTracer := sreProvider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
 			if datadogTracer != nil {
 				datadogTracer.SetCallerOffset(1)
@@ -261,6 +277,14 @@ func Execute() {
 				}
 			}
 
+			opentelemetryTracerOptions.Version = VERSION
+			opentelemetryTracerOptions.ServiceName = opentelemetryOptions.ServiceName
+			opentelemetryTracerOptions.Environment = opentelemetryOptions.Environment
+			opentelemetryTracerOptions.Attributes = opentelemetryOptions.Attributes
+			opentelemtryTracer := sreProvider.NewOpentelemetryTracer(opentelemetryTracerOptions, logs, stdout)
+			if common.HasElem(rootOptions.Traces, "opentelemetry") && opentelemtryTracer != nil {
+				traces.Register(opentelemtryTracer)
+			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
@@ -317,8 +341,8 @@ func Execute() {
 	flags := rootCmd.PersistentFlags()
 
 	flags.StringSliceVar(&rootOptions.Logs, "logs", rootOptions.Logs, "Log providers: stdout, datadog")
-	flags.StringSliceVar(&rootOptions.Metrics, "metrics", rootOptions.Metrics, "Metric providers: prometheus, datadog")
-	flags.StringSliceVar(&rootOptions.Traces, "traces", rootOptions.Traces, "Trace providers: jaeger, datadog")
+	flags.StringSliceVar(&rootOptions.Metrics, "metrics", rootOptions.Metrics, "Metric providers: prometheus, datadog, opentelemetry")
+	flags.StringSliceVar(&rootOptions.Traces, "traces", rootOptions.Traces, "Trace providers: jaeger, datadog, opentelemetry")
 
 	flags.StringVar(&textTemplateOptions.TimeFormat, "template-time-format", textTemplateOptions.TimeFormat, "Template time format")
 
@@ -395,17 +419,24 @@ func Execute() {
 	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name")
 	flags.StringVar(&datadogOptions.Environment, "datadog-environment", datadogOptions.Environment, "DataDog environment")
 	flags.StringVar(&datadogOptions.Tags, "datadog-tags", datadogOptions.Tags, "DataDog tags")
-
-	flags.StringVar(&datadogTracerOptions.Host, "datadog-tracer-host", datadogTracerOptions.Host, "DataDog tracer host")
-	flags.IntVar(&datadogTracerOptions.Port, "datadog-tracer-port", datadogTracerOptions.Port, "Datadog tracer port")
-
-	flags.StringVar(&datadogLoggerOptions.Host, "datadog-logger-host", datadogLoggerOptions.Host, "DataDog logger host")
-	flags.IntVar(&datadogLoggerOptions.Port, "datadog-logger-port", datadogLoggerOptions.Port, "Datadog logger port")
+	flags.BoolVar(&datadogOptions.Debug, "datadog-debug", datadogOptions.Debug, "DataDog debug")
+	flags.StringVar(&datadogTracerOptions.AgentHost, "datadog-tracer-agent-host", datadogTracerOptions.AgentHost, "DataDog tracer agent host")
+	flags.IntVar(&datadogTracerOptions.AgentPort, "datadog-tracer-agent-port", datadogTracerOptions.AgentPort, "Datadog tracer agent port")
+	flags.StringVar(&datadogLoggerOptions.AgentHost, "datadog-logger-agent-host", datadogLoggerOptions.AgentHost, "DataDog logger agent host")
+	flags.IntVar(&datadogLoggerOptions.AgentPort, "datadog-logger-agent-port", datadogLoggerOptions.AgentPort, "Datadog logger agent port")
 	flags.StringVar(&datadogLoggerOptions.Level, "datadog-logger-level", datadogLoggerOptions.Level, "DataDog logger level: info, warn, error, debug, panic")
+	flags.StringVar(&datadogMeterOptions.AgentHost, "datadog-meter-agent-host", datadogMeterOptions.AgentHost, "DataDog meter agent host")
+	flags.IntVar(&datadogMeterOptions.AgentPort, "datadog-meter-agent-port", datadogMeterOptions.AgentPort, "Datadog meter agent port")
+	flags.StringVar(&datadogMeterOptions.Prefix, "datadog-meter-prefix", datadogMeterOptions.Prefix, "DataDog meter prefix")
 
-	flags.StringVar(&datadogMetricerOptions.Host, "datadog-metricer-host", datadogMetricerOptions.Host, "DataDog metricer host")
-	flags.IntVar(&datadogMetricerOptions.Port, "datadog-metricer-port", datadogMetricerOptions.Port, "Datadog metricer port")
-	flags.StringVar(&datadogMetricerOptions.Prefix, "datadog-metricer-prefix", datadogMetricerOptions.Prefix, "DataDog metricer prefix")
+	flags.StringVar(&opentelemetryOptions.ServiceName, "opentelemetry-service-name", opentelemetryOptions.ServiceName, "Opentelemetry service name")
+	flags.StringVar(&opentelemetryOptions.Environment, "opentelemetry-environment", opentelemetryOptions.Environment, "Opentelemetry environment")
+	flags.StringVar(&opentelemetryOptions.Attributes, "opentelemetry-attributes", opentelemetryOptions.Attributes, "Opentelemetry attributes")
+	flags.StringVar(&opentelemetryTracerOptions.AgentHost, "opentelemetry-tracer-agent-host", opentelemetryTracerOptions.AgentHost, "Opentelemetry tracer agent host")
+	flags.IntVar(&opentelemetryTracerOptions.AgentPort, "opentelemetry-tracer-agent-port", opentelemetryTracerOptions.AgentPort, "Opentelemetry tracer agent port")
+	flags.StringVar(&opentelemetryMeterOptions.AgentHost, "opentelemetry-meter-agent-host", opentelemetryMeterOptions.AgentHost, "Opentelemetry meter agent host")
+	flags.IntVar(&opentelemetryMeterOptions.AgentPort, "opentelemetry-meter-agent-port", opentelemetryMeterOptions.AgentPort, "Opentelemetry meter agent port")
+	flags.StringVar(&opentelemetryMeterOptions.Prefix, "opentelemetry-meter-prefix", opentelemetryMeterOptions.Prefix, "Opentelemetry meter prefix")
 
 	interceptSyscall()
 

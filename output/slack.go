@@ -319,7 +319,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	grafanaOptions render.GrafanaOptions,
 	logger sreCommon.Logger,
 	tracer sreCommon.Tracer,
-	metricer sreCommon.Metricer) *SlackOutput {
+	meter sreCommon.Meter) *SlackOutput {
 
 	if sreCommon.IsEmpty(options.URL) {
 		logger.Debug("Slack URL is not defined. Skipped")
@@ -331,10 +331,10 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, metricer),
+		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, meter),
 		options:  options,
 		logger:   logger,
 		tracer:   tracer,
-		counter:  metricer.Counter("requests", "Count of all slack outputs", []string{"channel"}, "slack", "output"),
+		counter:  meter.Counter("requests", "Count of all slack outputs", []string{"channel"}, "slack", "output"),
 	}
 }
