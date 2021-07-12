@@ -6,6 +6,7 @@ import (
 	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/utils"
 
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
@@ -62,7 +63,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if sreCommon.IsEmpty(message) {
+		if utils.IsEmpty(message) {
 			k.logger.SpanDebug(span, "Message to Kafka is empty")
 			return
 		}
@@ -81,13 +82,13 @@ func (k *KafkaOutput) Send(event *common.Event) {
 func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config *sarama.Config, logger sreCommon.Logger) *sarama.AsyncProducer {
 
 	brks := strings.Split(brokers, ",")
-	if len(brks) == 0 || sreCommon.IsEmpty(brokers) {
+	if len(brks) == 0 || utils.IsEmpty(brokers) {
 
 		logger.Debug("Kafka brokers are not defined. Skipped.")
 		return nil
 	}
 
-	if sreCommon.IsEmpty(topic) {
+	if utils.IsEmpty(topic) {
 
 		logger.Debug("Kafka topic is not defined. Skipped.")
 		return nil
@@ -110,7 +111,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
 
-	if !sreCommon.IsEmpty(options.ClientID) {
+	if !utils.IsEmpty(options.ClientID) {
 		config.ClientID = options.ClientID
 	}
 

@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/utils"
 
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
@@ -273,7 +274,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			}
 		}
 
-		if sreCommon.IsEmpty(URLs) {
+		if utils.IsEmpty(URLs) {
 			err := errors.New("Slack URLs are not found")
 			s.logger.SpanError(span, err)
 			return
@@ -286,7 +287,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if sreCommon.IsEmpty(message) {
+		if utils.IsEmpty(message) {
 			s.logger.SpanDebug(span, "Slack message is empty")
 			return
 		}
@@ -296,7 +297,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)
-			if sreCommon.IsEmpty(URL) {
+			if utils.IsEmpty(URL) {
 				continue
 			}
 
@@ -321,7 +322,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	tracer sreCommon.Tracer,
 	meter sreCommon.Meter) *SlackOutput {
 
-	if sreCommon.IsEmpty(options.URL) {
+	if utils.IsEmpty(options.URL) {
 		logger.Debug("Slack URL is not defined. Skipped")
 		return nil
 	}

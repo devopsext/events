@@ -7,6 +7,7 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/utils"
 )
 
 type CollectorOutputOptions struct {
@@ -50,7 +51,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if sreCommon.IsEmpty(message) {
+		if utils.IsEmpty(message) {
 			c.logger.SpanDebug(span, "Message to Collector is empty")
 			return
 		}
@@ -68,7 +69,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 
 func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net.UDPConn {
 
-	if sreCommon.IsEmpty(address) {
+	if utils.IsEmpty(address) {
 
 		logger.Debug("Collector address is not defined. Skipped.")
 		return nil
