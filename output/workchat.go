@@ -308,7 +308,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			}
 		}
 
-		if sreCommon.IsEmpty(URLs) {
+		if utils.IsEmpty(URLs) {
 			err := errors.New("Workchat URLs are not found")
 			w.logger.SpanError(span, err)
 			return
@@ -321,7 +321,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if sreCommon.IsEmpty(message) {
+		if utils.IsEmpty(message) {
 			w.logger.SpanDebug(span, "Workchat message is empty")
 			return
 		}
@@ -331,7 +331,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)
-			if sreCommon.IsEmpty(URL) {
+			if utils.IsEmpty(URL) {
 				continue
 			}
 
@@ -356,7 +356,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	tracer sreCommon.Tracer,
 	meter sreCommon.Meter) *WorkchatOutput {
 
-	if sreCommon.IsEmpty(options.URL) {
+	if utils.IsEmpty(options.URL) {
 		logger.Debug("Workchat URL is not defined. Skipped")
 		return nil
 	}

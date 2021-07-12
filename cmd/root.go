@@ -235,7 +235,7 @@ func Execute() {
 			prometheusOptions.Version = VERSION
 			prometheus := sreProvider.NewPrometheusMeter(prometheusOptions, logs, stdout)
 			if common.HasElem(rootOptions.Metrics, "prometheus") && prometheus != nil {
-				prometheus.Start(&mainWG)
+				prometheus.StartInWaitGroup(&mainWG)
 				metrics.Register(prometheus)
 			}
 

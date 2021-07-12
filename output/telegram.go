@@ -16,6 +16,7 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/utils"
 
 	"github.com/prometheus/alertmanager/template"
 )
@@ -307,7 +308,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			}
 		}
 
-		if sreCommon.IsEmpty(URLs) {
+		if utils.IsEmpty(URLs) {
 			err := errors.New("Telegram URLs are not found")
 			t.logger.SpanError(span, err)
 			return
@@ -320,7 +321,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		}
 
 		message := b.String()
-		if sreCommon.IsEmpty(message) {
+		if utils.IsEmpty(message) {
 			t.logger.SpanDebug(span, "Telegram message is empty")
 			return
 		}
@@ -330,7 +331,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)
-			if sreCommon.IsEmpty(URL) {
+			if utils.IsEmpty(URL) {
 				continue
 			}
 
@@ -355,7 +356,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	tracer sreCommon.Tracer,
 	meter sreCommon.Meter) *TelegramOutput {
 
-	if sreCommon.IsEmpty(options.URL) {
+	if utils.IsEmpty(options.URL) {
 		logger.Debug("Telegram URL is not defined. Skipped")
 		return nil
 	}

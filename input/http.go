@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -39,18 +38,12 @@ type HttpInput struct {
 
 func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
 
-	s := r.Header.Get(h.options.HeaderTraceID)
-	if utils.IsEmpty(s) {
+	traceID := r.Header.Get(h.options.HeaderTraceID)
+	if utils.IsEmpty(traceID) {
 		return h.tracer.StartSpan()
 	}
 
-	traceID, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		h.logger.Error("Invalid %s with value %s: %s", h.options.HeaderTraceID, s, err)
-		return h.tracer.StartSpan()
-	}
-
-	return h.tracer.StartSpanWithTraceID(uint64(traceID))
+	return h.tracer.StartSpanWithTraceID(traceID, "")
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {

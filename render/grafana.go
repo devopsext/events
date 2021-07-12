@@ -13,6 +13,7 @@ import (
 	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
+	utils "github.com/devopsext/utils"
 	"github.com/grafana-tools/sdk"
 )
 
@@ -264,7 +265,7 @@ func (g *Grafana) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 
 func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *Grafana {
 
-	if sreCommon.IsEmpty(options.URL) {
+	if utils.IsEmpty(options.URL) {
 		logger.Debug("Grafana URL is not defined. Skipped")
 		return nil
 	}

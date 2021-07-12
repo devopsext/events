@@ -194,7 +194,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 		"toString":        tpl.fToString,
 	}
 
-	if sreCommon.IsEmpty(fileOrVar) {
+	if utils.IsEmpty(fileOrVar) {
 		logger.Warn("Template %s is empty.", name)
 		return nil
 	}
