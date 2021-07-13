@@ -3,7 +3,9 @@
 Http service which implements an endpoint to listen events in Kubernetes cluster (webhook), as well as alerts from Alertmanager. By receiving events and alerts, the service processes them based on their kind and generates human readable message which sends to Kafka, Telegram, Slack or Workchat.
 
 [![GoDoc](https://godoc.org/github.com/devopsext/events?status.svg)](https://godoc.org/github.com/devopsext/events)
-[![build status](https://travis-ci.com/devopsext/events.svg?branch=master)](https://travis-ci.com/devopsext/events)
+[![go report](	https://goreportcard.com/badge/github.com/devopsext/events)](https://goreportcard.com/report/github.com/devopsext/events)
+[![codecov](https://codecov.io/gh/devopsext/events/branch/main/graph/badge.svg?token=M78C7PVMDV)](https://codecov.io/gh/devopsext/events)
+[![build status](https://travis-ci.com/devopsext/events.svg?branch=main)](https://travis-ci.com/devopsext/events)
 
 ## Features
 
@@ -434,7 +436,6 @@ curl -X POST -H 'Content-type: application/json' -d @k8s.json http://127.0.0.1:8
 ## Usage
 
 ```
-Events command
 
 Usage:
   events [flags]
@@ -445,83 +446,92 @@ Available Commands:
   version     Print the version number
 
 Flags:
-      --datadog-environment string             DataDog environment (default "none")
-      --datadog-logger-host string             DataDog logger host
-      --datadog-logger-level string            DataDog logger level: info, warn, error, debug, panic (default "info")
-      --datadog-logger-port int                Datadog logger port (default 10518)
-      --datadog-metricer-host string           DataDog metricer host
-      --datadog-metricer-port int              Datadog metricer port (default 10518)
-      --datadog-metricer-prefix string         DataDog metricer prefix (default "events")
-      --datadog-service-name string            DataDog service name
-      --datadog-tags string                    DataDog tags
-      --datadog-tracer-host string             DataDog tracer host
-      --datadog-tracer-port int                Datadog tracer port (default 8126)
-      --grafana-api-key string                 Grafana API key (default "admin:admin")
-      --grafana-datasource string              Grafana datasource (default "Prometheus")
-      --grafana-image-height int               Grafan image height (default 640)
-      --grafana-image-width int                Grafan image width (default 1280)
-      --grafana-org string                     Grafana org (default "1")
-      --grafana-period int                     Grafana period in minutes (default 60)
-      --grafana-timeout int                    Grafan timeout (default 60)
-      --grafana-url string                     Grafana URL
-  -h, --help                                   help for events
-      --http-alertmanager-url string           Http Alertmanager url
-      --http-cert string                       Http cert file or content
-      --http-chain string                      Http CA chain file or content
-      --http-header-trace-id string            Http trace ID header (default "X-Trace-ID")
-      --http-k8s-url string                    Http K8s url
-      --http-key string                        Http key file or content
-      --http-listen string                     Http listen (default ":80")
-      --http-rancher-url string                Http Rancher url
-      --http-tls                               Http TLS
-      --jaeger-agent-host string               Jaeger agent host
-      --jaeger-agent-port int                  Jaeger agent port (default 6831)
-      --jaeger-buffer-flush-interval int       Jaeger buffer flush interval
-      --jaeger-endpoint string                 Jaeger endpoint
-      --jaeger-password string                 Jaeger password
-      --jaeger-queue-size int                  Jaeger queue size
-      --jaeger-service-name string             Jaeger service name (default "events")
-      --jaeger-tags string                     Jaeger tags, comma separated list of name=value
-      --jaeger-user string                     Jaeger user
-      --kafka-brokers string                   Kafka brokers
-      --kafka-client-id string                 Kafka client id (default "events_kafka")
-      --kafka-flush-frequency int              Kafka Producer flush frequency (default 1)
-      --kafka-flush-max-messages int           Kafka Producer flush max messages (default 100)
-      --kafka-message-template string          Kafka message template
-      --kafka-net-dial-timeout int             Kafka Net dial timeout (default 30)
-      --kafka-net-max-open-requests int        Kafka Net max open requests (default 5)
-      --kafka-net-read-timeout int             Kafka Net read timeout (default 30)
-      --kafka-net-write-timeout int            Kafka Net write timeout (default 30)
-      --kafka-topic string                     Kafka topic (default "events")
-      --logs strings                           Log providers: stdout, datadog (default [stdout])
-      --metrics strings                        Metric providers: prometheus, datadog (default [prometheus])
-      --prometheus-listen string               Prometheus listen (default "127.0.0.1:8080")
-      --prometheus-prefix string               Prometheus prefix (default "events")
-      --prometheus-url string                  Prometheus endpoint url (default "/metrics")
-      --slack-alert-expression string          Slack alert expression (default "g0.expr")
-      --slack-message-template string          Slack message template
-      --slack-selector-template string         Slack selector template
-      --slack-timeout int                      Slack timeout (default 30)
-      --slack-url string                       Slack URL
-      --stdout-format string                   Stdout format: json, text, template (default "stdout")
-      --stdout-level string                    Stdout level: info, warn, error, debug, panic (default "debug")
-      --stdout-template string                 Stdout template (default "{{.file}} {{.msg}}")
-      --stdout-text-colors                     Stdout text colors (default true)
-      --stdout-timestamp-format string         Stdout timestamp format (default "2006-01-02T15:04:05.999999999Z07:00")
-      --telegram-alert-expression string       Telegram alert expression (default "g0.expr")
-      --telegram-disable-notification string   Telegram disable notification (default "false")
-      --telegram-message-template string       Telegram message template
-      --telegram-selector-template string      Telegram selector template
-      --telegram-timeout int                   Telegram timeout (default 30)
-      --telegram-url string                    Telegram URL
-      --template-time-format string            Template time format (default "2006-01-02T15:04:05.999Z")
-      --traces strings                         Trace providers: jaeger, datadog
-      --workchat-alert-expression string       Workchat alert expression (default "g0.expr")
-      --workchat-message-template string       Workchat message template
-      --workchat-notification-type string      Workchat notification type (default "REGULAR")
-      --workchat-selector-template string      Workchat selector template
-      --workchat-timeout int                   Workchat timeout (default 30)
-      --workchat-url string                    Workchat URL
+      --datadog-debug                            DataDog debug
+      --datadog-environment string               DataDog environment (default "none")
+      --datadog-logger-agent-host string         DataDog logger agent host
+      --datadog-logger-agent-port int            Datadog logger agent port (default 10518)
+      --datadog-logger-level string              DataDog logger level: info, warn, error, debug, panic (default "info")
+      --datadog-meter-agent-host string          DataDog meter agent host
+      --datadog-meter-agent-port int             Datadog meter agent port (default 10518)
+      --datadog-meter-prefix string              DataDog meter prefix (default "events")
+      --datadog-service-name string              DataDog service name (default "events")
+      --datadog-tags string                      DataDog tags
+      --datadog-tracer-agent-host string         DataDog tracer agent host
+      --datadog-tracer-agent-port int            Datadog tracer agent port (default 8126)
+      --grafana-api-key string                   Grafana API key (default "admin:admin")
+      --grafana-datasource string                Grafana datasource (default "Prometheus")
+      --grafana-image-height int                 Grafan image height (default 640)
+      --grafana-image-width int                  Grafan image width (default 1280)
+      --grafana-org string                       Grafana org (default "1")
+      --grafana-period int                       Grafana period in minutes (default 60)
+      --grafana-timeout int                      Grafan timeout (default 60)
+      --grafana-url string                       Grafana URL
+  -h, --help                                     help for events
+      --http-alertmanager-url string             Http Alertmanager url
+      --http-cert string                         Http cert file or content
+      --http-chain string                        Http CA chain file or content
+      --http-header-trace-id string              Http trace ID header (default "X-Trace-ID")
+      --http-k8s-url string                      Http K8s url
+      --http-key string                          Http key file or content
+      --http-listen string                       Http listen (default ":80")
+      --http-rancher-url string                  Http Rancher url
+      --http-tls                                 Http TLS
+      --jaeger-agent-host string                 Jaeger agent host
+      --jaeger-agent-port int                    Jaeger agent port (default 6831)
+      --jaeger-buffer-flush-interval int         Jaeger buffer flush interval
+      --jaeger-endpoint string                   Jaeger endpoint
+      --jaeger-password string                   Jaeger password
+      --jaeger-queue-size int                    Jaeger queue size
+      --jaeger-service-name string               Jaeger service name (default "events")
+      --jaeger-tags string                       Jaeger tags, comma separated list of name=value
+      --jaeger-user string                       Jaeger user
+      --kafka-brokers string                     Kafka brokers
+      --kafka-client-id string                   Kafka client id (default "events_kafka")
+      --kafka-flush-frequency int                Kafka Producer flush frequency (default 1)
+      --kafka-flush-max-messages int             Kafka Producer flush max messages (default 100)
+      --kafka-message-template string            Kafka message template
+      --kafka-net-dial-timeout int               Kafka Net dial timeout (default 30)
+      --kafka-net-max-open-requests int          Kafka Net max open requests (default 5)
+      --kafka-net-read-timeout int               Kafka Net read timeout (default 30)
+      --kafka-net-write-timeout int              Kafka Net write timeout (default 30)
+      --kafka-topic string                       Kafka topic (default "events")
+      --logs strings                             Log providers: stdout, datadog (default [stdout])
+      --metrics strings                          Metric providers: prometheus, datadog, opentelemetry (default [prometheus])
+      --opentelemetry-attributes string          Opentelemetry attributes
+      --opentelemetry-environment string         Opentelemetry environment (default "none")
+      --opentelemetry-meter-agent-host string    Opentelemetry meter agent host
+      --opentelemetry-meter-agent-port int       Opentelemetry meter agent port (default 4317)
+      --opentelemetry-meter-prefix string        Opentelemetry meter prefix (default "events")
+      --opentelemetry-service-name string        Opentelemetry service name (default "events")
+      --opentelemetry-tracer-agent-host string   Opentelemetry tracer agent host
+      --opentelemetry-tracer-agent-port int      Opentelemetry tracer agent port (default 4317)
+      --prometheus-listen string                 Prometheus listen (default "127.0.0.1:8080")
+      --prometheus-prefix string                 Prometheus prefix (default "events")
+      --prometheus-url string                    Prometheus endpoint url (default "/metrics")
+      --slack-alert-expression string            Slack alert expression (default "g0.expr")
+      --slack-message-template string            Slack message template
+      --slack-selector-template string           Slack selector template
+      --slack-timeout int                        Slack timeout (default 30)
+      --slack-url string                         Slack URL
+      --stdout-format string                     Stdout format: json, text, template (default "stdout")
+      --stdout-level string                      Stdout level: info, warn, error, debug, panic (default "debug")
+      --stdout-template string                   Stdout template (default "{{.file}} {{.msg}}")
+      --stdout-text-colors                       Stdout text colors (default true)
+      --stdout-timestamp-format string           Stdout timestamp format (default "2006-01-02T15:04:05.999999999Z07:00")
+      --telegram-alert-expression string         Telegram alert expression (default "g0.expr")
+      --telegram-disable-notification string     Telegram disable notification (default "false")
+      --telegram-message-template string         Telegram message template
+      --telegram-selector-template string        Telegram selector template
+      --telegram-timeout int                     Telegram timeout (default 30)
+      --telegram-url string                      Telegram URL
+      --template-time-format string              Template time format (default "2006-01-02T15:04:05.999Z")
+      --traces strings                           Trace providers: jaeger, datadog, opentelemetry
+      --workchat-alert-expression string         Workchat alert expression (default "g0.expr")
+      --workchat-message-template string         Workchat message template
+      --workchat-notification-type string        Workchat notification type (default "REGULAR")
+      --workchat-selector-template string        Workchat selector template
+      --workchat-timeout int                     Workchat timeout (default 30)
+      --workchat-url string                      Workchat URL
 ```
 
 <details>
@@ -610,16 +620,23 @@ For containerization purpose all command switches have environment variables ana
 - EVENTS_DATADOG_SERVICE_NAME
 - EVENTS_DATADOG_ENVIRONMENT
 - EVENTS_DATADOG_TAGS
-
 - EVENTS_DATADOG_TRACER_HOST
 - EVENTS_DATADOG_TRACER_PORT
-
 - EVENTS_DATADOG_LOGGER_HOST
 - EVENTS_DATADOG_LOGGER_PORT
 - EVENTS_DATADOG_LOGGER_LEVEL
-
 - EVENTS_DATADOG_METER_HOST
 - EVENTS_DATADOG_METER_PORT
 - EVENTS_DATADOG_METER_PREFIX
+
+- EVENTS_OPENTELEMETRY_SERVICE_NAME
+- EVENTS_OPENTELEMETRY_ENVIRONMENT
+- EVENTS_OPENTELEMETRY_ATTRIBUTES
+- EVENTS_OPENTELEMETRY_TRACER_HOST
+- EVENTS_OPENTELEMETRY_TRACER_PORT,
+- EVENTS_OPENTELEMETRY_METER_HOST
+- EVENTS_OPENTELEMETRY_METER_PORT
+- EVENTS_OPENTELEMETRY_METER_PREFIX
+- EVENTS_OPENTELEMETRY_METER_COLLECT_PERIOD
 
 </details>
