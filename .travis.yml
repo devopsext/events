@@ -9,11 +9,11 @@ before_install:
   - env GO111MODULE=on
 
 install:
-  - go get -t -v ./ ./cmd ./common ./provider
+  - go get -t -v ./...
 
 script:
-  - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./ ./cmd ./common ./provider
-  - go build ./ ./cmd ./common ./provider
+  - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+  - go build
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
