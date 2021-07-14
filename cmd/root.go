@@ -149,13 +149,14 @@ var jaegerOptions = sreProvider.JaegerOptions{
 	BufferFlushInterval: env.Get("EVENTS_JAEGER_BUFFER_FLUSH_INTERVAL", 0).(int),
 	QueueSize:           env.Get("EVENTS_JAEGER_QUEUE_SIZE", 0).(int),
 	Tags:                env.Get("EVENTS_JAEGER_TAGS", "").(string),
+	Debug:               env.Get("EVENTS_JAEGER_DEBUG", false).(bool),
 }
 
 var datadogOptions = sreProvider.DataDogOptions{
 	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "events").(string),
 	Environment: env.Get("EVENTS_DATADOG_ENVIRONMENT", "none").(string),
 	Tags:        env.Get("EVENTS_DATADOG_TAGS", "").(string),
-	Debug:       false,
+	Debug:       env.Get("EVENTS_DATADOG_DEBUG", false).(bool),
 }
 
 var datadogTracerOptions = sreProvider.DataDogTracerOptions{
@@ -179,6 +180,7 @@ var opentelemetryOptions = sreProvider.OpentelemetryOptions{
 	ServiceName: env.Get("EVENTS_OPENTELEMETRY_SERVICE_NAME", "events").(string),
 	Environment: env.Get("EVENTS_OPENTELEMETRY_ENVIRONMENT", "none").(string),
 	Attributes:  env.Get("EVENTS_OPENTELEMETRY_ATTRIBUTES", "").(string),
+	Debug:       env.Get("EVENTS_OPENTELEMETRY_DEBUG", false).(bool),
 }
 
 var opentelemetryTracerOptions = sreProvider.OpentelemetryTracerOptions{
@@ -243,6 +245,7 @@ func Execute() {
 			datadogMeterOptions.ServiceName = datadogOptions.ServiceName
 			datadogMeterOptions.Environment = datadogOptions.Environment
 			datadogMeterOptions.Tags = datadogOptions.Tags
+			datadogMeterOptions.Debug = datadogOptions.Debug
 			datadogMetricer := sreProvider.NewDataDogMeter(datadogMeterOptions, logs, stdout)
 			if common.HasElem(rootOptions.Metrics, "datadog") && datadogMetricer != nil {
 				metrics.Register(datadogMetricer)
@@ -252,6 +255,7 @@ func Execute() {
 			opentelemetryMeterOptions.ServiceName = opentelemetryOptions.ServiceName
 			opentelemetryMeterOptions.Environment = opentelemetryOptions.Environment
 			opentelemetryMeterOptions.Attributes = opentelemetryOptions.Attributes
+			opentelemetryMeterOptions.Debug = opentelemetryOptions.Debug
 			opentelemetryMeter := provider.NewOpentelemetryMeter(opentelemetryMeterOptions, logs, stdout)
 			if common.HasElem(rootOptions.Metrics, "opentelemetry") && opentelemetryMeter != nil {
 				metrics.Register(opentelemetryMeter)
@@ -269,6 +273,7 @@ func Execute() {
 			datadogTracerOptions.ServiceName = datadogOptions.ServiceName
 			datadogTracerOptions.Environment = datadogOptions.Environment
 			datadogTracerOptions.Tags = datadogOptions.Tags
+			datadogTracerOptions.Debug = datadogOptions.Debug
 			datadogTracer := sreProvider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
 			if datadogTracer != nil {
 				datadogTracer.SetCallerOffset(1)
@@ -281,6 +286,7 @@ func Execute() {
 			opentelemetryTracerOptions.ServiceName = opentelemetryOptions.ServiceName
 			opentelemetryTracerOptions.Environment = opentelemetryOptions.Environment
 			opentelemetryTracerOptions.Attributes = opentelemetryOptions.Attributes
+			opentelemetryTracerOptions.Debug = opentelemetryOptions.Debug
 			opentelemtryTracer := sreProvider.NewOpentelemetryTracer(opentelemetryTracerOptions, logs, stdout)
 			if common.HasElem(rootOptions.Traces, "opentelemetry") && opentelemtryTracer != nil {
 				traces.Register(opentelemtryTracer)
@@ -351,6 +357,7 @@ func Execute() {
 	flags.StringVar(&stdoutOptions.Template, "stdout-template", stdoutOptions.Template, "Stdout template")
 	flags.StringVar(&stdoutOptions.TimestampFormat, "stdout-timestamp-format", stdoutOptions.TimestampFormat, "Stdout timestamp format")
 	flags.BoolVar(&stdoutOptions.TextColors, "stdout-text-colors", stdoutOptions.TextColors, "Stdout text colors")
+	flags.BoolVar(&stdoutOptions.Debug, "stdout-debug", stdoutOptions.Debug, "Stdout debug")
 
 	flags.StringVar(&prometheusOptions.URL, "prometheus-url", prometheusOptions.URL, "Prometheus endpoint url")
 	flags.StringVar(&prometheusOptions.Listen, "prometheus-listen", prometheusOptions.Listen, "Prometheus listen")
@@ -415,6 +422,7 @@ func Execute() {
 	flags.IntVar(&jaegerOptions.BufferFlushInterval, "jaeger-buffer-flush-interval", jaegerOptions.BufferFlushInterval, "Jaeger buffer flush interval")
 	flags.IntVar(&jaegerOptions.QueueSize, "jaeger-queue-size", jaegerOptions.QueueSize, "Jaeger queue size")
 	flags.StringVar(&jaegerOptions.Tags, "jaeger-tags", jaegerOptions.Tags, "Jaeger tags, comma separated list of name=value")
+	flags.BoolVar(&jaegerOptions.Debug, "jaeger-debug", jaegerOptions.Debug, "Jaeger debug")
 
 	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name")
 	flags.StringVar(&datadogOptions.Environment, "datadog-environment", datadogOptions.Environment, "DataDog environment")
@@ -432,6 +440,7 @@ func Execute() {
 	flags.StringVar(&opentelemetryOptions.ServiceName, "opentelemetry-service-name", opentelemetryOptions.ServiceName, "Opentelemetry service name")
 	flags.StringVar(&opentelemetryOptions.Environment, "opentelemetry-environment", opentelemetryOptions.Environment, "Opentelemetry environment")
 	flags.StringVar(&opentelemetryOptions.Attributes, "opentelemetry-attributes", opentelemetryOptions.Attributes, "Opentelemetry attributes")
+	flags.BoolVar(&opentelemetryOptions.Debug, "opentelemetry-debug", opentelemetryOptions.Debug, "Opentelemetry debug")
 	flags.StringVar(&opentelemetryTracerOptions.AgentHost, "opentelemetry-tracer-agent-host", opentelemetryTracerOptions.AgentHost, "Opentelemetry tracer agent host")
 	flags.IntVar(&opentelemetryTracerOptions.AgentPort, "opentelemetry-tracer-agent-port", opentelemetryTracerOptions.AgentPort, "Opentelemetry tracer agent port")
 	flags.StringVar(&opentelemetryMeterOptions.AgentHost, "opentelemetry-meter-agent-host", opentelemetryMeterOptions.AgentHost, "Opentelemetry meter agent host")
