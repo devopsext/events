@@ -13,3 +13,5 @@ require (
 	k8s.io/api v0.21.1
 	k8s.io/apimachinery v0.21.1
 )
+
+replace gopkg.in/DataDog/dd-trace-go.v1 => github.com/devopsext/dd-trace-go v1.31.2
