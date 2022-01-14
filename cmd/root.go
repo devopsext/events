@@ -16,18 +16,20 @@ import (
 	"github.com/devopsext/events/output"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
-	"github.com/devopsext/sre/provider"
 	sreProvider "github.com/devopsext/sre/provider"
 	utils "github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
 
 var VERSION = "unknown"
+var APPNAME = "EVENTS"
+var appName = strings.ToLower(APPNAME)
 
 var env = utils.GetEnvironment()
 var logs = sreCommon.NewLogs()
 var traces = sreCommon.NewTraces()
 var metrics = sreCommon.NewMetrics()
+var events = sreCommon.NewEvents()
 var stdout *sreProvider.Stdout
 var mainWG sync.WaitGroup
 
@@ -39,160 +41,161 @@ type RootOptions struct {
 
 var rootOptions = RootOptions{
 
-	Logs:    strings.Split(env.Get("EVENTS_LOGS", "stdout").(string), ","),
-	Metrics: strings.Split(env.Get("EVENTS_METRICS", "prometheus").(string), ","),
-	Traces:  strings.Split(env.Get("EVENTS_TRACES", "").(string), ","),
+	Logs:    strings.Split(env.Get(fmt.Sprintf("%s_LOGS", APPNAME), "stdout").(string), ","),
+	Metrics: strings.Split(env.Get(fmt.Sprintf("%s_METRICS", APPNAME), "prometheus").(string), ","),
+	Traces:  strings.Split(env.Get(fmt.Sprintf("%s_TRACES", APPNAME), "").(string), ","),
 }
 
 var textTemplateOptions = render.TextTemplateOptions{
 
-	TimeFormat: env.Get("EVENTS_TEMPLATE_TIME_FORMAT", "2006-01-02T15:04:05.999Z").(string),
+	TimeFormat: env.Get(fmt.Sprintf("%s_TEMPLATE_TIME_FORMAT", APPNAME), "2006-01-02T15:04:05.999Z").(string),
 }
 
 var stdoutOptions = sreProvider.StdoutOptions{
 
-	Format:          env.Get("EVENTS_STDOUT_FORMAT", "text").(string),
-	Level:           env.Get("EVENTS_STDOUT_LEVEL", "info").(string),
-	Template:        env.Get("EVENTS_STDOUT_TEMPLATE", "{{.file}} {{.msg}}").(string),
-	TimestampFormat: env.Get("EVENTS_STDOUT_TIMESTAMP_FORMAT", time.RFC3339Nano).(string),
-	TextColors:      env.Get("EVENTS_STDOUT_TEXT_COLORS", true).(bool),
+	Format:          env.Get(fmt.Sprintf("%s_STDOUT_FORMAT", APPNAME), "text").(string),
+	Level:           env.Get(fmt.Sprintf("%s_STDOUT_LEVEL", APPNAME), "info").(string),
+	Template:        env.Get(fmt.Sprintf("%s_STDOUT_TEMPLATE", APPNAME), "{{.file}} {{.msg}}").(string),
+	TimestampFormat: env.Get(fmt.Sprintf("%s_STDOUT_TIMESTAMP_FORMAT", APPNAME), time.RFC3339Nano).(string),
+	TextColors:      env.Get(fmt.Sprintf("%s_STDOUT_TEXT_COLORS", APPNAME), true).(bool),
 }
 
 var prometheusOptions = sreProvider.PrometheusOptions{
 
-	URL:    env.Get("EVENTS_PROMETHEUS_URL", "/metrics").(string),
-	Listen: env.Get("EVENTS_PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
-	Prefix: env.Get("EVENTS_PROMETHEUS_PREFIX", "events").(string),
+	URL:    env.Get(fmt.Sprintf("%s_PROMETHEUS_URL", APPNAME), "/metrics").(string),
+	Listen: env.Get(fmt.Sprintf("%s_PROMETHEUS_LISTEN", APPNAME), "127.0.0.1:8080").(string),
+	Prefix: env.Get(fmt.Sprintf("%s_PROMETHEUS_PREFIX", APPNAME), "events").(string),
 }
 
 var httpInputOptions = input.HttpInputOptions{
 
-	K8sURL:          env.Get("EVENTS_HTTP_K8S_URL", "").(string),
-	RancherURL:      env.Get("EVENTS_HTTP_RANCHER_URL", "").(string),
-	AlertmanagerURL: env.Get("EVENTS_HTTP_ALERTMANAGER_URL", "").(string),
-	Listen:          env.Get("EVENTS_HTTP_LISTEN", ":80").(string),
-	Tls:             env.Get("EVENTS_HTTP_TLS", false).(bool),
-	Cert:            env.Get("EVENTS_HTTP_CERT", "").(string),
-	Key:             env.Get("EVENTS_HTTP_KEY", "").(string),
-	Chain:           env.Get("EVENTS_HTTP_CHAIN", "").(string),
-	HeaderTraceID:   env.Get("EVENTS_HTTP_HEADER_TRACE_ID", "X-Trace-ID").(string),
+	K8sURL:          env.Get(fmt.Sprintf("%s_HTTP_K8S_URL", APPNAME), "").(string),
+	RancherURL:      env.Get(fmt.Sprintf("%s_HTTP_RANCHER_URL", APPNAME), "").(string),
+	AlertmanagerURL: env.Get(fmt.Sprintf("%s_HTTP_ALERTMANAGER_URL", APPNAME), "").(string),
+	CustomJsonURL:   env.Get(fmt.Sprintf("%s_HTTP_CUSTOMJSON_URL", APPNAME), "").(string),
+	Listen:          env.Get(fmt.Sprintf("%s_HTTP_LISTEN", APPNAME), ":80").(string),
+	Tls:             env.Get(fmt.Sprintf("%s_HTTP_TLS", APPNAME), false).(bool),
+	Cert:            env.Get(fmt.Sprintf("%s_HTTP_CERT", APPNAME), "").(string),
+	Key:             env.Get(fmt.Sprintf("%s_HTTP_KEY", APPNAME), "").(string),
+	Chain:           env.Get(fmt.Sprintf("%s_HTTP_CHAIN", APPNAME), "").(string),
+	HeaderTraceID:   env.Get(fmt.Sprintf("%s_HTTP_HEADER_TRACE_ID", APPNAME), "X-Trace-ID").(string),
 }
 
 var collectorOutputOptions = output.CollectorOutputOptions{
 
-	Address:  env.Get("EVENTS_COLLECTOR_ADDRESS", "").(string),
-	Template: env.Get("EVENTS_COLLECTOR_MESSAGE_TEMPLATE", "").(string),
+	Address:  env.Get(fmt.Sprintf("%s_COLLECTOR_ADDRESS", APPNAME), "").(string),
+	Template: env.Get(fmt.Sprintf("%s_COLLECTOR_MESSAGE_TEMPLATE", APPNAME), "").(string),
 }
 
 var kafkaOutputOptions = output.KafkaOutputOptions{
 
-	ClientID:           env.Get("EVENTS_KAFKA_CLIEND_ID", "events_kafka").(string),
-	Template:           env.Get("EVENTS_KAFKA_MESSAGE_TEMPLATE", "").(string),
-	Brokers:            env.Get("EVENTS_KAFKA_BROKERS", "").(string),
-	Topic:              env.Get("EVENTS_KAFKA_TOPIC", "events").(string),
-	FlushFrequency:     env.Get("EVENTS_KAFKA_FLUSH_FREQUENCY", 1).(int),
-	FlushMaxMessages:   env.Get("EVENTS_KAFKA_FLUSH_MAX_MESSAGES", 100).(int),
-	NetMaxOpenRequests: env.Get("EVENTS_KAFKA_NET_MAX_OPEN_REQUESTS", 5).(int),
-	NetDialTimeout:     env.Get("EVENTS_KAFKA_NET_DIAL_TIMEOUT", 30).(int),
-	NetReadTimeout:     env.Get("EVENTS_KAFKA_NET_READ_TIMEOUT", 30).(int),
-	NetWriteTimeout:    env.Get("EVENTS_KAFKA_NET_WRITE_TIMEOUT", 30).(int),
+	ClientID:           env.Get(fmt.Sprintf("%s_KAFKA_CLIEND_ID", APPNAME), fmt.Sprintf("%s_kafka", appName)).(string),
+	Template:           env.Get(fmt.Sprintf("%s_KAFKA_MESSAGE_TEMPLATE", APPNAME), "").(string),
+	Brokers:            env.Get(fmt.Sprintf("%s_KAFKA_BROKERS", APPNAME), "").(string),
+	Topic:              env.Get(fmt.Sprintf("%s_KAFKA_TOPIC", APPNAME), appName).(string),
+	FlushFrequency:     env.Get(fmt.Sprintf("%s_KAFKA_FLUSH_FREQUENCY", APPNAME), 1).(int),
+	FlushMaxMessages:   env.Get(fmt.Sprintf("%s_KAFKA_FLUSH_MAX_MESSAGES", APPNAME), 100).(int),
+	NetMaxOpenRequests: env.Get(fmt.Sprintf("%s_KAFKA_NET_MAX_OPEN_REQUESTS", APPNAME), 5).(int),
+	NetDialTimeout:     env.Get(fmt.Sprintf("%s_KAFKA_NET_DIAL_TIMEOUT", APPNAME), 30).(int),
+	NetReadTimeout:     env.Get(fmt.Sprintf("%s_KAFKA_NET_READ_TIMEOUT", APPNAME), 30).(int),
+	NetWriteTimeout:    env.Get(fmt.Sprintf("%s_KAFKA_NET_WRITE_TIMEOUT", APPNAME), 30).(int),
 }
 
 var telegramOutputOptions = output.TelegramOutputOptions{
 
-	MessageTemplate:     env.Get("EVENTS_TELEGRAM_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate:    env.Get("EVENTS_TELEGRAM_SELECTOR_TEMPLATE", "").(string),
-	URL:                 env.Get("EVENTS_TELEGRAM_URL", "").(string),
-	Timeout:             env.Get("EVENTS_TELEGRAM_TIMEOUT", 30).(int),
-	AlertExpression:     env.Get("EVENTS_TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
-	DisableNotification: env.Get("EVENTS_TELEGRAM_DISABLE_NOTIFICATION", "false").(string),
+	MessageTemplate:     env.Get(fmt.Sprintf("%s_TELEGRAM_MESSAGE_TEMPLATE", APPNAME), "").(string),
+	SelectorTemplate:    env.Get(fmt.Sprintf("%s_TELEGRAM_SELECTOR_TEMPLATE", APPNAME), "").(string),
+	URL:                 env.Get(fmt.Sprintf("%s_TELEGRAM_URL", APPNAME), "").(string),
+	Timeout:             env.Get(fmt.Sprintf("%s_TELEGRAM_TIMEOUT", APPNAME), 30).(int),
+	AlertExpression:     env.Get(fmt.Sprintf("%s_TELEGRAM_ALERT_EXPRESSION", APPNAME), "g0.expr").(string),
+	DisableNotification: env.Get(fmt.Sprintf("%s_TELEGRAM_DISABLE_NOTIFICATION", APPNAME), "false").(string),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
 
-	MessageTemplate:  env.Get("EVENTS_SLACK_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate: env.Get("EVENTS_SLACK_SELECTOR_TEMPLATE", "").(string),
-	URL:              env.Get("EVENTS_SLACK_URL", "").(string),
-	Timeout:          env.Get("EVENTS_SLACK_TIMEOUT", 30).(int),
-	AlertExpression:  env.Get("EVENTS_SLACK_ALERT_EXPRESSION", "g0.expr").(string),
+	MessageTemplate:  env.Get(fmt.Sprintf("%s_SLACK_MESSAGE_TEMPLATE", APPNAME), "").(string),
+	SelectorTemplate: env.Get(fmt.Sprintf("%s_SLACK_SELECTOR_TEMPLATE", APPNAME), "").(string),
+	URL:              env.Get(fmt.Sprintf("%s_SLACK_URL", APPNAME), "").(string),
+	Timeout:          env.Get(fmt.Sprintf("%s_SLACK_TIMEOUT", APPNAME), 30).(int),
+	AlertExpression:  env.Get(fmt.Sprintf("%s_SLACK_ALERT_EXPRESSION", APPNAME), "g0.expr").(string),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
 
-	MessageTemplate:  env.Get("EVENTS_WORKCHAT_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate: env.Get("EVENTS_WORKCHAT_SELECTOR_TEMPLATE", "").(string),
-	URL:              env.Get("EVENTS_WORKCHAT_URL", "").(string),
-	Timeout:          env.Get("EVENTS_WORKCHAT_TIMEOUT", 30).(int),
-	AlertExpression:  env.Get("EVENTS_WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
-	NotificationType: env.Get("EVENTS_WORKCHAT_NOTIFICATION_TYPE", "REGULAR").(string),
+	MessageTemplate:  env.Get(fmt.Sprintf("%s_WORKCHAT_MESSAGE_TEMPLATE", APPNAME), "").(string),
+	SelectorTemplate: env.Get(fmt.Sprintf("%s_WORKCHAT_SELECTOR_TEMPLATE", APPNAME), "").(string),
+	URL:              env.Get(fmt.Sprintf("%s_WORKCHAT_URL", APPNAME), "").(string),
+	Timeout:          env.Get(fmt.Sprintf("%s_WORKCHAT_TIMEOUT", APPNAME), 30).(int),
+	AlertExpression:  env.Get(fmt.Sprintf("%s_WORKCHAT_ALERT_EXPRESSION", APPNAME), "g0.expr").(string),
+	NotificationType: env.Get(fmt.Sprintf("%s_WORKCHAT_NOTIFICATION_TYPE", APPNAME), "REGULAR").(string),
 }
 
 var grafanaOptions = render.GrafanaOptions{
 
-	URL:         env.Get("EVENTS_GRAFANA_URL", "").(string),
-	Timeout:     env.Get("EVENTS_GRAFANA_TIMEOUT", 60).(int),
-	Datasource:  env.Get("EVENTS_GRAFANA_DATASOURCE", "Prometheus").(string),
-	ApiKey:      env.Get("EVENTS_GRAFANA_API_KEY", "admin:admin").(string),
-	Org:         env.Get("EVENTS_GRAFANA_ORG", "1").(string),
-	Period:      env.Get("EVENTS_GRAFANA_PERIOD", 60).(int),
-	ImageWidth:  env.Get("EVENTS_GRAFANA_IMAGE_WIDTH", 1280).(int),
-	ImageHeight: env.Get("EVENTS_GRAFANA_IMAGE_HEIGHT", 640).(int),
+	URL:         env.Get(fmt.Sprintf("%s_GRAFANA_URL", APPNAME), "").(string),
+	Timeout:     env.Get(fmt.Sprintf("%s_GRAFANA_TIMEOUT", APPNAME), 60).(int),
+	Datasource:  env.Get(fmt.Sprintf("%s_GRAFANA_DATASOURCE", APPNAME), "Prometheus").(string),
+	ApiKey:      env.Get(fmt.Sprintf("%s_GRAFANA_API_KEY", APPNAME), "admin:admin").(string),
+	Org:         env.Get(fmt.Sprintf("%s_GRAFANA_ORG", APPNAME), "1").(string),
+	Period:      env.Get(fmt.Sprintf("%s_GRAFANA_PERIOD", APPNAME), 60).(int),
+	ImageWidth:  env.Get(fmt.Sprintf("%s_GRAFANA_IMAGE_WIDTH", APPNAME), 1280).(int),
+	ImageHeight: env.Get(fmt.Sprintf("%s_GRAFANA_IMAGE_HEIGHT", APPNAME), 640).(int),
 }
 
 var jaegerOptions = sreProvider.JaegerOptions{
-	ServiceName:         env.Get("EVENTS_JAEGER_SERVICE_NAME", "events").(string),
-	AgentHost:           env.Get("EVENTS_JAEGER_AGENT_HOST", "").(string),
-	AgentPort:           env.Get("EVENTS_JAEGER_AGENT_PORT", 6831).(int),
-	Endpoint:            env.Get("EVENTS_JAEGER_ENDPOINT", "").(string),
-	User:                env.Get("EVENTS_JAEGER_USER", "").(string),
-	Password:            env.Get("EVENTS_JAEGER_PASSWORD", "").(string),
-	BufferFlushInterval: env.Get("EVENTS_JAEGER_BUFFER_FLUSH_INTERVAL", 0).(int),
-	QueueSize:           env.Get("EVENTS_JAEGER_QUEUE_SIZE", 0).(int),
-	Tags:                env.Get("EVENTS_JAEGER_TAGS", "").(string),
-	Debug:               env.Get("EVENTS_JAEGER_DEBUG", false).(bool),
+	ServiceName:         env.Get(fmt.Sprintf("%s_JAEGER_SERVICE_NAME", APPNAME), appName).(string),
+	AgentHost:           env.Get(fmt.Sprintf("%s_JAEGER_AGENT_HOST", APPNAME), "").(string),
+	AgentPort:           env.Get(fmt.Sprintf("%s_JAEGER_AGENT_PORT", APPNAME), 6831).(int),
+	Endpoint:            env.Get(fmt.Sprintf("%s_JAEGER_ENDPOINT", APPNAME), "").(string),
+	User:                env.Get(fmt.Sprintf("%s_JAEGER_USER", APPNAME), "").(string),
+	Password:            env.Get(fmt.Sprintf("%s_JAEGER_PASSWORD", APPNAME), "").(string),
+	BufferFlushInterval: env.Get(fmt.Sprintf("%s_JAEGER_BUFFER_FLUSH_INTERVAL", APPNAME), 0).(int),
+	QueueSize:           env.Get(fmt.Sprintf("%s_JAEGER_QUEUE_SIZE", APPNAME), 0).(int),
+	Tags:                env.Get(fmt.Sprintf("%s_JAEGER_TAGS", APPNAME), "").(string),
+	Debug:               env.Get(fmt.Sprintf("%s_JAEGER_DEBUG", APPNAME), false).(bool),
 }
 
 var datadogOptions = sreProvider.DataDogOptions{
-	ServiceName: env.Get("EVENTS_DATADOG_SERVICE_NAME", "events").(string),
-	Environment: env.Get("EVENTS_DATADOG_ENVIRONMENT", "none").(string),
-	Tags:        env.Get("EVENTS_DATADOG_TAGS", "").(string),
-	Debug:       env.Get("EVENTS_DATADOG_DEBUG", false).(bool),
+	ServiceName: env.Get(fmt.Sprintf("%s_DATADOG_SERVICE_NAME", APPNAME), appName).(string),
+	Environment: env.Get(fmt.Sprintf("%s_DATADOG_ENVIRONMENT", APPNAME), "none").(string),
+	Tags:        env.Get(fmt.Sprintf("%s_DATADOG_TAGS", APPNAME), "").(string),
+	Debug:       env.Get(fmt.Sprintf("%s_DATADOG_DEBUG", APPNAME), false).(bool),
 }
 
 var datadogTracerOptions = sreProvider.DataDogTracerOptions{
-	AgentHost: env.Get("EVENTS_DATADOG_TRACER_HOST", "").(string),
-	AgentPort: env.Get("EVENTS_DATADOG_TRACER_PORT", 8126).(int),
+	AgentHost: env.Get(fmt.Sprintf("%s_DATADOG_TRACER_HOST", APPNAME), "").(string),
+	AgentPort: env.Get(fmt.Sprintf("%s_DATADOG_TRACER_PORT", APPNAME), 8126).(int),
 }
 
 var datadogLoggerOptions = sreProvider.DataDogLoggerOptions{
-	AgentHost: env.Get("EVENTS_DATADOG_LOGGER_HOST", "").(string),
-	AgentPort: env.Get("EVENTS_DATADOG_LOGGER_PORT", 10518).(int),
-	Level:     env.Get("EVENTS_DATADOG_LOGGER_LEVEL", "info").(string),
+	AgentHost: env.Get(fmt.Sprintf("%s_DATADOG_LOGGER_HOST", APPNAME), "").(string),
+	AgentPort: env.Get(fmt.Sprintf("%s_DATADOG_LOGGER_PORT", APPNAME), 10518).(int),
+	Level:     env.Get(fmt.Sprintf("%s_DATADOG_LOGGER_LEVEL", APPNAME), "info").(string),
 }
 
 var datadogMeterOptions = sreProvider.DataDogMeterOptions{
-	AgentHost: env.Get("EVENTS_DATADOG_METER_HOST", "").(string),
-	AgentPort: env.Get("EVENTS_DATADOG_METER_PORT", 10518).(int),
-	Prefix:    env.Get("EVENTS_DATADOG_METER_PREFIX", "events").(string),
+	AgentHost: env.Get(fmt.Sprintf("%s_DATADOG_METER_HOST", APPNAME), "").(string),
+	AgentPort: env.Get(fmt.Sprintf("%s_DATADOG_METER_PORT", APPNAME), 10518).(int),
+	Prefix:    env.Get(fmt.Sprintf("%s_DATADOG_METER_PREFIX", APPNAME), appName).(string),
 }
 
 var opentelemetryOptions = sreProvider.OpentelemetryOptions{
-	ServiceName: env.Get("EVENTS_OPENTELEMETRY_SERVICE_NAME", "events").(string),
-	Environment: env.Get("EVENTS_OPENTELEMETRY_ENVIRONMENT", "none").(string),
-	Attributes:  env.Get("EVENTS_OPENTELEMETRY_ATTRIBUTES", "").(string),
-	Debug:       env.Get("EVENTS_OPENTELEMETRY_DEBUG", false).(bool),
+	ServiceName: env.Get(fmt.Sprintf("%s_OPENTELEMETRY_SERVICE_NAME", APPNAME), appName).(string),
+	Environment: env.Get(fmt.Sprintf("%s_OPENTELEMETRY_ENVIRONMENT", APPNAME), "none").(string),
+	Attributes:  env.Get(fmt.Sprintf("%s_OPENTELEMETRY_ATTRIBUTES", APPNAME), "").(string),
+	Debug:       env.Get(fmt.Sprintf("%s_OPENTELEMETRY_DEBUG", APPNAME), false).(bool),
 }
 
 var opentelemetryTracerOptions = sreProvider.OpentelemetryTracerOptions{
-	AgentHost: env.Get("EVENTS_OPENTELEMETRY_TRACER_HOST", "").(string),
-	AgentPort: env.Get("EVENTS_OPENTELEMETRY_TRACER_PORT", 4317).(int),
+	AgentHost: env.Get(fmt.Sprintf("%s_OPENTELEMETRY_TRACER_HOST", APPNAME), "").(string),
+	AgentPort: env.Get(fmt.Sprintf("%s_OPENTELEMETRY_TRACER_PORT", APPNAME), 4317).(int),
 }
 
 var opentelemetryMeterOptions = sreProvider.OpentelemetryMeterOptions{
-	AgentHost:     env.Get("EVENTS_OPENTELEMETRY_METER_HOST", "").(string),
-	AgentPort:     env.Get("EVENTS_OPENTELEMETRY_METER_PORT", 4317).(int),
-	Prefix:        env.Get("EVENTS_OPENTELEMETRY_METER_PREFIX", "events").(string),
-	CollectPeriod: int64(env.Get("EVENTS_OPENTELEMETRY_METER_COLLECT_PERIOD", 1000).(int)),
+	AgentHost:     env.Get(fmt.Sprintf("%s_OPENTELEMETRY_METER_HOST", APPNAME), "").(string),
+	AgentPort:     env.Get(fmt.Sprintf("%s_OPENTELEMETRY_METER_PORT", APPNAME), 4317).(int),
+	Prefix:        env.Get(fmt.Sprintf("%s_OPENTELEMETRY_METER_PREFIX", APPNAME), appName).(string),
+	CollectPeriod: int64(env.Get(fmt.Sprintf("%s_OPENTELEMETRY_METER_COLLECT_PERIOD", APPNAME), 1000).(int)),
 }
 
 func interceptSyscall() {
@@ -256,7 +259,7 @@ func Execute() {
 			opentelemetryMeterOptions.Environment = opentelemetryOptions.Environment
 			opentelemetryMeterOptions.Attributes = opentelemetryOptions.Attributes
 			opentelemetryMeterOptions.Debug = opentelemetryOptions.Debug
-			opentelemetryMeter := provider.NewOpentelemetryMeter(opentelemetryMeterOptions, logs, stdout)
+			opentelemetryMeter := sreProvider.NewOpentelemetryMeter(opentelemetryMeterOptions, logs, stdout)
 			if common.HasElem(rootOptions.Metrics, "opentelemetry") && opentelemetryMeter != nil {
 				metrics.Register(opentelemetryMeter)
 			}
@@ -294,7 +297,7 @@ func Execute() {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
-			var httpInput common.Input = input.NewHttpInput(httpInputOptions, logs, traces, metrics)
+			var httpInput common.Input = input.NewHttpInput(httpInputOptions, logs, traces, metrics, events)
 			if reflect.ValueOf(httpInput).IsNil() {
 				logs.Panic("Http input is invalid. Terminating...")
 			}

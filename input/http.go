@@ -20,6 +20,7 @@ type HttpInputOptions struct {
 	K8sURL          string
 	RancherURL      string
 	AlertmanagerURL string
+	CustomJsonURL   string
 	Listen          string
 	Tls             bool
 	Cert            string
@@ -30,11 +31,14 @@ type HttpInputOptions struct {
 
 type HttpInput struct {
 	options HttpInputOptions
+	eventer sreCommon.Eventer
 	tracer  sreCommon.Tracer
 	logger  sreCommon.Logger
 	meter   sreCommon.Meter
 	counter sreCommon.Counter
 }
+
+type HttpProcessHandleFunc = func(w http.ResponseWriter, r *http.Request)
 
 func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
 
@@ -44,6 +48,24 @@ func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
 	}
 
 	return h.tracer.StartSpanWithTraceID(traceID, "")
+}
+
+func (h *HttpInput) processURL(url string, mux *http.ServeMux, outputs *common.Outputs, handleFunc HttpProcessHandleFunc) {
+
+	urls := strings.Split(url, ",")
+	for _, url := range urls {
+
+		mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+
+			span := h.startSpanFromRequest(r)
+			span.SetCarrier(r.Header)
+			span.SetTag("path", r.URL.Path)
+			defer span.Finish()
+
+			h.counter.Inc(r.URL.Path)
+			handleFunc(w, r)
+		})
+	}
 }
 
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -113,59 +135,28 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		}
 
 		mux := http.NewServeMux()
+		var p common.HttpProcessor
+		var url string
 
 		if !utils.IsEmpty(h.options.K8sURL) {
-
-			urls := strings.Split(h.options.K8sURL, ",")
-			for _, url := range urls {
-
-				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
-
-					span := h.startSpanFromRequest(r)
-					span.SetCarrier(r.Header)
-					span.SetTag("path", r.URL.Path)
-					defer span.Finish()
-
-					h.counter.Inc(r.URL.Path)
-					processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.meter).HandleHttpRequest(w, r)
-				})
-			}
+			url = h.options.K8sURL
+			p = processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.meter)
 		}
 
 		if !utils.IsEmpty(h.options.RancherURL) {
-
-			urls := strings.Split(h.options.RancherURL, ",")
-			for _, url := range urls {
-
-				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
-
-					span := h.startSpanFromRequest(r)
-					span.SetCarrier(r.Header)
-					span.SetTag("path", r.URL.Path)
-					defer span.Finish()
-
-					h.counter.Inc(r.URL.Path)
-					processor.NewRancherProcessor(outputs, h.logger, h.tracer).HandleHttpRequest(w, r)
-				})
-			}
+			url = h.options.RancherURL
+			p = processor.NewRancherProcessor(outputs, h.logger, h.tracer)
 		}
 
 		if !utils.IsEmpty(h.options.AlertmanagerURL) {
+			url = h.options.AlertmanagerURL
+			p = processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer, h.meter)
+		}
 
-			urls := strings.Split(h.options.AlertmanagerURL, ",")
-			for _, url := range urls {
-
-				mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
-
-					span := h.startSpanFromRequest(r)
-					span.SetCarrier(r.Header)
-					span.SetTag("path", r.URL.Path)
-					defer span.Finish()
-
-					h.counter.Inc(r.URL.Path)
-					processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer, h.meter).HandleHttpRequest(w, r)
-				})
-			}
+		if p != nil && !utils.IsEmpty(url) {
+			h.processURL(url, mux, outputs, func(w http.ResponseWriter, r *http.Request) {
+				p.HandleHttpRequest(w, r)
+			})
 		}
 
 		listener, err := net.Listen("tcp", h.options.Listen)
@@ -198,10 +189,12 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func NewHttpInput(options HttpInputOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *HttpInput {
+func NewHttpInput(options HttpInputOptions, logger sreCommon.Logger,
+	tracer sreCommon.Tracer, meter sreCommon.Meter, eventer sreCommon.Eventer) *HttpInput {
 
 	return &HttpInput{
 		options: options,
+		eventer: eventer,
 		tracer:  tracer,
 		logger:  logger,
 		meter:   meter,
