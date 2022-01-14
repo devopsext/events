@@ -20,7 +20,7 @@ Http service which implements an endpoint to listen events in Kubernetes cluster
 
 Set proper GOROOT and PATH variables
 ```sh
-export GOROOT="$HOME/go/root/1.16.4"
+export GOROOT="$HOME/go/root/1.17.4"
 export PATH="$PATH:$GOROOT/bin"
 ```
 
