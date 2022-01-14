@@ -5,7 +5,7 @@ Http service which implements an endpoint to listen events in Kubernetes cluster
 [![GoDoc](https://godoc.org/github.com/devopsext/events?status.svg)](https://godoc.org/github.com/devopsext/events)
 [![go report](	https://goreportcard.com/badge/github.com/devopsext/events)](https://goreportcard.com/report/github.com/devopsext/events)
 [![codecov](https://codecov.io/gh/devopsext/events/branch/master/graph/badge.svg?token=EDXEG24VZV)](https://codecov.io/gh/devopsext/events)
-[![build status](https://travis-ci.com/devopsext/events.svg?branch=main)](https://travis-ci.com/devopsext/events)
+[![build status](https://travis-ci.com/devopsext/events.svg?branch=main)](https://app.travis-ci.com/github/devopsext/events)
 
 ## Features
 
