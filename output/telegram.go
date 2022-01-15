@@ -336,13 +336,12 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			}
 
 			switch event.Type {
-			case "K8sEvent":
-				t.sendMessage(span.GetContext(), URL, message)
 			case "AlertmanagerEvent":
-
 				if err := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
 					t.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
+			default:
+				t.sendMessage(span.GetContext(), URL, message)
 			}
 		}
 	}()

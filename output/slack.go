@@ -302,13 +302,12 @@ func (s *SlackOutput) Send(event *common.Event) {
 			}
 
 			switch event.Type {
-			case "K8sEvent":
-				s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
 			case "AlertmanagerEvent":
-
 				if err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
 					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
 				}
+			default:
+				s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
 			}
 		}
 	}()
