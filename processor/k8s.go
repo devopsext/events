@@ -48,19 +48,21 @@ var (
 	deserializer  = codecs.UniversalDeserializer()
 )
 
+func (p *K8sProcessor) Type() string {
+	return "K8sEvent"
+}
 func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
-
 	return strings.Title(strings.ToLower(string(operation)))
 }
 
-func (p *K8sProcessor) sendEvent(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
+func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}) {
 
 	user := &K8sUser{Name: ar.UserInfo.Username, ID: ar.UserInfo.UID}
 	operation := p.prepareOperation(ar.Operation)
 
-	e := common.Event{
+	e := &common.Event{
 		Channel: channel,
-		Type:    "K8sEvent",
+		Type:    p.Type(),
 		Data: K8sData{
 			Kind:      ar.Kind.Kind,
 			Operation: operation,
@@ -73,10 +75,8 @@ func (p *K8sProcessor) sendEvent(span sreCommon.TracerSpan, channel string, ar *
 		e.SetSpanContext(span.GetContext())
 		e.SetLogger(p.logger)
 	}
-	p.outputs.Send(&e)
-
+	p.outputs.Send(e)
 	p.counter.Inc(user.Name, operation, channel, ar.Namespace, ar.Kind.Kind)
-
 }
 
 func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -90,12 +90,10 @@ func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel strin
 	}
 
 	name := ar.Name
-
 	if namespace != nil {
 		name = namespace.Name
 	}
-
-	p.sendEvent(span, channel, ar, name, namespace)
+	p.send(span, channel, ar, name, namespace)
 }
 
 func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -109,12 +107,10 @@ func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar
 	}
 
 	name := ar.Name
-
 	if node != nil {
 		name = node.Name
 	}
-
-	p.sendEvent(span, channel, ar, name, node)
+	p.send(span, channel, ar, name, node)
 }
 
 func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -129,13 +125,11 @@ func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel stri
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if replicaSet != nil {
 		name = replicaSet.Name
 		namespace = replicaSet.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), replicaSet)
 }
 
 func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -150,13 +144,11 @@ func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel str
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if statefulSet != nil {
 		name = statefulSet.Name
 		namespace = statefulSet.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), statefulSet)
 }
 
 func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -171,14 +163,11 @@ func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel strin
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if daemonSet != nil {
-
 		name = daemonSet.Name
 		namespace = daemonSet.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), daemonSet)
 }
 
 func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -193,13 +182,11 @@ func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, 
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if secret != nil {
 		name = secret.Name
 		namespace = secret.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), secret)
 }
 
 func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -214,13 +201,11 @@ func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string,
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if ingress != nil {
 		name = ingress.Name
 		namespace = ingress.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), ingress)
 }
 
 func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -235,13 +220,11 @@ func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar 
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if job != nil {
 		name = job.Name
 		namespace = job.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), job)
 }
 
 func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -256,13 +239,11 @@ func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string,
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if cronJob != nil {
 		name = cronJob.Name
 		namespace = cronJob.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), cronJob)
 }
 
 func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -277,13 +258,11 @@ func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel strin
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if configMap != nil {
 		name = configMap.Name
 		namespace = configMap.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), configMap)
 }
 
 func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -298,13 +277,11 @@ func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if role != nil {
 		name = role.Name
 		namespace = role.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), role)
 }
 
 func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -319,13 +296,11 @@ func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel stri
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if deployment != nil {
 		name = deployment.Name
 		namespace = deployment.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), deployment)
 }
 
 func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -340,13 +315,11 @@ func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string,
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if service != nil {
 		name = service.Name
 		namespace = service.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), service)
 }
 
 func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -361,13 +334,11 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 
 	name := ar.Name
 	namespace := ar.Namespace
-
 	if pod != nil {
 		name = pod.Name
 		namespace = pod.Namespace
 	}
-
-	p.sendEvent(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
 }
 
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {

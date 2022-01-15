@@ -336,13 +336,12 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			}
 
 			switch event.Type {
-			case "K8sEvent":
-				w.sendMessage(span.GetContext(), URL, message)
 			case "AlertmanagerEvent":
-
 				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
 					w.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
+			default:
+				w.sendMessage(span.GetContext(), URL, message)
 			}
 		}
 	}()

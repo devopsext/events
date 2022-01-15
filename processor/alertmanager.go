@@ -24,23 +24,27 @@ type AlertmanagerResponse struct {
 	Message string
 }
 
-func (p *AlertmanagerProcessor) prepareStatus(status string) string {
+func (p *AlertmanagerProcessor) Type() string {
+	return "AlertmanagerEvent"
+}
 
+func (p *AlertmanagerProcessor) prepareStatus(status string) string {
 	return strings.Title(strings.ToLower(status))
 }
 
-func (p *AlertmanagerProcessor) processData(span sreCommon.TracerSpan, channel string, data *template.Data) {
+func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, data *template.Data) {
 
 	for _, alert := range data.Alerts {
 
 		status := p.prepareStatus(alert.Status)
 		e := &common.Event{
 			Channel: channel,
-			Type:    "AlertmanagerEvent",
+			Type:    p.Type(),
 			Data:    alert,
 		}
 		if span != nil {
 			e.SetSpanContext(span.GetContext())
+			e.SetLogger(p.logger)
 		}
 		p.outputs.Send(e)
 		p.counter.Inc(status, channel)
@@ -90,7 +94,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	} else {
 
 		channel := strings.TrimLeft(r.URL.Path, "/")
-		p.processData(span, channel, &data)
+		p.send(span, channel, &data)
 
 		response = &AlertmanagerResponse{
 			Message: "OK",

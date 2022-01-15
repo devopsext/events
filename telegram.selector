@@ -5,6 +5,9 @@
       {{$a := getEnv "EVENTS_TELEGRAM_BOT_DEVOPS" | split "="}}{{template "render" $a}}
     {{- end}}
   {{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_BOT_DEVOPS" | split "="}}{{template "render" $a}}
+  {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
     {{$a := getEnv "EVENTS_TELEGRAM_BOT_PLATFORM" | split "="}}{{template "render" $a}}
   {{- end}}

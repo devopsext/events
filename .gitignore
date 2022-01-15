@@ -4,6 +4,7 @@ bin/
 pkg/
 src/
 vscode.sh
+test.sh
 coverage.txt
 __debug_bin
 events

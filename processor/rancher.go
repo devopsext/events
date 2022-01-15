@@ -13,6 +13,10 @@ type RancherProcessor struct {
 	tracer  sreCommon.Tracer
 }
 
+func (p *RancherProcessor) Type() string {
+	return "RancherEvent"
+}
+
 func (p *RancherProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 }
 
