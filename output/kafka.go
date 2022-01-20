@@ -89,7 +89,6 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 	}
 
 	if utils.IsEmpty(topic) {
-
 		logger.Debug("Kafka topic is not defined. Skipped.")
 		return nil
 	}
@@ -105,8 +104,7 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 	return &producer
 }
 
-func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions,
-	logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *KafkaOutput {
+func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions, observability common.Observability) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
@@ -125,6 +123,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	config.Net.ReadTimeout = time.Second * time.Duration(options.NetReadTimeout)
 	config.Net.WriteTimeout = time.Second * time.Duration(options.NetWriteTimeout)
 
+	logger := observability.Logs()
 	producer := makeKafkaProducer(wg, options.Brokers, options.Topic, config, logger)
 	if producer == nil {
 		return nil
@@ -136,7 +135,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options, logger),
 		options:  options,
 		logger:   logger,
-		tracer:   tracer,
-		counter:  meter.Counter("requests", "Count of all kafka outputs", []string{"topic"}, "kafka", "output"),
+		tracer:   observability.Traces(),
+		counter:  observability.Metrics().Counter("requests", "Count of all kafka outputs", []string{"topic"}, "kafka", "output"),
 	}
 }

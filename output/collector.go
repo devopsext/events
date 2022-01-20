@@ -70,7 +70,6 @@ func (c *CollectorOutput) Send(event *common.Event) {
 func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net.UDPConn {
 
 	if utils.IsEmpty(address) {
-
 		logger.Debug("Collector address is not defined. Skipped.")
 		return nil
 	}
@@ -96,9 +95,9 @@ func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net
 	return connection
 }
 
-func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions,
-	logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *CollectorOutput {
+func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions, observability common.Observability) *CollectorOutput {
 
+	logger := observability.Logs()
 	connection := makeCollectorOutputConnection(options.Address, logger)
 	if connection == nil {
 		return nil
@@ -109,8 +108,8 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 		options:    options,
 		message:    render.NewTextTemplate("collector-message", options.Template, templateOptions, options, logger),
 		connection: connection,
-		tracer:     tracer,
+		tracer:     observability.Traces(),
 		logger:     logger,
-		counter:    meter.Counter("requests", "Count of all collector outputs", []string{"address"}, "collector", "output"),
+		counter:    observability.Metrics().Counter("requests", "Count of all collector outputs", []string{"address"}, "collector", "output"),
 	}
 }

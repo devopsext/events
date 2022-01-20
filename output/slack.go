@@ -317,10 +317,9 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaOptions render.GrafanaOptions,
-	logger sreCommon.Logger,
-	tracer sreCommon.Tracer,
-	meter sreCommon.Meter) *SlackOutput {
+	observability common.Observability) *SlackOutput {
 
+	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
 		logger.Debug("Slack URL is not defined. Skipped")
 		return nil
@@ -331,10 +330,10 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, logger, tracer, meter),
+		grafana:  render.NewGrafana(grafanaOptions, observability),
 		options:  options,
 		logger:   logger,
-		tracer:   tracer,
-		counter:  meter.Counter("requests", "Count of all slack outputs", []string{"channel"}, "slack", "output"),
+		tracer:   observability.Traces(),
+		counter:  observability.Metrics().Counter("requests", "Count of all slack outputs", []string{"channel"}, "slack", "output"),
 	}
 }

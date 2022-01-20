@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"reflect"
 	"strings"
 	"time"
 
@@ -127,6 +126,11 @@ var workchatOutputOptions = output.WorkchatOutputOptions{
 	Timeout:          envGet("WORKCHAT_TIMEOUT", 30).(int),
 	AlertExpression:  envGet("WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
 	NotificationType: envGet("WORKCHAT_NOTIFICATION_TYPE", "REGULAR").(string),
+}
+
+var newrelicOutputOptions = output.NewRelicOutputOptions{
+	MessageTemplate: envGet("WORKCHAT_MESSAGE_TEMPLATE", "").(string),
+	AlertExpression: envGet("WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
 }
 
 var grafanaOptions = render.GrafanaOptions{
@@ -300,56 +304,25 @@ func Execute() {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
-			var httpInput common.Input = input.NewHttpInput(httpInputOptions, logs, traces, metrics, events)
-			if reflect.ValueOf(httpInput).IsNil() {
-				logs.Panic("Http input is invalid. Terminating...")
-			}
+			observability := common.NewObservability(logs, traces, metrics, events)
 
 			inputs := common.NewInputs()
-			inputs.Add(&httpInput)
+			inputs.Add(input.NewHttpInput(httpInputOptions, observability))
 
 			outputs := common.NewOutputs(textTemplateOptions.TimeFormat, logs)
+			collectorOutput := output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability)
+			kafkaOutput := output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability)
+			telegramOutput := output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaOptions, observability)
+			slackOutput := output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaOptions, observability)
+			workchatOutput := output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaOptions, observability)
+			newrelicOutput := output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability)
 
-			var collectorOutput common.Output = output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, logs, traces, metrics)
-			if reflect.ValueOf(collectorOutput).IsNil() {
-				logs.Warn("Collector output is invalid. Skipping...")
-			} else {
-				outputs.Add(&collectorOutput)
-			}
-
-			var kafkaOutput common.Output = output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, logs, traces, metrics)
-			if reflect.ValueOf(kafkaOutput).IsNil() {
-				logs.Warn("Kafka output is invalid. Skipping...")
-			} else {
-				outputs.Add(&kafkaOutput)
-			}
-
-			var telegramOutput common.Output = output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaOptions, logs, traces, metrics)
-			if telegramOutput != nil {
-				outputs.Add(&telegramOutput)
-			} else {
-				logs.Warn("Telegram output is invalid. Skipping...")
-			}
-
-			// if reflect.ValueOf(telegramOutput).IsNil() {
-			// 	logs.Warn("Telegram output is invalid. Skipping...")
-			// } else {
-			// 	outputs.Add(&telegramOutput)
-			// }
-
-			var slackOutput common.Output = output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaOptions, logs, traces, metrics)
-			if reflect.ValueOf(slackOutput).IsNil() {
-				logs.Warn("Slack output is invalid. Skipping...")
-			} else {
-				outputs.Add(&slackOutput)
-			}
-
-			var workchatOutput common.Output = output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaOptions, logs, traces, metrics)
-			if reflect.ValueOf(workchatOutput).IsNil() {
-				logs.Warn("Workchat output is invalid. Skipping...")
-			} else {
-				outputs.Add(&workchatOutput)
-			}
+			outputs.Add(collectorOutput)
+			outputs.Add(kafkaOutput)
+			outputs.Add(telegramOutput)
+			outputs.Add(slackOutput)
+			outputs.Add(workchatOutput)
+			outputs.Add(newrelicOutput)
 
 			inputs.Start(&mainWG, outputs)
 			mainWG.Wait()

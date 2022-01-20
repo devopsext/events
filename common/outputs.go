@@ -9,12 +9,15 @@ import (
 
 type Outputs struct {
 	timeFormat string
-	list       []*Output
+	list       []Output
 	logger     sreCommon.Logger
 }
 
-func (ots *Outputs) Add(o *Output) {
+func (ots *Outputs) Add(o Output) {
 
+	if o == nil {
+		return
+	}
 	ots.list = append(ots.list, o)
 }
 
@@ -53,7 +56,7 @@ func (ots *Outputs) Send(e *Event) {
 
 		if o != nil {
 
-			(*o).Send(e)
+			(o).Send(e)
 		} else {
 			if ots.logger != nil {
 				ots.logger.Warn("Output is not defined")
