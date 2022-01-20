@@ -3,11 +3,14 @@ package common
 import "sync"
 
 type Inputs struct {
-	list []*Input
+	list []Input
 }
 
-func (is *Inputs) Add(i *Input) {
+func (is *Inputs) Add(i Input) {
 
+	if i == nil {
+		return
+	}
 	is.list = append(is.list, i)
 }
 
@@ -16,7 +19,7 @@ func (is *Inputs) Start(wg *sync.WaitGroup, ots *Outputs) {
 	for _, i := range is.list {
 
 		if i != nil {
-			(*i).Start(wg, ots)
+			(i).Start(wg, ots)
 		}
 	}
 }

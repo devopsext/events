@@ -1,0 +1,3 @@
+{{- define "text"}}
+{{- end}}
+{{- define "newrelic-message"}}{{template "text" .}}{{- end}}

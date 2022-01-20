@@ -200,14 +200,14 @@ func (h *HttpInput) getProcessors(outputs *common.Outputs) map[string]common.Htt
 	return processors
 }
 
-func NewHttpInput(options HttpInputOptions, logger sreCommon.Logger,
-	tracer sreCommon.Tracer, meter sreCommon.Meter, eventer sreCommon.Eventer) *HttpInput {
+func NewHttpInput(options HttpInputOptions, observability common.Observability) *HttpInput {
 
+	meter := observability.Metrics()
 	return &HttpInput{
 		options: options,
-		eventer: eventer,
-		tracer:  tracer,
-		logger:  logger,
+		eventer: observability.Events(),
+		tracer:  observability.Traces(),
+		logger:  observability.Logs(),
 		meter:   meter,
 		counter: meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
 	}

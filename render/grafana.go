@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	utils "github.com/devopsext/utils"
 	"github.com/grafana-tools/sdk"
@@ -263,8 +264,9 @@ func (g *Grafana) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	return nil, "", err
 }
 
-func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *Grafana {
+func NewGrafana(options GrafanaOptions, observability common.Observability) *Grafana {
 
+	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
 		logger.Debug("Grafana URL is not defined. Skipped")
 		return nil
@@ -274,7 +276,7 @@ func NewGrafana(options GrafanaOptions, logger sreCommon.Logger, tracer sreCommo
 		client:  sreCommon.MakeHttpClient(options.Timeout),
 		options: options,
 		logger:  logger,
-		tracer:  tracer,
-		counter: meter.Counter("requests", "Count of all grafana outputs", []string{"title"}, "grafana"),
+		tracer:  observability.Traces(),
+		counter: observability.Metrics().Counter("requests", "Count of all grafana outputs", []string{"title"}, "grafana"),
 	}
 }
