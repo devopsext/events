@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/Shopify/sarama v1.29.0
 	github.com/VictoriaMetrics/metricsql v0.15.0
-	github.com/devopsext/sre v0.0.15
+	github.com/devopsext/sre v0.0.16
 	github.com/devopsext/utils v0.0.3
 	github.com/go-playground/webhooks/v6 v6.0.0-rc.1
 	github.com/grafana-tools/sdk v0.0.0-20210521150820-354cd37a4b4e

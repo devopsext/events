@@ -1,6 +1,9 @@
 package common
 
-import "sync"
+import (
+	"reflect"
+	"sync"
+)
 
 type Inputs struct {
 	list []Input
@@ -8,7 +11,7 @@ type Inputs struct {
 
 func (is *Inputs) Add(i Input) {
 
-	if i == nil {
+	if reflect.ValueOf(i).IsNil() {
 		return
 	}
 	is.list = append(is.list, i)

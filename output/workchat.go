@@ -38,7 +38,7 @@ type WorkchatOutput struct {
 	client   *http.Client
 	message  *render.TextTemplate
 	selector *render.TextTemplate
-	grafana  *render.Grafana
+	grafana  *render.GrafanaRender
 	options  WorkchatOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
@@ -326,6 +326,8 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
+		w.logger.SpanDebug(span, "Message to Workchat => %s", message)
+
 		arr := strings.Split(URLs, "\n")
 
 		for _, URL := range arr {
@@ -350,7 +352,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 func NewWorkchatOutput(wg *sync.WaitGroup,
 	options WorkchatOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	grafanaOptions render.GrafanaOptions,
+	grafanaRenderOptions render.GrafanaRenderOptions,
 	observability common.Observability) *WorkchatOutput {
 
 	logger := observability.Logs()
@@ -364,10 +366,10 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, observability),
+		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		tracer:   observability.Traces(),
 		logger:   logger,
-		counter:  observability.Metrics().Counter("requests", "Count of all workchar outputs", []string{"thread"}, "workchat", "output"),
+		counter:  observability.Metrics().Counter("requests", "Count of all workchar requests", []string{"thread"}, "workchat", "output"),
 	}
 }

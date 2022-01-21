@@ -2,12 +2,13 @@ package common
 
 import (
 	"encoding/json"
+	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
 )
 
 type Event struct {
-	Time        string      `json:"time"`
+	Time        time.Time   `json:"time"`
 	TimeNano    int64       `json:"timeNano"`
 	Channel     string      `json:"channel"`
 	Type        string      `json:"type"`
@@ -17,6 +18,8 @@ type Event struct {
 }
 
 func (e *Event) JsonObject() (interface{}, error) {
+
+	e.TimeNano = e.Time.UnixNano()
 
 	bytes, err := json.Marshal(e)
 	if err != nil {

@@ -33,7 +33,7 @@ type SlackOutput struct {
 	client   *http.Client
 	message  *render.TextTemplate
 	selector *render.TextTemplate
-	grafana  *render.Grafana
+	grafana  *render.GrafanaRender
 	options  SlackOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
@@ -292,6 +292,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
+		s.logger.SpanDebug(span, "Message to Slack => %s", message)
+
 		arr := strings.Split(URLs, "\n")
 
 		for _, URL := range arr {
@@ -316,7 +318,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	grafanaOptions render.GrafanaOptions,
+	grafanaRenderOptions render.GrafanaRenderOptions,
 	observability common.Observability) *SlackOutput {
 
 	logger := observability.Logs()
@@ -330,10 +332,10 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, observability),
+		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all slack outputs", []string{"channel"}, "slack", "output"),
+		counter:  observability.Metrics().Counter("requests", "Count of all slack requests", []string{"channel"}, "slack", "output"),
 	}
 }

@@ -129,20 +129,22 @@ var workchatOutputOptions = output.WorkchatOutputOptions{
 }
 
 var newrelicOutputOptions = output.NewRelicOutputOptions{
-	MessageTemplate: envGet("WORKCHAT_MESSAGE_TEMPLATE", "").(string),
-	AlertExpression: envGet("WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
+	MessageTemplate: envGet("NEWRELIC_MESSAGE_TEMPLATE", "").(string),
 }
 
-var grafanaOptions = render.GrafanaOptions{
+var grafanaOutputOptions = output.GrafanaOutputOptions{
+	MessageTemplate: envGet("GRAFANA_MESSAGE_TEMPLATE", "").(string),
+}
 
-	URL:         envGet("GRAFANA_URL", "").(string),
-	Timeout:     envGet("GRAFANA_TIMEOUT", 60).(int),
-	Datasource:  envGet("GRAFANA_DATASOURCE", "Prometheus").(string),
-	ApiKey:      envGet("GRAFANA_API_KEY", "admin:admin").(string),
-	Org:         envGet("GRAFANA_ORG", "1").(string),
-	Period:      envGet("GRAFANA_PERIOD", 60).(int),
-	ImageWidth:  envGet("GRAFANA_IMAGE_WIDTH", 1280).(int),
-	ImageHeight: envGet("GRAFANA_IMAGE_HEIGHT", 640).(int),
+var grafanaRenderOptions = render.GrafanaRenderOptions{
+	URL:         envGet("GRAFANA_RENDER_URL", "").(string),
+	Timeout:     envGet("GRAFANA_RENDER_TIMEOUT", 60).(int),
+	Datasource:  envGet("GRAFANA_RENDER_DATASOURCE", "Prometheus").(string),
+	ApiKey:      envGet("GRAFANA_RENDER_API_KEY", "admin:admin").(string),
+	Org:         envGet("GRAFANA_RENDER_ORG", "1").(string),
+	Period:      envGet("GRAFANA_RENDER_PERIOD", 60).(int),
+	ImageWidth:  envGet("GRAFANA_RENDER_IMAGE_WIDTH", 1280).(int),
+	ImageHeight: envGet("GRAFANA_RENDER_IMAGE_HEIGHT", 640).(int),
 }
 
 var jaegerOptions = sreProvider.JaegerOptions{
@@ -201,6 +203,44 @@ var opentelemetryMeterOptions = sreProvider.OpentelemetryMeterOptions{
 	CollectPeriod: int64(envGet("OPENTELEMETRY_METER_COLLECT_PERIOD", 1000).(int)),
 }
 
+var newrelicOptions = sreProvider.NewRelicOptions{
+	ServiceName: envGet("NEWRELIC_SERVICE_NAME", appName).(string),
+	Environment: envGet("NEWRELIC_ENVIRONMENT", "").(string),
+	Attributes:  envGet("NEWRELIC_ATTRIBUTES", "").(string),
+	Debug:       envGet("NEWRELIC_DEBUG", false).(bool),
+}
+
+var newrelicTracerOptions = sreProvider.NewRelicTracerOptions{
+	Endpoint: envGet("NEWRELIC_TRACER_ENDPOINT", "").(string),
+}
+
+var newrelicLoggerOptions = sreProvider.NewRelicLoggerOptions{
+	Endpoint:  envGet("NEWRELIC_LOGGER_ENDPOINT", "").(string),
+	AgentHost: envGet("NEWRELIC_LOGGER_HOST", "").(string),
+	AgentPort: envGet("NEWRELIC_LOGGER_PORT", 5171).(int),
+	Level:     envGet("NEWRELIC_LOGGER_LEVEL", "info").(string),
+}
+
+var newrelicMeterOptions = sreProvider.NewRelicMeterOptions{
+	Endpoint: envGet("NEWRELIC_METER_ENDPOINT", "").(string),
+	Prefix:   envGet("NEWRELIC_METER_PREFIX", appName).(string),
+}
+
+var newrelicEventerOptions = sreProvider.NewRelicEventerOptions{
+	Endpoint: envGet("NEWRELIC_EVENTER_ENDPOINT", "").(string),
+}
+
+var grafanaOptions = sreProvider.GrafanaOptions{
+	URL:     envGet("GRAFANA_URL", "").(string),
+	Timeout: envGet("GRAFANA_TIMEOUT", 60).(int),
+	ApiKey:  envGet("GRAFANA_API_KEY", "admin:admin").(string),
+}
+
+var grafanaEventerOptions = sreProvider.GrafanaEventerOptions{
+	Endpoint: envGet("GRAFANA_EVENTER_ENDPOINT", "").(string),
+	Duration: envGet("GRAFANA_EVENTER_DURATION", 1).(int),
+}
+
 func envGet(s string, d interface{}) interface{} {
 	return env.Get(fmt.Sprintf("%s_%s", APPNAME, s), d)
 }
@@ -208,7 +248,7 @@ func envGet(s string, d interface{}) interface{} {
 func interceptSyscall() {
 
 	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
 		<-c
 		logs.Info("Exiting...")
@@ -217,6 +257,9 @@ func interceptSyscall() {
 }
 
 func Execute() {
+
+	var newrelicEventer *sreProvider.NewRelicEventer
+	var grafanaEventer *sreProvider.GrafanaEventer
 
 	rootCmd := &cobra.Command{
 		Use:   "events",
@@ -238,6 +281,17 @@ func Execute() {
 			datadogLogger := sreProvider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
 			if common.HasElem(rootOptions.Logs, "datadog") && datadogLogger != nil {
 				logs.Register(datadogLogger)
+			}
+
+			newrelicLoggerOptions.Version = VERSION
+			newrelicLoggerOptions.ApiKey = newrelicOptions.ApiKey
+			newrelicLoggerOptions.ServiceName = newrelicOptions.ServiceName
+			newrelicLoggerOptions.Environment = newrelicOptions.Environment
+			newrelicLoggerOptions.Attributes = newrelicOptions.Attributes
+			newrelicLoggerOptions.Debug = newrelicOptions.Debug
+			newrelicLogger := sreProvider.NewNewRelicLogger(newrelicLoggerOptions, logs, stdout)
+			if utils.Contains(rootOptions.Logs, "newrelic") && newrelicLogger != nil {
+				logs.Register(newrelicLogger)
 			}
 
 			logs.Info("Booting...")
@@ -271,6 +325,17 @@ func Execute() {
 				metrics.Register(opentelemetryMeter)
 			}
 
+			newrelicMeterOptions.Version = VERSION
+			newrelicMeterOptions.ApiKey = newrelicOptions.ApiKey
+			newrelicMeterOptions.ServiceName = newrelicOptions.ServiceName
+			newrelicMeterOptions.Environment = newrelicOptions.Environment
+			newrelicMeterOptions.Attributes = newrelicOptions.Attributes
+			newrelicMeterOptions.Debug = newrelicOptions.Debug
+			newrelicMeter := sreProvider.NewNewRelicMeter(newrelicMeterOptions, logs, stdout)
+			if utils.Contains(rootOptions.Metrics, "newrelic") && newrelicMeter != nil {
+				metrics.Register(newrelicMeter)
+			}
+
 			// Tracing
 
 			jaegerOptions.Version = VERSION
@@ -301,6 +366,40 @@ func Execute() {
 			if common.HasElem(rootOptions.Traces, "opentelemetry") && opentelemtryTracer != nil {
 				traces.Register(opentelemtryTracer)
 			}
+
+			newrelicTracerOptions.Version = VERSION
+			newrelicTracerOptions.ApiKey = newrelicOptions.ApiKey
+			newrelicTracerOptions.ServiceName = newrelicOptions.ServiceName
+			newrelicTracerOptions.Environment = newrelicOptions.Environment
+			newrelicTracerOptions.Attributes = newrelicOptions.Attributes
+			newrelicTracerOptions.Debug = newrelicOptions.Debug
+			newrelicTracer := sreProvider.NewNewRelicTracer(newrelicTracerOptions, logs, stdout)
+			if utils.Contains(rootOptions.Metrics, "newrelic") && newrelicTracer != nil {
+				traces.Register(newrelicTracer)
+			}
+
+			// Events
+
+			newrelicEventerOptions.Version = VERSION
+			newrelicEventerOptions.ApiKey = newrelicOptions.ApiKey
+			newrelicEventerOptions.ServiceName = newrelicOptions.ServiceName
+			newrelicEventerOptions.Environment = newrelicOptions.Environment
+			newrelicEventerOptions.Attributes = newrelicOptions.Attributes
+			newrelicEventerOptions.Debug = newrelicOptions.Debug
+			newrelicEventer = sreProvider.NewNewRelicEventer(newrelicEventerOptions, logs, stdout)
+			if utils.Contains(rootOptions.Events, "newrelic") && newrelicEventer != nil {
+				events.Register(newrelicEventer)
+			}
+
+			grafanaEventerOptions.Version = VERSION
+			grafanaEventerOptions.URL = grafanaOptions.URL
+			grafanaEventerOptions.ApiKey = grafanaOptions.ApiKey
+			grafanaEventerOptions.Tags = grafanaOptions.Tags
+			grafanaEventerOptions.Timeout = grafanaOptions.Timeout
+			grafanaEventer = sreProvider.NewGrafanaEventer(grafanaEventerOptions, logs, stdout)
+			if utils.Contains(rootOptions.Events, "grafana") && grafanaEventer != nil {
+				events.Register(grafanaEventer)
+			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 
@@ -309,20 +408,14 @@ func Execute() {
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, observability))
 
-			outputs := common.NewOutputs(textTemplateOptions.TimeFormat, logs)
-			collectorOutput := output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability)
-			kafkaOutput := output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability)
-			telegramOutput := output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaOptions, observability)
-			slackOutput := output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaOptions, observability)
-			workchatOutput := output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaOptions, observability)
-			newrelicOutput := output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability)
-
-			outputs.Add(collectorOutput)
-			outputs.Add(kafkaOutput)
-			outputs.Add(telegramOutput)
-			outputs.Add(slackOutput)
-			outputs.Add(workchatOutput)
-			outputs.Add(newrelicOutput)
+			outputs := common.NewOutputs(logs)
+			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
+			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
+			outputs.Add(output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
+			outputs.Add(output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
+			outputs.Add(output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
+			outputs.Add(output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability, newrelicEventer))
+			outputs.Add(output.NewGrafanaOutput(&mainWG, grafanaOutputOptions, textTemplateOptions, observability, grafanaEventer))
 
 			inputs.Start(&mainWG, outputs)
 			mainWG.Wait()
@@ -392,14 +485,14 @@ func Execute() {
 	flags.StringVar(&workchatOutputOptions.AlertExpression, "workchat-alert-expression", workchatOutputOptions.AlertExpression, "Workchat alert expression")
 	flags.StringVar(&workchatOutputOptions.NotificationType, "workchat-notification-type", workchatOutputOptions.NotificationType, "Workchat notification type")
 
-	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
-	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
-	flags.StringVar(&grafanaOptions.Datasource, "grafana-datasource", grafanaOptions.Datasource, "Grafana datasource")
-	flags.StringVar(&grafanaOptions.ApiKey, "grafana-api-key", grafanaOptions.ApiKey, "Grafana API key")
-	flags.StringVar(&grafanaOptions.Org, "grafana-org", grafanaOptions.Org, "Grafana org")
-	flags.IntVar(&grafanaOptions.Period, "grafana-period", grafanaOptions.Period, "Grafana period in minutes")
-	flags.IntVar(&grafanaOptions.ImageWidth, "grafana-image-width", grafanaOptions.ImageWidth, "Grafan image width")
-	flags.IntVar(&grafanaOptions.ImageHeight, "grafana-image-height", grafanaOptions.ImageHeight, "Grafan image height")
+	flags.StringVar(&grafanaRenderOptions.URL, "grafana-render-url", grafanaRenderOptions.URL, "Grafana render URL")
+	flags.IntVar(&grafanaRenderOptions.Timeout, "grafana-render-timeout", grafanaRenderOptions.Timeout, "Grafan render timeout")
+	flags.StringVar(&grafanaRenderOptions.Datasource, "grafana-render-datasource", grafanaRenderOptions.Datasource, "Grafana render datasource")
+	flags.StringVar(&grafanaRenderOptions.ApiKey, "grafana-render-api-key", grafanaRenderOptions.ApiKey, "Grafana render API key")
+	flags.StringVar(&grafanaRenderOptions.Org, "grafana-render-org", grafanaRenderOptions.Org, "Grafana render org")
+	flags.IntVar(&grafanaRenderOptions.Period, "grafana-render-period", grafanaRenderOptions.Period, "Grafana render period in minutes")
+	flags.IntVar(&grafanaRenderOptions.ImageWidth, "grafana-render-image-width", grafanaRenderOptions.ImageWidth, "Grafan render image width")
+	flags.IntVar(&grafanaRenderOptions.ImageHeight, "grafana-render-image-height", grafanaRenderOptions.ImageHeight, "Grafan render image height")
 
 	flags.StringVar(&jaegerOptions.ServiceName, "jaeger-service-name", jaegerOptions.ServiceName, "Jaeger service name")
 	flags.StringVar(&jaegerOptions.AgentHost, "jaeger-agent-host", jaegerOptions.AgentHost, "Jaeger agent host")
@@ -434,6 +527,29 @@ func Execute() {
 	flags.StringVar(&opentelemetryMeterOptions.AgentHost, "opentelemetry-meter-agent-host", opentelemetryMeterOptions.AgentHost, "Opentelemetry meter agent host")
 	flags.IntVar(&opentelemetryMeterOptions.AgentPort, "opentelemetry-meter-agent-port", opentelemetryMeterOptions.AgentPort, "Opentelemetry meter agent port")
 	flags.StringVar(&opentelemetryMeterOptions.Prefix, "opentelemetry-meter-prefix", opentelemetryMeterOptions.Prefix, "Opentelemetry meter prefix")
+
+	flags.StringVar(&newrelicOptions.ApiKey, "newrelic-api-key", newrelicOptions.ApiKey, "NewRelic API key")
+	flags.StringVar(&newrelicOptions.ServiceName, "newrelic-service-name", newrelicOptions.ServiceName, "NewRelic service name")
+	flags.StringVar(&newrelicOptions.Environment, "newrelic-environment", newrelicOptions.Environment, "NewRelic environment")
+	flags.StringVar(&newrelicOptions.Attributes, "newrelic-attributes", newrelicOptions.Attributes, "NewRelic attributes")
+	flags.BoolVar(&newrelicOptions.Debug, "newrelic-debug", newrelicOptions.Debug, "NewRelic debug")
+	flags.StringVar(&newrelicTracerOptions.Endpoint, "newrelic-tracer-endpoint", newrelicTracerOptions.Endpoint, "NewRelic tracer endpoint")
+	flags.StringVar(&newrelicLoggerOptions.Endpoint, "newrelic-logger-endpoint", newrelicLoggerOptions.Endpoint, "NewRelic logger endpoint")
+	flags.StringVar(&newrelicLoggerOptions.AgentHost, "newrelic-logger-agent-host", newrelicLoggerOptions.AgentHost, "NewRelic logger agent host")
+	flags.IntVar(&newrelicLoggerOptions.AgentPort, "newrelic-logger-agent-port", newrelicLoggerOptions.AgentPort, "NewRelic logger agent port")
+	flags.StringVar(&newrelicLoggerOptions.Level, "newrelic-logger-level", newrelicLoggerOptions.Level, "NewRelic logger level: info, warn, error, debug, panic")
+	flags.StringVar(&newrelicMeterOptions.Endpoint, "newrelic-meter-endpoint", newrelicMeterOptions.Endpoint, "NewRelic meter endpoint")
+	flags.StringVar(&newrelicMeterOptions.Prefix, "newrelic-meter-prefix", newrelicMeterOptions.Prefix, "NewRelic meter prefix")
+	flags.StringVar(&newrelicEventerOptions.Endpoint, "newrelic-eventer-endpoint", newrelicEventerOptions.Endpoint, "NewRelic eventer endpoint")
+	flags.StringVar(&newrelicOutputOptions.MessageTemplate, "newrelic-message-template", newrelicOutputOptions.MessageTemplate, "NewRelic message template")
+
+	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
+	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
+	flags.StringVar(&grafanaOptions.ApiKey, "grafana-api-key", grafanaOptions.ApiKey, "Grafana API key")
+	flags.StringVar(&grafanaOptions.Tags, "grafana-tags", grafanaOptions.Tags, "Grafana tags")
+	flags.StringVar(&grafanaEventerOptions.Endpoint, "grafana-eventer-endpoint", grafanaEventerOptions.Endpoint, "Grafana eventer endpoint")
+	flags.IntVar(&grafanaEventerOptions.Duration, "grafana-eventer-duration", grafanaEventerOptions.Duration, "Grafana eventer duration")
+	flags.StringVar(&grafanaOutputOptions.MessageTemplate, "grafana-message-template", grafanaOutputOptions.MessageTemplate, "Grafana message template")
 
 	interceptSyscall()
 

@@ -35,7 +35,7 @@ type TelegramOutput struct {
 	client   *http.Client
 	message  *render.TextTemplate
 	selector *render.TextTemplate
-	grafana  *render.Grafana
+	grafana  *render.GrafanaRender
 	options  TelegramOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
@@ -326,6 +326,8 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
+		t.logger.SpanDebug(span, "Message to Telegram => %s", message)
+
 		arr := strings.Split(URLs, "\n")
 
 		for _, URL := range arr {
@@ -350,7 +352,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 func NewTelegramOutput(wg *sync.WaitGroup,
 	options TelegramOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	grafanaOptions render.GrafanaOptions, observability common.Observability) *TelegramOutput {
+	grafanaRenderOptions render.GrafanaRenderOptions, observability common.Observability) *TelegramOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
@@ -363,10 +365,10 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
 		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
 		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options, logger),
-		grafana:  render.NewGrafana(grafanaOptions, observability),
+		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all telegram outputs", []string{"chat_id"}, "telegram", "output"),
+		counter:  observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"chat_id"}, "telegram", "output"),
 	}
 }
