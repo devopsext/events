@@ -1,0 +1,2 @@
+{{- define "text"}}Grafana is the best tool{{- end}}
+{{- define "grafana-message"}}{{template "text" .}}{{- end}}

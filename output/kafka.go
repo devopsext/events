@@ -136,6 +136,6 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all kafka outputs", []string{"topic"}, "kafka", "output"),
+		counter:  observability.Metrics().Counter("requests", "Count of all kafka requests", []string{"topic"}, "kafka", "output"),
 	}
 }

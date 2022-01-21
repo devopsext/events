@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
@@ -31,12 +32,17 @@ func (p *GitlabProcessor) Type() string {
 	return "GitlabEvent"
 }
 
-func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}) {
+func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
 		Type:    p.Type(),
 		Data:    o,
+	}
+	if t != nil && (*t).UnixNano() > 0 {
+		e.Time = *t
+	} else {
+		e.Time = time.Now().UTC()
 	}
 	if span != nil {
 		e.SetSpanContext(span.GetContext())
@@ -90,27 +96,35 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	switch pl := payload.(type) {
 	case gitlab.PushEventPayload:
-		p.send(span, channel, payload.(gitlab.PushEventPayload))
+		p.send(span, channel, payload.(gitlab.PushEventPayload), nil)
 	case gitlab.TagEventPayload:
-		p.send(span, channel, payload.(gitlab.TagEventPayload))
+		p.send(span, channel, payload.(gitlab.TagEventPayload), nil)
 	case gitlab.IssueEventPayload:
-		p.send(span, channel, payload.(gitlab.IssueEventPayload))
+		event := payload.(gitlab.IssueEventPayload)
+		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.ConfidentialIssueEventPayload:
-		p.send(span, channel, payload.(gitlab.ConfidentialIssueEventPayload))
+		event := payload.(gitlab.ConfidentialIssueEventPayload)
+		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.CommentEventPayload:
-		p.send(span, channel, payload.(gitlab.CommentEventPayload))
+		event := payload.(gitlab.CommentEventPayload)
+		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.MergeRequestEventPayload:
-		p.send(span, channel, payload.(gitlab.MergeRequestEventPayload))
+		event := payload.(gitlab.MergeRequestEventPayload)
+		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.WikiPageEventPayload:
-		p.send(span, channel, payload.(gitlab.WikiPageEventPayload))
+		event := payload.(gitlab.WikiPageEventPayload)
+		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.PipelineEventPayload:
-		p.send(span, channel, payload.(gitlab.PipelineEventPayload))
+		event := payload.(gitlab.PipelineEventPayload)
+		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.BuildEventPayload:
-		p.send(span, channel, payload.(gitlab.BuildEventPayload))
+		event := payload.(gitlab.BuildEventPayload)
+		p.send(span, channel, event, &event.BuildStartedAt.Time)
 	case gitlab.JobEventPayload:
-		p.send(span, channel, payload.(gitlab.JobEventPayload))
+		event := payload.(gitlab.JobEventPayload)
+		p.send(span, channel, event, &event.BuildStartedAt.Time)
 	case gitlab.SystemHookPayload:
-		p.send(span, channel, payload.(gitlab.SystemHookPayload))
+		p.send(span, channel, payload.(gitlab.SystemHookPayload), nil)
 	default:
 		p.logger.SpanDebug(span, "Not supported %s", pl)
 	}

@@ -18,7 +18,7 @@ import (
 	"github.com/grafana-tools/sdk"
 )
 
-type GrafanaOptions struct {
+type GrafanaRenderOptions struct {
 	URL         string
 	Timeout     int
 	Datasource  string
@@ -32,15 +32,15 @@ type GrafanaOptions struct {
 type GrafanaAliasColors struct {
 }
 
-type Grafana struct {
+type GrafanaRender struct {
 	client  *http.Client
-	options GrafanaOptions
+	options GrafanaRenderOptions
 	logger  sreCommon.Logger
 	tracer  sreCommon.Tracer
 	counter sreCommon.Counter
 }
 
-func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string) *sdk.Board {
+func (g *GrafanaRender) findDashboard(c *sdk.Client, ctx context.Context, title string) *sdk.Board {
 	var tags []string
 
 	boards, err1 := c.SearchDashboards(ctx, title, false, tags...)
@@ -61,7 +61,7 @@ func (g *Grafana) findDashboard(c *sdk.Client, ctx context.Context, title string
 	return nil
 }
 
-func (g *Grafana) apiKeyIsCredentials() bool {
+func (g *GrafanaRender) apiKeyIsCredentials() bool {
 
 	arr := strings.Split(g.options.ApiKey, ":")
 	if len(arr) == 2 {
@@ -70,7 +70,7 @@ func (g *Grafana) apiKeyIsCredentials() bool {
 	return false
 }
 
-func (g *Grafana) renderImage(imageURL string, apiKey string) ([]byte, error) {
+func (g *GrafanaRender) renderImage(imageURL string, apiKey string) ([]byte, error) {
 
 	req, err := http.NewRequest("GET", g.options.URL+imageURL, nil)
 
@@ -97,7 +97,7 @@ func (g *Grafana) renderImage(imageURL string, apiKey string) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (g *Grafana) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
+func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
 
 	span := g.tracer.StartChildSpan(spanCtx)
@@ -264,15 +264,15 @@ func (g *Grafana) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	return nil, "", err
 }
 
-func NewGrafana(options GrafanaOptions, observability common.Observability) *Grafana {
+func NewGrafanaRender(options GrafanaRenderOptions, observability common.Observability) *GrafanaRender {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
-		logger.Debug("Grafana URL is not defined. Skipped")
+		logger.Debug("Grafana render URL is not defined. Skipped")
 		return nil
 	}
 
-	return &Grafana{
+	return &GrafanaRender{
 		client:  sreCommon.MakeHttpClient(options.Timeout),
 		options: options,
 		logger:  logger,

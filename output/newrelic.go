@@ -7,21 +7,22 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	sreProvider "github.com/devopsext/sre/provider"
 	"github.com/devopsext/utils"
 )
 
 type NewRelicOutputOptions struct {
 	MessageTemplate string
-	AlertExpression string
 }
 
 type NewRelicOutput struct {
-	wg      *sync.WaitGroup
-	message *render.TextTemplate
-	options NewRelicOutputOptions
-	tracer  sreCommon.Tracer
-	logger  sreCommon.Logger
-	counter sreCommon.Counter
+	wg              *sync.WaitGroup
+	message         *render.TextTemplate
+	options         NewRelicOutputOptions
+	tracer          sreCommon.Tracer
+	logger          sreCommon.Logger
+	counter         sreCommon.Counter
+	newrelicEventer *sreProvider.NewRelicEventer
 }
 
 func (r *NewRelicOutput) Send(event *common.Event) {
@@ -55,23 +56,6 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			return
 		}
 
-		// URLs := t.options.URL
-		// if t.selector != nil {
-
-		// 	b, err := t.selector.Execute(jsonObject)
-		// 	if err != nil {
-		// 		t.logger.SpanDebug(span, err)
-		// 	} else {
-		// 		URLs = b.String()
-		// 	}
-		// }
-
-		// if utils.IsEmpty(URLs) {
-		// 	err := errors.New("Telegram URLs are not found")
-		// 	t.logger.SpanError(span, err)
-		// 	return
-		// }
-
 		b, err := r.message.Execute(jsonObject)
 		if err != nil {
 			r.logger.SpanError(span, err)
@@ -84,34 +68,35 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			return
 		}
 
-		// switch event.Type {
-		// case "AlertmanagerEvent":
-		// 	if err := r.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-		// 		t.sendErrorMessage(span.GetContext(), URL, message, err)
-		// 	}
-		// default:
-		// 	t.sendMessage(span.GetContext(), URL, message)
-		// }
+		r.logger.SpanDebug(span, "Message to NewRelic => %s", message)
+
+		attributes := make(map[string]string)
+		// how to determine attributes from jsonObject
+
+		r.newrelicEventer.At(message, attributes, event.Time)
+		r.counter.Inc()
 	}()
 }
 
 func NewNewRelicOutput(wg *sync.WaitGroup,
 	options NewRelicOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	observability common.Observability) *NewRelicOutput {
+	observability common.Observability,
+	newrelicEventer *sreProvider.NewRelicEventer) *NewRelicOutput {
 
 	logger := observability.Logs()
-	// if utils.IsEmpty(options.URL) {
-	// 	logger.Debug("Telegram URL is not defined. Skipped")
-	// 	return nil
-	// }
+	if newrelicEventer == nil {
+		logger.Debug("NewRelic eventer is not defined. Skipped")
+		return nil
+	}
 
 	return &NewRelicOutput{
-		wg:      wg,
-		message: render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
-		options: options,
-		logger:  logger,
-		tracer:  observability.Traces(),
-		counter: observability.Metrics().Counter("requests", "Count of all newrelic outputs", []string{}, "newrelic", "output"),
+		wg:              wg,
+		message:         render.NewTextTemplate("newrelic-message", options.MessageTemplate, templateOptions, options, logger),
+		options:         options,
+		logger:          logger,
+		tracer:          observability.Traces(),
+		counter:         observability.Metrics().Counter("requests", "Count of all newrelic requests", []string{}, "newrelic", "output"),
+		newrelicEventer: newrelicEventer,
 	}
 }

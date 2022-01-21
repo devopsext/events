@@ -110,6 +110,6 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 		connection: connection,
 		tracer:     observability.Traces(),
 		logger:     logger,
-		counter:    observability.Metrics().Counter("requests", "Count of all collector outputs", []string{"address"}, "collector", "output"),
+		counter:    observability.Metrics().Counter("requests", "Count of all collector requests", []string{"address"}, "collector", "output"),
 	}
 }

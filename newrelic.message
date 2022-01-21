@@ -1,3 +1,2 @@
-{{- define "text"}}
-{{- end}}
+{{- define "text"}}NewRelic is the good one{{- end}}
 {{- define "newrelic-message"}}{{template "text" .}}{{- end}}

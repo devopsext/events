@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
@@ -70,6 +71,7 @@ func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1
 			Object:    o,
 			User:      user,
 		},
+		Time: time.Now().UTC(),
 	}
 	if span != nil {
 		e.SetSpanContext(span.GetContext())
