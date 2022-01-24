@@ -129,11 +129,13 @@ var workchatOutputOptions = output.WorkchatOutputOptions{
 }
 
 var newrelicOutputOptions = output.NewRelicOutputOptions{
-	MessageTemplate: envGet("NEWRELIC_MESSAGE_TEMPLATE", "").(string),
+	MessageTemplate:    envGet("NEWRELIC_MESSAGE_TEMPLATE", "").(string),
+	AttributesTemplate: envGet("NEWRELIC_ATTRIBUTES_TEMPLATE", "").(string),
 }
 
 var grafanaOutputOptions = output.GrafanaOutputOptions{
-	MessageTemplate: envGet("GRAFANA_MESSAGE_TEMPLATE", "").(string),
+	MessageTemplate:    envGet("GRAFANA_MESSAGE_TEMPLATE", "").(string),
+	AttributesTemplate: envGet("GRAFANA_ATTRIBUTES_TEMPLATE", "").(string),
 }
 
 var grafanaRenderOptions = render.GrafanaRenderOptions{
@@ -542,6 +544,7 @@ func Execute() {
 	flags.StringVar(&newrelicMeterOptions.Prefix, "newrelic-meter-prefix", newrelicMeterOptions.Prefix, "NewRelic meter prefix")
 	flags.StringVar(&newrelicEventerOptions.Endpoint, "newrelic-eventer-endpoint", newrelicEventerOptions.Endpoint, "NewRelic eventer endpoint")
 	flags.StringVar(&newrelicOutputOptions.MessageTemplate, "newrelic-message-template", newrelicOutputOptions.MessageTemplate, "NewRelic message template")
+	flags.StringVar(&newrelicOutputOptions.AttributesTemplate, "newrelic-attributes-template", newrelicOutputOptions.AttributesTemplate, "NewRelic attributes template")
 
 	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
 	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
@@ -550,6 +553,7 @@ func Execute() {
 	flags.StringVar(&grafanaEventerOptions.Endpoint, "grafana-eventer-endpoint", grafanaEventerOptions.Endpoint, "Grafana eventer endpoint")
 	flags.IntVar(&grafanaEventerOptions.Duration, "grafana-eventer-duration", grafanaEventerOptions.Duration, "Grafana eventer duration")
 	flags.StringVar(&grafanaOutputOptions.MessageTemplate, "grafana-message-template", grafanaOutputOptions.MessageTemplate, "Grafana message template")
+	flags.StringVar(&grafanaOutputOptions.AttributesTemplate, "grafana-attributes-template", grafanaOutputOptions.AttributesTemplate, "Grafana attributes template")
 
 	interceptSyscall()
 

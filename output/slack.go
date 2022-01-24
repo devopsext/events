@@ -292,7 +292,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		s.logger.SpanDebug(span, "Message to Slack => %s", message)
+		s.logger.SpanDebug(span, "Slack message => %s", message)
 
 		arr := strings.Split(URLs, "\n")
 

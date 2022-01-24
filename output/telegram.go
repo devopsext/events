@@ -326,7 +326,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
-		t.logger.SpanDebug(span, "Message to Telegram => %s", message)
+		t.logger.SpanDebug(span, "Telegram message => %s", message)
 
 		arr := strings.Split(URLs, "\n")
 

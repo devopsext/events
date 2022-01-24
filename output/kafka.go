@@ -64,11 +64,11 @@ func (k *KafkaOutput) Send(event *common.Event) {
 
 		message := b.String()
 		if utils.IsEmpty(message) {
-			k.logger.SpanDebug(span, "Message to Kafka is empty")
+			k.logger.SpanDebug(span, "Kafka message is empty")
 			return
 		}
 
-		k.logger.SpanDebug(span, "Message to Kafka => %s", message)
+		k.logger.SpanDebug(span, "Kafka  message => %s", message)
 
 		(*k.producer).Input() <- &sarama.ProducerMessage{
 			Topic: k.options.Topic,

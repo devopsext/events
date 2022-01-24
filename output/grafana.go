@@ -1,6 +1,7 @@
 package output
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 
@@ -12,17 +13,54 @@ import (
 )
 
 type GrafanaOutputOptions struct {
-	MessageTemplate string
+	MessageTemplate    string
+	AttributesTemplate string
 }
 
 type GrafanaOutput struct {
 	wg             *sync.WaitGroup
 	message        *render.TextTemplate
+	attributes     *render.TextTemplate
 	options        GrafanaOutputOptions
 	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
 	counter        sreCommon.Counter
 	grafanaEventer *sreProvider.GrafanaEventer
+}
+
+func (g *GrafanaOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
+
+	attrs := make(map[string]string)
+	if g.attributes == nil {
+		return attrs, nil
+	}
+
+	a, err := g.attributes.Execute(o)
+	if err != nil {
+		return attrs, err
+	}
+
+	m := a.String()
+	if utils.IsEmpty(m) {
+		return attrs, nil
+	}
+
+	g.logger.SpanDebug(span, "Grafana raw attributes => %s", m)
+
+	var object map[string]interface{}
+
+	if err := json.Unmarshal([]byte(m), &object); err != nil {
+		return attrs, err
+	}
+
+	for k, v := range object {
+		vs, ok := v.(string)
+		if ok {
+			attrs[k] = vs
+		}
+	}
+
+	return attrs, nil
 }
 
 func (g *GrafanaOutput) Send(event *common.Event) {
@@ -45,7 +83,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("Event data is empty")
+			err := errors.New("event data is empty")
 			g.logger.SpanError(span, err)
 			return
 		}
@@ -68,10 +106,12 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			return
 		}
 
-		g.logger.SpanDebug(span, "Message to Grafana => %s", message)
+		g.logger.SpanDebug(span, "Grafana message => %s", message)
 
-		attributes := make(map[string]string)
-		// how to determine attributes from jsonObject
+		attributes, err := g.getAttributes(jsonObject, span)
+		if err != nil {
+			g.logger.SpanError(span, err)
+		}
 
 		g.grafanaEventer.At(message, attributes, event.Time)
 		g.counter.Inc()
@@ -93,6 +133,7 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 	return &GrafanaOutput{
 		wg:             wg,
 		message:        render.NewTextTemplate("grafana-message", options.MessageTemplate, templateOptions, options, logger),
+		attributes:     render.NewTextTemplate("grafana-attributes", options.AttributesTemplate, templateOptions, options, logger),
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),

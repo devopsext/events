@@ -1,0 +1,4 @@
+{{- define "text"}}
+{{printf "{\"some_tag\":\"hey\",\"type\":\"%s\"}" .type}}
+{{- end}}
+{{- define "newrelic-attributes"}}{{template "text" .}}{{- end}}
