@@ -1,0 +1,4 @@
+{{- define "text"}}
+{{printf "{\"some_tag\":\"\",\"type\":\"%s\"}" .type}}
+{{- end}}
+{{- define "grafana-attributes"}}{{template "text" .}}{{- end}}

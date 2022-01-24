@@ -51,7 +51,7 @@ func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
 	return h.tracer.StartSpanWithTraceID(traceID, "")
 }
 
-func (h *HttpInput) processURL(url string, mux *http.ServeMux, handleFunc HttpProcessHandleFunc) {
+func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProcessor) {
 
 	urls := strings.Split(url, ",")
 	for _, url := range urls {
@@ -64,7 +64,7 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, handleFunc HttpPr
 			defer span.Finish()
 
 			h.counter.Inc(r.URL.Path)
-			handleFunc(w, r)
+			p.HandleHttpRequest(w, r)
 		})
 	}
 }
@@ -138,9 +138,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		mux := http.NewServeMux()
 		processors := h.getProcessors(outputs)
 		for u, p := range processors {
-			h.processURL(u, mux, func(w http.ResponseWriter, r *http.Request) {
-				p.HandleHttpRequest(w, r)
-			})
+			h.processURL(u, mux, p)
 		}
 
 		listener, err := net.Listen("tcp", h.options.Listen)

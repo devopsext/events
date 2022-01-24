@@ -326,7 +326,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
-		w.logger.SpanDebug(span, "Message to Workchat => %s", message)
+		w.logger.SpanDebug(span, "Workchat message => %s", message)
 
 		arr := strings.Split(URLs, "\n")
 
