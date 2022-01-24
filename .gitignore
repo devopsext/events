@@ -5,6 +5,8 @@ pkg/
 src/
 vscode.sh
 test.sh
+events.key
+events.crt
 coverage.txt
 __debug_bin
 events
