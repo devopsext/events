@@ -25,8 +25,8 @@ import (
 )
 
 type WorkchatOutputOptions struct {
-	MessageTemplate  string
-	SelectorTemplate string
+	Message          string
+	URLSelector      string
 	URL              string
 	Timeout          int
 	AlertExpression  string
@@ -364,8 +364,8 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	return &WorkchatOutput{
 		wg:       wg,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
-		message:  render.NewTextTemplate("workchat-message", options.MessageTemplate, templateOptions, options, logger),
-		selector: render.NewTextTemplate("workchat-selector", options.SelectorTemplate, templateOptions, options, logger),
+		message:  render.NewTextTemplate("workchat-message", options.Message, templateOptions, options, logger),
+		selector: render.NewTextTemplate("workchat-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		tracer:   observability.Traces(),

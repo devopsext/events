@@ -16,7 +16,7 @@ import (
 
 type KafkaOutputOptions struct {
 	ClientID           string
-	Template           string
+	Message            string
 	Brokers            string
 	Topic              string
 	FlushFrequency     int
@@ -132,7 +132,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	return &KafkaOutput{
 		wg:       wg,
 		producer: producer,
-		message:  render.NewTextTemplate("kafka-message", options.Template, templateOptions, options, logger),
+		message:  render.NewTextTemplate("kafka-message", options.Message, templateOptions, options, logger),
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),

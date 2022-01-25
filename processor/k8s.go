@@ -71,8 +71,8 @@ func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1
 			Object:    o,
 			User:      user,
 		},
-		Time: time.Now().UTC(),
 	}
+	e.SetTime(time.Now().UTC())
 	if span != nil {
 		e.SetSpanContext(span.GetContext())
 		e.SetLogger(p.logger)

@@ -22,8 +22,8 @@ import (
 )
 
 type TelegramOutputOptions struct {
-	MessageTemplate     string
-	SelectorTemplate    string
+	Message             string
+	URLSelector         string
 	URL                 string
 	Timeout             int
 	AlertExpression     string
@@ -363,8 +363,8 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	return &TelegramOutput{
 		wg:       wg,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
-		message:  render.NewTextTemplate("telegram-message", options.MessageTemplate, templateOptions, options, logger),
-		selector: render.NewTextTemplate("telegram-selector", options.SelectorTemplate, templateOptions, options, logger),
+		message:  render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
+		selector: render.NewTextTemplate("telegram-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		logger:   logger,

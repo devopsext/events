@@ -19,8 +19,6 @@ type Event struct {
 
 func (e *Event) JsonObject() (interface{}, error) {
 
-	e.TimeNano = e.Time.UnixNano()
-
 	bytes, err := json.Marshal(e)
 	if err != nil {
 		if e.logger != nil {
@@ -51,4 +49,9 @@ func (e *Event) GetSpanContext() sreCommon.TracerSpanContext {
 
 func (e *Event) SetLogger(logger sreCommon.Logger) {
 	e.logger = logger
+}
+
+func (e *Event) SetTime(time time.Time) {
+	e.Time = time
+	e.TimeNano = time.UnixNano()
 }

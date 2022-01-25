@@ -81,14 +81,14 @@ var httpInputOptions = input.HttpInputOptions{
 
 var collectorOutputOptions = output.CollectorOutputOptions{
 
-	Address:  envGet("COLLECTOR_ADDRESS", "").(string),
-	Template: envGet("COLLECTOR_MESSAGE_TEMPLATE", "").(string),
+	Address: envGet("COLLECTOR_ADDRESS", "").(string),
+	Message: envGet("COLLECTOR_MESSAGE", "").(string),
 }
 
 var kafkaOutputOptions = output.KafkaOutputOptions{
 
 	ClientID:           envGet("KAFKA_CLIEND_ID", fmt.Sprintf("%s_kafka", appName)).(string),
-	Template:           envGet("KAFKA_MESSAGE_TEMPLATE", "").(string),
+	Message:            envGet("KAFKA_MESSAGE", "").(string),
 	Brokers:            envGet("KAFKA_BROKERS", "").(string),
 	Topic:              envGet("KAFKA_TOPIC", appName).(string),
 	FlushFrequency:     envGet("KAFKA_FLUSH_FREQUENCY", 1).(int),
@@ -101,8 +101,8 @@ var kafkaOutputOptions = output.KafkaOutputOptions{
 
 var telegramOutputOptions = output.TelegramOutputOptions{
 
-	MessageTemplate:     envGet("TELEGRAM_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate:    envGet("TELEGRAM_SELECTOR_TEMPLATE", "").(string),
+	Message:             envGet("TELEGRAM_MESSAGE", "").(string),
+	URLSelector:         envGet("TELEGRAM_URL_SELECTOR", "").(string),
 	URL:                 envGet("TELEGRAM_URL", "").(string),
 	Timeout:             envGet("TELEGRAM_TIMEOUT", 30).(int),
 	AlertExpression:     envGet("TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
@@ -111,17 +111,17 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 
 var slackOutputOptions = output.SlackOutputOptions{
 
-	MessageTemplate:  envGet("SLACK_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate: envGet("SLACK_SELECTOR_TEMPLATE", "").(string),
-	URL:              envGet("SLACK_URL", "").(string),
-	Timeout:          envGet("SLACK_TIMEOUT", 30).(int),
-	AlertExpression:  envGet("SLACK_ALERT_EXPRESSION", "g0.expr").(string),
+	Message:         envGet("SLACK_MESSAGE", "").(string),
+	URLSelector:     envGet("SLACK_URL_SELECTOR", "").(string),
+	URL:             envGet("SLACK_URL", "").(string),
+	Timeout:         envGet("SLACK_TIMEOUT", 30).(int),
+	AlertExpression: envGet("SLACK_ALERT_EXPRESSION", "g0.expr").(string),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
 
-	MessageTemplate:  envGet("WORKCHAT_MESSAGE_TEMPLATE", "").(string),
-	SelectorTemplate: envGet("WORKCHAT_SELECTOR_TEMPLATE", "").(string),
+	Message:          envGet("WORKCHAT_MESSAGE", "").(string),
+	URLSelector:      envGet("WORKCHAT_URL_SELECTOR", "").(string),
 	URL:              envGet("WORKCHAT_URL", "").(string),
 	Timeout:          envGet("WORKCHAT_TIMEOUT", 30).(int),
 	AlertExpression:  envGet("WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
@@ -129,13 +129,13 @@ var workchatOutputOptions = output.WorkchatOutputOptions{
 }
 
 var newrelicOutputOptions = output.NewRelicOutputOptions{
-	MessageTemplate:    envGet("NEWRELIC_MESSAGE_TEMPLATE", "").(string),
-	AttributesTemplate: envGet("NEWRELIC_ATTRIBUTES_TEMPLATE", "").(string),
+	Message:            envGet("NEWRELIC_MESSAGE", "").(string),
+	AttributesSelector: envGet("NEWRELIC_ATTRIBUTES_SELECTOR", "").(string),
 }
 
 var grafanaOutputOptions = output.GrafanaOutputOptions{
-	MessageTemplate:    envGet("GRAFANA_MESSAGE_TEMPLATE", "").(string),
-	AttributesTemplate: envGet("GRAFANA_ATTRIBUTES_TEMPLATE", "").(string),
+	Message:            envGet("GRAFANA_MESSAGE", "").(string),
+	AttributesSelector: envGet("GRAFANA_ATTRIBUTES_SELECTOR", "").(string),
 }
 
 var grafanaRenderOptions = render.GrafanaRenderOptions{
@@ -459,7 +459,7 @@ func Execute() {
 	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
 	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-topic", kafkaOutputOptions.Topic, "Kafka topic")
 	flags.StringVar(&kafkaOutputOptions.ClientID, "kafka-client-id", kafkaOutputOptions.ClientID, "Kafka client id")
-	flags.StringVar(&kafkaOutputOptions.Template, "kafka-message-template", kafkaOutputOptions.Template, "Kafka message template")
+	flags.StringVar(&kafkaOutputOptions.Message, "kafka-message", kafkaOutputOptions.Message, "Kafka message template")
 	flags.IntVar(&kafkaOutputOptions.FlushFrequency, "kafka-flush-frequency", kafkaOutputOptions.FlushFrequency, "Kafka Producer flush frequency")
 	flags.IntVar(&kafkaOutputOptions.FlushMaxMessages, "kafka-flush-max-messages", kafkaOutputOptions.FlushMaxMessages, "Kafka Producer flush max messages")
 	flags.IntVar(&kafkaOutputOptions.NetMaxOpenRequests, "kafka-net-max-open-requests", kafkaOutputOptions.NetMaxOpenRequests, "Kafka Net max open requests")
@@ -468,21 +468,21 @@ func Execute() {
 	flags.IntVar(&kafkaOutputOptions.NetWriteTimeout, "kafka-net-write-timeout", kafkaOutputOptions.NetWriteTimeout, "Kafka Net write timeout")
 
 	flags.StringVar(&telegramOutputOptions.URL, "telegram-url", telegramOutputOptions.URL, "Telegram URL")
-	flags.StringVar(&telegramOutputOptions.MessageTemplate, "telegram-message-template", telegramOutputOptions.MessageTemplate, "Telegram message template")
-	flags.StringVar(&telegramOutputOptions.SelectorTemplate, "telegram-selector-template", telegramOutputOptions.SelectorTemplate, "Telegram selector template")
+	flags.StringVar(&telegramOutputOptions.Message, "telegram-message", telegramOutputOptions.Message, "Telegram message template")
+	flags.StringVar(&telegramOutputOptions.URLSelector, "telegram-url-selector", telegramOutputOptions.URLSelector, "Telegram URL selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
 	flags.StringVar(&telegramOutputOptions.DisableNotification, "telegram-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 
 	flags.StringVar(&slackOutputOptions.URL, "slack-url", slackOutputOptions.URL, "Slack URL")
-	flags.StringVar(&slackOutputOptions.MessageTemplate, "slack-message-template", slackOutputOptions.MessageTemplate, "Slack message template")
-	flags.StringVar(&slackOutputOptions.SelectorTemplate, "slack-selector-template", slackOutputOptions.SelectorTemplate, "Slack selector template")
+	flags.StringVar(&slackOutputOptions.Message, "slack-message", slackOutputOptions.Message, "Slack message template")
+	flags.StringVar(&slackOutputOptions.URLSelector, "slack-url-selector", slackOutputOptions.URLSelector, "Slack URL selector template")
 	flags.IntVar(&slackOutputOptions.Timeout, "slack-timeout", slackOutputOptions.Timeout, "Slack timeout")
 	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
 
 	flags.StringVar(&workchatOutputOptions.URL, "workchat-url", workchatOutputOptions.URL, "Workchat URL")
-	flags.StringVar(&workchatOutputOptions.MessageTemplate, "workchat-message-template", workchatOutputOptions.MessageTemplate, "Workchat message template")
-	flags.StringVar(&workchatOutputOptions.SelectorTemplate, "workchat-selector-template", workchatOutputOptions.SelectorTemplate, "Workchat selector template")
+	flags.StringVar(&workchatOutputOptions.Message, "workchat-message", workchatOutputOptions.Message, "Workchat message template")
+	flags.StringVar(&workchatOutputOptions.URLSelector, "workchat-url-selector", workchatOutputOptions.URLSelector, "Workchat URL selector template")
 	flags.IntVar(&workchatOutputOptions.Timeout, "workchat-timeout", workchatOutputOptions.Timeout, "Workchat timeout")
 	flags.StringVar(&workchatOutputOptions.AlertExpression, "workchat-alert-expression", workchatOutputOptions.AlertExpression, "Workchat alert expression")
 	flags.StringVar(&workchatOutputOptions.NotificationType, "workchat-notification-type", workchatOutputOptions.NotificationType, "Workchat notification type")
@@ -543,8 +543,8 @@ func Execute() {
 	flags.StringVar(&newrelicMeterOptions.Endpoint, "newrelic-meter-endpoint", newrelicMeterOptions.Endpoint, "NewRelic meter endpoint")
 	flags.StringVar(&newrelicMeterOptions.Prefix, "newrelic-meter-prefix", newrelicMeterOptions.Prefix, "NewRelic meter prefix")
 	flags.StringVar(&newrelicEventerOptions.Endpoint, "newrelic-eventer-endpoint", newrelicEventerOptions.Endpoint, "NewRelic eventer endpoint")
-	flags.StringVar(&newrelicOutputOptions.MessageTemplate, "newrelic-message-template", newrelicOutputOptions.MessageTemplate, "NewRelic message template")
-	flags.StringVar(&newrelicOutputOptions.AttributesTemplate, "newrelic-attributes-template", newrelicOutputOptions.AttributesTemplate, "NewRelic attributes template")
+	flags.StringVar(&newrelicOutputOptions.Message, "newrelic-message", newrelicOutputOptions.Message, "NewRelic message template")
+	flags.StringVar(&newrelicOutputOptions.AttributesSelector, "newrelic-attributes-selector", newrelicOutputOptions.AttributesSelector, "NewRelic attributes selector template")
 
 	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
 	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
@@ -552,8 +552,8 @@ func Execute() {
 	flags.StringVar(&grafanaOptions.Tags, "grafana-tags", grafanaOptions.Tags, "Grafana tags")
 	flags.StringVar(&grafanaEventerOptions.Endpoint, "grafana-eventer-endpoint", grafanaEventerOptions.Endpoint, "Grafana eventer endpoint")
 	flags.IntVar(&grafanaEventerOptions.Duration, "grafana-eventer-duration", grafanaEventerOptions.Duration, "Grafana eventer duration")
-	flags.StringVar(&grafanaOutputOptions.MessageTemplate, "grafana-message-template", grafanaOutputOptions.MessageTemplate, "Grafana message template")
-	flags.StringVar(&grafanaOutputOptions.AttributesTemplate, "grafana-attributes-template", grafanaOutputOptions.AttributesTemplate, "Grafana attributes template")
+	flags.StringVar(&grafanaOutputOptions.Message, "grafana-message", grafanaOutputOptions.Message, "Grafana message template")
+	flags.StringVar(&grafanaOutputOptions.AttributesSelector, "grafana-attributes-selector", grafanaOutputOptions.AttributesSelector, "Grafana attributes selector template")
 
 	interceptSyscall()
 
