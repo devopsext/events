@@ -234,8 +234,9 @@ var newrelicEventerOptions = sreProvider.NewRelicEventerOptions{
 
 var grafanaOptions = sreProvider.GrafanaOptions{
 	URL:     envGet("GRAFANA_URL", "").(string),
-	Timeout: envGet("GRAFANA_TIMEOUT", 60).(int),
 	ApiKey:  envGet("GRAFANA_API_KEY", "admin:admin").(string),
+	Tags:    envGet("GRAFANA_TAGS", "").(string),
+	Timeout: envGet("GRAFANA_TIMEOUT", 60).(int),
 }
 
 var grafanaEventerOptions = sreProvider.GrafanaEventerOptions{
