@@ -21,11 +21,11 @@ import (
 )
 
 type SlackOutputOptions struct {
-	MessageTemplate  string
-	SelectorTemplate string
-	URL              string
-	Timeout          int
-	AlertExpression  string
+	Message         string
+	URLSelector     string
+	URL             string
+	Timeout         int
+	AlertExpression string
 }
 
 type SlackOutput struct {
@@ -330,8 +330,8 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	return &SlackOutput{
 		wg:       wg,
 		client:   sreCommon.MakeHttpClient(options.Timeout),
-		message:  render.NewTextTemplate("slack-message", options.MessageTemplate, templateOptions, options, logger),
-		selector: render.NewTextTemplate("slack-selector", options.SelectorTemplate, templateOptions, options, logger),
+		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),
+		selector: render.NewTextTemplate("slack-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		logger:   logger,

@@ -13,8 +13,8 @@ import (
 )
 
 type NewRelicOutputOptions struct {
-	MessageTemplate    string
-	AttributesTemplate string
+	Message            string
+	AttributesSelector string
 }
 
 type NewRelicOutput struct {
@@ -132,8 +132,8 @@ func NewNewRelicOutput(wg *sync.WaitGroup,
 
 	return &NewRelicOutput{
 		wg:              wg,
-		message:         render.NewTextTemplate("newrelic-message", options.MessageTemplate, templateOptions, options, logger),
-		attributes:      render.NewTextTemplate("newrelic-attributes", options.AttributesTemplate, templateOptions, options, logger),
+		message:         render.NewTextTemplate("newrelic-message", options.Message, templateOptions, options, logger),
+		attributes:      render.NewTextTemplate("newrelic-attributes", options.AttributesSelector, templateOptions, options, logger),
 		options:         options,
 		logger:          logger,
 		tracer:          observability.Traces(),

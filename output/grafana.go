@@ -13,8 +13,8 @@ import (
 )
 
 type GrafanaOutputOptions struct {
-	MessageTemplate    string
-	AttributesTemplate string
+	Message            string
+	AttributesSelector string
 }
 
 type GrafanaOutput struct {
@@ -132,8 +132,8 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 
 	return &GrafanaOutput{
 		wg:             wg,
-		message:        render.NewTextTemplate("grafana-message", options.MessageTemplate, templateOptions, options, logger),
-		attributes:     render.NewTextTemplate("grafana-attributes", options.AttributesTemplate, templateOptions, options, logger),
+		message:        render.NewTextTemplate("grafana-message", options.Message, templateOptions, options, logger),
+		attributes:     render.NewTextTemplate("grafana-attributes", options.AttributesSelector, templateOptions, options, logger),
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),

@@ -11,8 +11,8 @@ import (
 )
 
 type CollectorOutputOptions struct {
-	Address  string
-	Template string
+	Address string
+	Message string
 }
 
 type CollectorOutput struct {
@@ -106,7 +106,7 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, temp
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
-		message:    render.NewTextTemplate("collector-message", options.Template, templateOptions, options, logger),
+		message:    render.NewTextTemplate("collector-message", options.Message, templateOptions, options, logger),
 		connection: connection,
 		tracer:     observability.Traces(),
 		logger:     logger,

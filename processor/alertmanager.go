@@ -42,7 +42,7 @@ func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, 
 			Type:    p.Type(),
 			Data:    alert,
 		}
-		e.Time = alert.StartsAt
+		e.SetTime(alert.StartsAt.UTC())
 		if span != nil {
 			e.SetSpanContext(span.GetContext())
 			e.SetLogger(p.logger)

@@ -40,9 +40,9 @@ func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o inte
 		Data:    o,
 	}
 	if t != nil && (*t).UnixNano() > 0 {
-		e.Time = *t
+		e.SetTime((*t).UTC())
 	} else {
-		e.Time = time.Now().UTC()
+		e.SetTime(time.Now().UTC())
 	}
 	if span != nil {
 		e.SetSpanContext(span.GetContext())
