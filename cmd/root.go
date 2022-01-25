@@ -206,6 +206,7 @@ var opentelemetryMeterOptions = sreProvider.OpentelemetryMeterOptions{
 }
 
 var newrelicOptions = sreProvider.NewRelicOptions{
+	ApiKey:      envGet("NEWRELIC_API_KEY", "").(string),
 	ServiceName: envGet("NEWRELIC_SERVICE_NAME", appName).(string),
 	Environment: envGet("NEWRELIC_ENVIRONMENT", "").(string),
 	Attributes:  envGet("NEWRELIC_ATTRIBUTES", "").(string),
