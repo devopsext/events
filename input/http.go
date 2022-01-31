@@ -69,6 +69,10 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProc
 	}
 }
 
+func (h *HttpInput) startHttp() {
+
+}
+
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 	wg.Add(1)
@@ -99,7 +103,6 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			// load key
 			var key []byte
 			if _, err := os.Stat(h.options.Key); err == nil {
-
 				key, err = ioutil.ReadFile(h.options.Key)
 				if err != nil {
 					h.logger.Panic(err)
@@ -119,7 +122,6 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			// load CA chain
 			var chain []byte
 			if _, err := os.Stat(h.options.Chain); err == nil {
-
 				chain, err = ioutil.ReadFile(h.options.Chain)
 				if err != nil {
 					h.logger.Panic(err)

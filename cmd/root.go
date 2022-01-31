@@ -59,17 +59,16 @@ var stdoutOptions = sreProvider.StdoutOptions{
 }
 
 var prometheusOptions = sreProvider.PrometheusOptions{
-
 	URL:    envGet("PROMETHEUS_URL", "/metrics").(string),
 	Listen: envGet("PROMETHEUS_LISTEN", "127.0.0.1:8080").(string),
 	Prefix: envGet("PROMETHEUS_PREFIX", "events").(string),
 }
 
 var httpInputOptions = input.HttpInputOptions{
-
 	K8sURL:          envGet("HTTP_K8S_URL", "").(string),
 	RancherURL:      envGet("HTTP_RANCHER_URL", "").(string),
 	AlertmanagerURL: envGet("HTTP_ALERTMANAGER_URL", "").(string),
+	GitlabURL:       envGet("HTTP_GITLAB_URL", "").(string),
 	CustomJsonURL:   envGet("HTTP_CUSTOMJSON_URL", "").(string),
 	Listen:          envGet("HTTP_LISTEN", ":80").(string),
 	Tls:             envGet("HTTP_TLS", false).(bool),
