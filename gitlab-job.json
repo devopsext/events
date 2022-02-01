@@ -1,0 +1,51 @@
+{
+  "object_kind": "build",
+  "ref": "0.1.2-1",
+  "tag": true,
+  "before_sha": "0000000000000000000000000000000000000000",
+  "sha": "fc21b3776d62ef2ddc1db323e50f5d4c0090f4d3",
+  "build_id": 3855491,
+  "build_name": "rollback:cluster",
+  "build_stage": "rollback",
+  "build_status": "manual",
+  "build_created_at": "2022-02-01T15:06:00.854Z",
+  "build_started_at": null,
+  "build_finished_at": null,
+  "build_duration": null,
+  "build_queued_duration": null,
+  "build_allow_failure": true,
+  "build_failure_reason": "unknown_failure",
+  "pipeline_id": 826389,
+  "runner": null,
+  "project_id": 4249,
+  "project_name": "SRE / events",
+  "user": {
+    "id": 72,
+    "name": "Some User",
+    "username": "some.user",
+    "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+    "email": "some@email.com"
+  },
+  "commit": {
+    "id": 826389,
+    "sha": "fc21b3776d62ef2ddc1db323e50f5d4c0090f4d3",
+    "message": "Update .gitlab-ci.yml",
+    "author_name": "Some User",
+    "author_email": "some@email.com",
+    "author_url": "https://gitlab.com/some.user",
+    "status": "success",
+    "duration": 140,
+    "started_at": "2022-01-31T16:33:02.926Z",
+    "finished_at": "2022-01-31T16:35:50.817Z"
+  },
+  "repository": {
+    "name": "events",
+    "url": "git@gitlab.com:sre/events.git",
+    "description": "Events is about notifications that happens in different tier of infrastructure, including Kubernetes, Alertmanager",
+    "homepage": "https://gitlab.com/sre/events",
+    "git_http_url": "https://gitlab.com/sre/events.git",
+    "git_ssh_url": "git@gitlab.com:sre/events.git",
+    "visibility_level": 0
+  },
+  "environment": null
+}

@@ -1,2 +1,13 @@
-{{- define "text"}}Grafana is the best tool{{- end}}
-{{- define "grafana-message"}}{{template "text" .}}{{- end}}
+{{- define "text"}}
+  {{- if eq .type "K8sEvent"}}
+    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
+      {{- printf "%s\n%s / %s" (upper .data.operation) .data.kind .data.location}}
+    {{- end}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s\n%s" (upper .data.status) .data.labels.alertname}}{{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{- if .data.project}}{{- printf "%s\n<a href=\"%s\">%s / %s@%s</a>" (upper .data.object_kind) .data.commit.url .data.project.namespace .data.project.name .data.object_attributes.ref}}
+    {{else}}{{- printf "%s\n<a href=\"%s/-/commit/%s\">%s@%s</a>" (upper .data.object_kind) .data.repository.homepage .data.commit.sha .data.project_name .data.ref}}{{end}}
+  {{- end}}
+{{- end}}
+{{- define "grafana-message"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

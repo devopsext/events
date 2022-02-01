@@ -1,0 +1,260 @@
+{
+  "object_kind": "pipeline",
+  "object_attributes": {
+    "id": 826389,
+    "ref": "0.1.2-1",
+    "tag": true,
+    "sha": "fc21b3776d62ef2ddc1db323e50f5d4c0090f4d3",
+    "before_sha": "0000000000000000000000000000000000000000",
+    "source": "push",
+    "status": "success",
+    "detailed_status": "passed",
+    "stages": [
+      "build",
+      "test",
+      "deploy",
+      "rollback"
+    ],
+    "created_at": "2022-02-01T15:07:00.688Z",
+    "finished_at": "2022-01-31T16:35:50.817Z",
+    "duration": 140,
+    "queued_duration": 4,
+    "variables": []
+  },
+  "merge_request": null,
+  "user": {
+    "id": 72,
+    "name": "Some User",
+    "username": "some.user",
+    "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+    "email": "some.user@email.com"
+  },
+  "project": {
+    "id": 4249,
+    "name": "events",
+    "description": "Events is about notifications that happens in different tier of infrastructure, including Kubernetes, Alertmanager",
+    "web_url": "https://gitlab.com/sre/events",
+    "avatar_url": null,
+    "git_ssh_url": "git@gitlab.com:sre/events.git",
+    "git_http_url": "https://gitlab.com/sre/events.git",
+    "namespace": "SRE",
+    "visibility_level": 0,
+    "path_with_namespace": "sre/events",
+    "default_branch": "master",
+    "ci_config_path": null
+  },
+  "commit": {
+    "id": "fc21b3776d62ef2ddc1db323e50f5d4c0090f4d3",
+    "message": "Update .gitlab-ci.yml",
+    "title": "Update .gitlab-ci.yml",
+    "timestamp": "2022-01-31T16:32:43+00:00",
+    "url": "https://gitlab.com/sre/events/-/commit/fc21b3776d62ef2ddc1db323e50f5d4c0090f4d3",
+    "author": {
+      "name": "Some User",
+      "email": "some.user@email.com"
+    }
+  },
+  "builds": [
+    {
+      "id": 3855491,
+      "stage": "rollback",
+      "name": "rollback:cluster1",
+      "status": "manual",
+      "created_at": "2022-01-31T16:32:58.854Z",
+      "started_at": null,
+      "finished_at": null,
+      "duration": null,
+      "queued_duration": null,
+      "when": "manual",
+      "manual": true,
+      "allow_failure": true,
+      "user": {
+        "id": 72,
+        "name": "Some User",
+        "username": "some.user",
+        "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+        "email": "some.user@email.com"
+      },
+      "runner": null,
+      "artifacts_file": {
+        "filename": null,
+        "size": null
+      },
+      "environment": null
+    },
+    {
+      "id": 3855489,
+      "stage": "deploy",
+      "name": "cluster2",
+      "status": "success",
+      "created_at": "2022-01-31T16:32:58.790Z",
+      "started_at": "2022-01-31T16:34:49.131Z",
+      "finished_at": "2022-01-31T16:35:50.587Z",
+      "duration": 61.456095,
+      "queued_duration": 8.735151,
+      "when": "manual",
+      "manual": true,
+      "allow_failure": true,
+      "user": {
+        "id": 72,
+        "name": "Some User",
+        "username": "some.user",
+        "avatar_url": "https: //secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+        "email": "some.user@email.com"
+      },
+      "runner": {
+        "id": 815,
+        "description": "shared-prod-env",
+        "runner_type": "instance_type",
+        "active": true,
+        "is_shared": true,
+        "tags": [
+          "prodenv-k8s",
+          "prodenv",
+          "psp",
+          "prodenv-bi",
+          "prod.env"
+        ]
+      },
+      "artifacts_file": {
+        "filename": "artifacts.zip",
+        "size": 486
+      },
+      "environment": null
+    },
+    {
+      "id": 3855490,
+      "stage": "rollback",
+      "name": "rollback:cluster2",
+      "status": "skipped",
+      "created_at": "2022-01-31T16:32:58.819Z",
+      "started_at": null,
+      "finished_at": null,
+      "duration": null,
+      "queued_duration": null,
+      "when": "manual",
+      "manual": true,
+      "allow_failure": true,
+      "user": {
+        "id": 72,
+        "name": "Some User",
+        "username": "some.user",
+        "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+        "email": "some.user@email.com"
+      },
+      "runner": null,
+      "artifacts_file": {
+        "filename": null,
+        "size": null
+      },
+      "environment": null
+    },
+    {
+      "id": 3855488,
+      "stage": "deploy",
+      "name": "cluster1",
+      "status": "manual",
+      "created_at": "2022-01-31T16:32:58.761Z",
+      "started_at": null,
+      "finished_at": null,
+      "duration": null,
+      "queued_duration": null,
+      "when": "manual",
+      "manual": true,
+      "allow_failure": true,
+      "user": {
+        "id": 72,
+        "name": "Some User",
+        "username": "some.user",
+        "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+        "email": "some.user@email.com"
+      },
+      "runner": null,
+      "artifacts_file": {
+        "filename": null,
+        "size": null
+      },
+      "environment": null
+    },
+    {
+      "id": 3855487,
+      "stage": "test",
+      "name": "test",
+      "status": "success",
+      "created_at": "2022-01-31T16:32:58.739Z",
+      "started_at": "2022-01-31T16:34:01.083Z",
+      "finished_at": "2022-01-31T16:34:28.886Z",
+      "duration": 27.803238,
+      "queued_duration": 7.248181,
+      "when": "on_success",
+      "manual": false,
+      "allow_failure": false,
+      "user": {
+        "id": 72,
+        "name": "Some User",
+        "username": "some.user",
+        "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+        "email": "some.user@email.com"
+      },
+      "runner": {
+        "id": 815,
+        "description": "shared-prod-env",
+        "runner_type": "instance_type",
+        "active": true,
+        "is_shared": true,
+        "tags": [
+          "prodenv-k8s",
+          "prodenv",
+          "psp",
+          "prodenv-bi",
+          "prod.env"
+        ]
+      },
+      "artifacts_file": {
+        "filename": "artifacts.zip",
+        "size": 260
+      },
+      "environment": null
+    },
+    {
+      "id": 3855486,
+      "stage": "build",
+      "name": "build",
+      "status": "success",
+      "created_at": "2022-01-31T16:32:58.710Z",
+      "started_at": "2022-01-31T16:33:02.707Z",
+      "finished_at": "2022-01-31T16:33:53.629Z",
+      "duration": 50.921714,
+      "queued_duration": 3.688929,
+      "when": "on_success",
+      "manual": false,
+      "allow_failure": false,
+      "user": {
+        "id": 72,
+        "name": "Some User",
+        "username": "some.user",
+        "avatar_url": "https://secure.gravatar.com/avatar/044638361df43cc74637cf14926e92d9?s=80\u0026d=identicon",
+        "email": "some.user@email.com"
+      },
+      "runner": {
+        "id": 822,
+        "description": "shared-test-env",
+        "runner_type": "instance_type",
+        "active": true,
+        "is_shared": true,
+        "tags": [
+          "cache",
+          "testenv",
+          "testenv-bi",
+          "test.env-k8s",
+          "test.env"
+        ]
+      },
+      "artifacts_file": {
+        "filename": null,
+        "size": null
+      },
+      "environment": null
+    }
+  ]
+}

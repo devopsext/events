@@ -1,2 +1,10 @@
-{{- define "text"}}NewRelic is the good one{{- end}}
-{{- define "newrelic-message"}}{{template "text" .}}{{- end}}
+{{- define "text"}}
+  {{- if eq .type "K8sEvent"}}
+    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
+      {{- printf "%s" (upper .data.operation)}}
+    {{- end}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s" (upper .data.status)}}{{- end}}
+  {{- if eq .type "GitlabEvent"}}{{- printf "%s" (upper .data.object_kind)}}{{- end}}
+{{- end}}
+{{- define "newrelic-message"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

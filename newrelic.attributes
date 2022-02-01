@@ -1,4 +1,13 @@
 {{- define "text"}}
-{{printf "{\"some_tag\":\"hey\",\"type\":\"%s\"}" .type}}
+  {{- if eq .type "K8sEvent"}}
+    {{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"kind\":\"%s\",\"location\":\"%s\"}" .type .channel .data.kind .data.location}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}
+    {{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"alert\":\"%s\"}" .type .channel .data.labels.alertname}}
+  {{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{- if .data.project}}{{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"project\":\"%s / %s@%s\"}" .type .channel .data.project.namespace .data.project.name .data.object_attributes.ref}}
+    {{else}}{{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"project\":\"%s@%s\"}" .type .channel .data.project_name .data.ref}}{{end}}
+  {{- end}}
 {{- end}}
 {{- define "newrelic-attributes"}}{{template "text" .}}{{- end}}

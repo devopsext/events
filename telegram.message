@@ -43,11 +43,29 @@
   {{- if eq .status "firing"}}{{- printf "\n<b>StartsAt</b>: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
   {{- if eq .status "resolved"}}{{- printf "\n<b>endsAt</b>: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
 {{- end}}
+{{- define "gitlab-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- if .data.project}}{{- printf "<b>%s</b>: %s / %s@%s\n<b>%s</b>: %s\nby <i>%s</i>" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
+  {{- else}}{{- printf "<b>%s</b>: %s@%s\n<b>%s</b>: %s\nby <i>%s</i>" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
+{{- end}}
+{{- define "gitlab-commit"}}
+  {{- if .commit.author}}{{- printf "\n<b>Commit author</b> => %s" .commit.author.name}}{{else}}{{- printf "\n<b>Commit author</b> => %s" .commit.author_name}}{{end}}
+  {{- if .commit.title}}{{- printf "\n<b>Commit title</b> => %s" .commit.title}}{{end}}
+  {{- printf "\n<b>Commit message</b> => %s" .commit.message}}
+  {{- if .commit.url}}{{- printf "\n%s" .commit.url}}{{else}}{{- printf "\n%s/-/commit/%s" .repository.homepage .commit.sha}}{{end}}
+{{- end}}
+{{- define "gitlab-stages"}}
+  {{- range .}}
+    {{- printf "\n<b>%s/%s</b> => %s" .stage .name .runner.description}}
+  {{- end}}
+{{- end}}
 {{- define "gitlab-pipeline"}}
+  {{- template "gitlab-commit" (dict "repository" "" "commit" .commit)}}
+  {{- template "gitlab-stages" reverse .builds}}
 {{- end}}
 {{- define "gitlab-build"}}
-  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "<b>%s</b>: %s@%s\n<b>%s</b>: %s\nby <i>%s</i>" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.name}}
+  {{- template "gitlab-commit" (dict "repository" .repository "commit" .commit)}}
+  {{- printf "\n<b>%s/%s</b> => %s" .build_stage .build_name .runner.description}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
@@ -71,14 +89,11 @@
     {{- end}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
-    {{- if .data}}{{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
-    {{- else}}{{template "alertmanager-header" .}}{{end}}
+    {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
-    {{- if .data}}
-      {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .data}}{{end}}
-      {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
-    {{- else}}{{template "gitlab-header" .}}{{end}}
+    {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-header" .}}{{template "gitlab-pipeline" .data}}{{end}}
+    {{- if eq .data.object_kind "build"}}{{template "gitlab-header" .}}{{template "gitlab-build" .data}}{{end}}
   {{- end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- end}}

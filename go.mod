@@ -3,6 +3,7 @@ module github.com/devopsext/events
 go 1.17
 
 require (
+	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/Shopify/sarama v1.29.0
 	github.com/VictoriaMetrics/metricsql v0.15.0
 	github.com/devopsext/sre v0.0.16
@@ -19,6 +20,8 @@ require (
 	github.com/DataDog/datadog-api-client-go v1.7.0 // indirect
 	github.com/DataDog/datadog-go v4.7.0+incompatible // indirect
 	github.com/DataDog/sketches-go v1.0.0 // indirect
+	github.com/Masterminds/goutils v1.1.1 // indirect
+	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/VictoriaMetrics/metrics v1.12.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -38,6 +41,8 @@ require (
 	github.com/gosimple/slug v1.1.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
+	github.com/huandu/xstrings v1.3.1 // indirect
+	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
@@ -47,6 +52,8 @@ require (
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/klauspost/compress v1.12.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/newrelic/newrelic-telemetry-sdk-go v0.8.1 // indirect
@@ -61,9 +68,11 @@ require (
 	github.com/rainycape/unidecode v0.0.0-20150907023854-cb7f23ec59be // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rs/xid v1.3.0 // indirect
+	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tinylib/msgp v1.1.2 // indirect
 	github.com/uber/jaeger-client-go v2.29.1+incompatible // indirect

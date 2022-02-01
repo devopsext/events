@@ -1,4 +1,4 @@
 {{- define "text"}}
-{{printf "{\"some_tag\":\"\",\"type\":\"%s\"}" .type}}
+  {{printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
 {{- end}}
-{{- define "grafana-attributes"}}{{template "text" .}}{{- end}}
+{{- define "grafana-attributes"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

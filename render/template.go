@@ -13,6 +13,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	sreCommon "github.com/devopsext/sre/common"
 	utils "github.com/devopsext/utils"
 )
@@ -176,28 +177,27 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	var t *template.Template
 	var err1 error
 
-	funcs := template.FuncMap{
-		"regexReplaceAll": tpl.fRegexReplaceAll,
-		"regexMatch":      tpl.fRegexMatch,
-		"replaceAll":      tpl.fReplaceAll,
-		"toLower":         tpl.fToLower,
-		"toTitle":         tpl.fToTitle,
-		"toUpper":         tpl.fToUpper,
-		"toJSON":          tpl.fToJSON,
-		"split":           tpl.fSplit,
-		"join":            tpl.fJoin,
-		"isEmpty":         tpl.fIsEmpty,
-		"getEnv":          tpl.fGetEnv,
-		"getVar":          tpl.fGetVar,
-		"timeFormat":      tpl.fTimeFormat,
-		"jsonEscape":      tpl.fJsonEscape,
-		"toString":        tpl.fToString,
-	}
-
 	if utils.IsEmpty(fileOrVar) {
 		logger.Warn("Template %s is empty.", name)
 		return nil
 	}
+
+	funcs := sprig.TxtFuncMap()
+	funcs["regexReplaceAll"] = tpl.fRegexReplaceAll
+	funcs["regexMatch"] = tpl.fRegexMatch
+	funcs["replaceAll"] = tpl.fReplaceAll
+	funcs["toLower"] = tpl.fToLower
+	funcs["toTitle"] = tpl.fToTitle
+	funcs["toUpper"] = tpl.fToUpper
+	funcs["toJSON"] = tpl.fToJSON
+	funcs["split"] = tpl.fSplit
+	funcs["join"] = tpl.fJoin
+	funcs["isEmpty"] = tpl.fIsEmpty
+	funcs["getEnv"] = tpl.fGetEnv
+	funcs["getVar"] = tpl.fGetVar
+	funcs["timeFormat"] = tpl.fTimeFormat
+	funcs["jsonEscape"] = tpl.fJsonEscape
+	funcs["toString"] = tpl.fToString
 
 	if _, err := os.Stat(fileOrVar); err == nil {
 
