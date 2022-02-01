@@ -43,6 +43,30 @@
   {{- if eq .status "firing"}}{{- printf "\n*StartsAt*: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
   {{- if eq .status "resolved"}}{{- printf "\n*endsAt*: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
 {{- end}}
+{{- define "gitlab-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- if .data.project}}{{- printf "*%s*: %s / %s@%s\n*%s*: %s\nby _%s_" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
+  {{- else}}{{- printf "*%s*: %s@%s\n*%s*: %s\nby _%s_" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
+{{- end}}
+{{- define "gitlab-commit"}}
+  {{- if .commit.author}}{{- printf "\n*Commit author* => %s" .commit.author.name}}{{else}}{{- printf "\n*Commit author* => %s" .commit.author_name}}{{end}}
+  {{- if .commit.title}}{{- printf "\n*Commit title* => %s" .commit.title}}{{end}}
+  {{- printf "\n*Commit message* => %s" .commit.message}}
+  {{- if .commit.url}}{{- printf "\n%s" .commit.url}}{{else}}{{- printf "\n%s/-/commit/%s" .repository.homepage .commit.sha}}{{end}}
+{{- end}}
+{{- define "gitlab-stages"}}
+  {{- range .}}
+    {{- printf "\n*%s/%s* => %s" .stage .name .runner.description}}
+  {{- end}}
+{{- end}}
+{{- define "gitlab-pipeline"}}
+  {{- template "gitlab-commit" (dict "repository" "" "commit" .commit)}}
+  {{- template "gitlab-stages" reverse .builds}}
+{{- end}}
+{{- define "gitlab-build"}}
+  {{- template "gitlab-commit" (dict "repository" .repository "commit" .commit)}}
+  {{- printf "\n*%s/%s* => %s" .build_stage .build_name .runner.description}}
+{{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
@@ -65,8 +89,11 @@
     {{- end}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
-    {{- if .data}}{{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
-    {{- else}}{{template "alertmanager-header" .}}{{end}}
+    {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
+  {{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-header" .}}{{template "gitlab-pipeline" .data}}{{end}}
+    {{- if eq .data.object_kind "build"}}{{template "gitlab-header" .}}{{template "gitlab-build" .data}}{{end}}
   {{- end}}
 {{- end}}
 {{- define "slack-message"}}{{template "text" .}}{{- end}}
