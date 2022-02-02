@@ -50,22 +50,37 @@
 {{- end}}
 {{- define "gitlab-commit"}}
   {{- if .commit.author}}{{- printf "\n<b>Commit author</b> => %s" .commit.author.name}}{{else}}{{- printf "\n<b>Commit author</b> => %s" .commit.author_name}}{{end}}
-  {{- if .commit.title}}{{- printf "\n<b>Commit title</b> => %s" .commit.title}}{{end}}
   {{- printf "\n<b>Commit message</b> => %s" .commit.message}}
   {{- if .commit.url}}{{- printf "\n%s" .commit.url}}{{else}}{{- printf "\n%s/-/commit/%s" .repository.homepage .commit.sha}}{{end}}
 {{- end}}
 {{- define "gitlab-stages"}}
-  {{- range .}}
-    {{- printf "\n<b>%s/%s</b> => %s" .stage .name .runner.description}}
+  {{- $match := .match}}
+  {{- range .stages}}
+    {{- if and (.runner.description | regexMatch $match) (not (empty .finished_at))}}
+      {{- printf "\n<b>%s/%s</b> [%s] => %s" .stage .name .user.username .runner.description}}
+    {{- end}}
   {{- end}}
 {{- end}}
 {{- define "gitlab-pipeline"}}
-  {{- template "gitlab-commit" (dict "repository" "" "commit" .commit)}}
-  {{- template "gitlab-stages" reverse .builds}}
+  {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+  {{- range .data.builds}}
+    {{- if and (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+  {{- end}}
+  {{- if $ok}}
+    {{- template "gitlab-header" .}}
+    {{- template "gitlab-commit" (dict "repository" "" "commit" .data.commit)}}
+    {{- template "gitlab-stages" (dict "stages" (reverse .data.builds) "match" $match)}}
+    {{- printf "\n%s/-/pipelines/%.0f" .data.project.web_url .data.object_attributes.id}}
+  {{- end}}
 {{- end}}
 {{- define "gitlab-build"}}
-  {{- template "gitlab-commit" (dict "repository" .repository "commit" .commit)}}
-  {{- printf "\n<b>%s/%s</b> => %s" .build_stage .build_name .runner.description}}
+  {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}
+  {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}
+    {{- template "gitlab-header" .}}
+    {{- template "gitlab-commit" (dict "repository" .data.repository "commit" .data.commit)}}
+    {{- printf "\n<b>%s/%s</b> => %s" .data.build_stage .data.build_name .data.runner.description}}
+    {{- printf "\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
+  {{- end}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
@@ -92,8 +107,8 @@
     {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
-    {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-header" .}}{{template "gitlab-pipeline" .data}}{{end}}
-    {{- if eq .data.object_kind "build"}}{{template "gitlab-header" .}}{{template "gitlab-build" .data}}{{end}}
+    {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .}}{{end}}
+    {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
   {{- end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- end}}
