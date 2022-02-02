@@ -5,6 +5,18 @@
     {{- end}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s" (upper .data.status)}}{{- end}}
-  {{- if eq .type "GitlabEvent"}}{{- printf "%s" (upper .data.object_kind)}}{{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+    {{- if .data.builds}}
+      {{- range .data.builds}}
+        {{- if and (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+      {{- end}}
+    {{- else}}
+      {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+    {{- end}}
+    {{- if $ok}}
+      {{- printf "%s" (upper .data.object_kind)}}
+    {{- end}}
+  {{- end}}
 {{- end}}
 {{- define "newrelic-message"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

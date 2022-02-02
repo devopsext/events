@@ -11,12 +11,25 @@
   "build_created_at": "2022-02-01T15:06:00.854Z",
   "build_started_at": null,
   "build_finished_at": null,
-  "build_duration": null,
+  "build_duration": 20.3,
   "build_queued_duration": null,
   "build_allow_failure": true,
   "build_failure_reason": "unknown_failure",
   "pipeline_id": 826389,
-  "runner": null,
+  "runner": {
+    "id": 815,
+    "description": "shared-prod-env",
+    "runner_type": "instance_type",
+    "active": true,
+    "is_shared": true,
+    "tags": [
+      "prodenv-k8s",
+      "prodenv",
+      "psp",
+      "prodenv-bi",
+      "prod.env"
+    ]
+  },
   "project_id": 4249,
   "project_name": "SRE / events",
   "user": {
