@@ -8,5 +8,6 @@ test.sh
 events.key
 events.crt
 coverage.txt
+pubsub.credentials
 __debug_bin
 events

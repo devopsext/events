@@ -69,18 +69,12 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProc
 	}
 }
 
-func (h *HttpInput) startHttp() {
-
-}
-
 func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 	wg.Add(1)
-
 	go func(wg *sync.WaitGroup) {
 
 		defer wg.Done()
-
 		h.logger.Info("Start http input...")
 
 		var caPool *x509.CertPool
