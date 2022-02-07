@@ -299,7 +299,6 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		URLs := t.options.URL
 		if t.selector != nil {
-
 			b, err := t.selector.Execute(jsonObject)
 			if err != nil {
 				t.logger.SpanDebug(span, err)
@@ -329,7 +328,6 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		t.logger.SpanDebug(span, "Telegram message => %s", message)
 
 		arr := strings.Split(URLs, "\n")
-
 		for _, URL := range arr {
 
 			URL = strings.TrimSpace(URL)

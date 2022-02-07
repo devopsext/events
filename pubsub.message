@@ -1,0 +1,8 @@
+{{- define "text"}}
+  {{- if eq .type "K8sEvent"}}
+    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- end}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{- end}}
+  {{- if eq .type "GitlabEvent"}}Hello{{- end}}
+{{- end}}
+{{- define "pubsub-message"}}{{template "text" .}}{{- end}}

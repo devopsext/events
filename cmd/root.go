@@ -65,76 +65,84 @@ var prometheusOptions = sreProvider.PrometheusOptions{
 }
 
 var httpInputOptions = input.HttpInputOptions{
-	K8sURL:          envGet("HTTP_K8S_URL", "").(string),
-	RancherURL:      envGet("HTTP_RANCHER_URL", "").(string),
-	AlertmanagerURL: envGet("HTTP_ALERTMANAGER_URL", "").(string),
-	GitlabURL:       envGet("HTTP_GITLAB_URL", "").(string),
-	CustomJsonURL:   envGet("HTTP_CUSTOMJSON_URL", "").(string),
-	Listen:          envGet("HTTP_LISTEN", ":80").(string),
-	Tls:             envGet("HTTP_TLS", false).(bool),
-	Cert:            envGet("HTTP_CERT", "").(string),
-	Key:             envGet("HTTP_KEY", "").(string),
-	Chain:           envGet("HTTP_CHAIN", "").(string),
-	HeaderTraceID:   envGet("HTTP_HEADER_TRACE_ID", "X-Trace-ID").(string),
+	K8sURL:          envGet("HTTP_IN_K8S_URL", "").(string),
+	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
+	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
+	GitlabURL:       envGet("HTTP_IN_GITLAB_URL", "").(string),
+	CustomJsonURL:   envGet("HTTP_IN_CUSTOMJSON_URL", "").(string),
+	Listen:          envGet("HTTP_IN_LISTEN", ":80").(string),
+	Tls:             envGet("HTTP_IN_TLS", false).(bool),
+	Cert:            envGet("HTTP_IN_CERT", "").(string),
+	Key:             envGet("HTTP_IN_KEY", "").(string),
+	Chain:           envGet("HTTP_IN_CHAIN", "").(string),
+	HeaderTraceID:   envGet("HTTP_IN_HEADER_TRACE_ID", "X-Trace-ID").(string),
+}
+
+var pubsubInputOptions = input.PubSubInputOptions{
+	Credentials:  envGet("PUBSUB_IN_CREDENTIALS", "").(string),
+	ProjectID:    envGet("PUBSUB_IN_PROJECT_ID", "").(string),
+	Subscription: envGet("PUBSUB_IN_SUBSCRIPTION", "").(string),
 }
 
 var collectorOutputOptions = output.CollectorOutputOptions{
-
-	Address: envGet("COLLECTOR_ADDRESS", "").(string),
-	Message: envGet("COLLECTOR_MESSAGE", "").(string),
+	Address: envGet("COLLECTOR_OUT_ADDRESS", "").(string),
+	Message: envGet("COLLECTOR_OUT_MESSAGE", "").(string),
 }
 
 var kafkaOutputOptions = output.KafkaOutputOptions{
-
-	ClientID:           envGet("KAFKA_CLIEND_ID", fmt.Sprintf("%s_kafka", appName)).(string),
-	Message:            envGet("KAFKA_MESSAGE", "").(string),
-	Brokers:            envGet("KAFKA_BROKERS", "").(string),
-	Topic:              envGet("KAFKA_TOPIC", appName).(string),
-	FlushFrequency:     envGet("KAFKA_FLUSH_FREQUENCY", 1).(int),
-	FlushMaxMessages:   envGet("KAFKA_FLUSH_MAX_MESSAGES", 100).(int),
-	NetMaxOpenRequests: envGet("KAFKA_NET_MAX_OPEN_REQUESTS", 5).(int),
-	NetDialTimeout:     envGet("KAFKA_NET_DIAL_TIMEOUT", 30).(int),
-	NetReadTimeout:     envGet("KAFKA_NET_READ_TIMEOUT", 30).(int),
-	NetWriteTimeout:    envGet("KAFKA_NET_WRITE_TIMEOUT", 30).(int),
+	ClientID:           envGet("KAFKA_OUT_CLIEND_ID", fmt.Sprintf("%s_kafka", appName)).(string),
+	Message:            envGet("KAFKA_OUT_MESSAGE", "").(string),
+	Brokers:            envGet("KAFKA_OUT_BROKERS", "").(string),
+	Topic:              envGet("KAFKA_OUT_TOPIC", appName).(string),
+	FlushFrequency:     envGet("KAFKA_OUT_FLUSH_FREQUENCY", 1).(int),
+	FlushMaxMessages:   envGet("KAFKA_OUT_FLUSH_MAX_MESSAGES", 100).(int),
+	NetMaxOpenRequests: envGet("KAFKA_OUT_NET_MAX_OPEN_REQUESTS", 5).(int),
+	NetDialTimeout:     envGet("KAFKA_OUT_NET_DIAL_TIMEOUT", 30).(int),
+	NetReadTimeout:     envGet("KAFKA_OUT_NET_READ_TIMEOUT", 30).(int),
+	NetWriteTimeout:    envGet("KAFKA_OUT_NET_WRITE_TIMEOUT", 30).(int),
 }
 
 var telegramOutputOptions = output.TelegramOutputOptions{
-
-	Message:             envGet("TELEGRAM_MESSAGE", "").(string),
-	URLSelector:         envGet("TELEGRAM_URL_SELECTOR", "").(string),
-	URL:                 envGet("TELEGRAM_URL", "").(string),
-	Timeout:             envGet("TELEGRAM_TIMEOUT", 30).(int),
-	AlertExpression:     envGet("TELEGRAM_ALERT_EXPRESSION", "g0.expr").(string),
-	DisableNotification: envGet("TELEGRAM_DISABLE_NOTIFICATION", "false").(string),
+	Message:             envGet("TELEGRAM_OUT_MESSAGE", "").(string),
+	URLSelector:         envGet("TELEGRAM_OUT_URL_SELECTOR", "").(string),
+	URL:                 envGet("TELEGRAM_OUT_URL", "").(string),
+	Timeout:             envGet("TELEGRAM_OUT_TIMEOUT", 30).(int),
+	AlertExpression:     envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
+	DisableNotification: envGet("TELEGRAM_OUT_DISABLE_NOTIFICATION", "false").(string),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
-
-	Message:         envGet("SLACK_MESSAGE", "").(string),
-	URLSelector:     envGet("SLACK_URL_SELECTOR", "").(string),
-	URL:             envGet("SLACK_URL", "").(string),
-	Timeout:         envGet("SLACK_TIMEOUT", 30).(int),
-	AlertExpression: envGet("SLACK_ALERT_EXPRESSION", "g0.expr").(string),
+	Message:         envGet("SLACK_OUT_MESSAGE", "").(string),
+	URLSelector:     envGet("SLACK_OUT_URL_SELECTOR", "").(string),
+	URL:             envGet("SLACK_OUT_URL", "").(string),
+	Timeout:         envGet("SLACK_OUT_TIMEOUT", 30).(int),
+	AlertExpression: envGet("SLACK_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
-
-	Message:          envGet("WORKCHAT_MESSAGE", "").(string),
-	URLSelector:      envGet("WORKCHAT_URL_SELECTOR", "").(string),
-	URL:              envGet("WORKCHAT_URL", "").(string),
-	Timeout:          envGet("WORKCHAT_TIMEOUT", 30).(int),
-	AlertExpression:  envGet("WORKCHAT_ALERT_EXPRESSION", "g0.expr").(string),
-	NotificationType: envGet("WORKCHAT_NOTIFICATION_TYPE", "REGULAR").(string),
+	Message:          envGet("WORKCHAT_OUT_MESSAGE", "").(string),
+	URLSelector:      envGet("WORKCHAT_OUT_URL_SELECTOR", "").(string),
+	URL:              envGet("WORKCHAT_OUT_URL", "").(string),
+	Timeout:          envGet("WORKCHAT_OUT_TIMEOUT", 30).(int),
+	AlertExpression:  envGet("WORKCHAT_OUT_ALERT_EXPRESSION", "g0.expr").(string),
+	NotificationType: envGet("WORKCHAT_OUT_NOTIFICATION_TYPE", "REGULAR").(string),
 }
 
 var newrelicOutputOptions = output.NewRelicOutputOptions{
-	Message:            envGet("NEWRELIC_MESSAGE", "").(string),
-	AttributesSelector: envGet("NEWRELIC_ATTRIBUTES_SELECTOR", "").(string),
+	Message:            envGet("NEWRELIC_OUT_MESSAGE", "").(string),
+	AttributesSelector: envGet("NEWRELIC_OUT_ATTRIBUTES_SELECTOR", "").(string),
 }
 
 var grafanaOutputOptions = output.GrafanaOutputOptions{
-	Message:            envGet("GRAFANA_MESSAGE", "").(string),
-	AttributesSelector: envGet("GRAFANA_ATTRIBUTES_SELECTOR", "").(string),
+	Message:            envGet("GRAFANA_OUT_MESSAGE", "").(string),
+	AttributesSelector: envGet("GRAFANA_OUT_ATTRIBUTES_SELECTOR", "").(string),
+}
+
+var pubsubOutputOptions = output.PubSubOutputOptions{
+	Credentials:   envGet("PUBSUB_OUT_CREDENTIALS", "").(string),
+	ProjectID:     envGet("PUBSUB_OUT_PROJECT_ID", "").(string),
+	Message:       envGet("PUBSUB_OUT_MESSAGE", "").(string),
+	TopicSelector: envGet("PUBSUB_OUT_TOPIC_SELECTOR", "").(string),
 }
 
 var grafanaRenderOptions = render.GrafanaRenderOptions{
@@ -410,6 +418,7 @@ func Execute() {
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, observability))
+			inputs.Add(input.NewPubSubInput(pubsubInputOptions, observability))
 
 			outputs := common.NewOutputs(logs)
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
@@ -419,6 +428,7 @@ func Execute() {
 			outputs.Add(output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
 			outputs.Add(output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability, newrelicEventer))
 			outputs.Add(output.NewGrafanaOutput(&mainWG, grafanaOutputOptions, textTemplateOptions, observability, grafanaEventer))
+			outputs.Add(output.NewPubSubOutput(&mainWG, pubsubOutputOptions, textTemplateOptions, observability))
 
 			inputs.Start(&mainWG, outputs)
 			mainWG.Wait()
@@ -445,48 +455,57 @@ func Execute() {
 	flags.StringVar(&prometheusOptions.Listen, "prometheus-listen", prometheusOptions.Listen, "Prometheus listen")
 	flags.StringVar(&prometheusOptions.Prefix, "prometheus-prefix", prometheusOptions.Prefix, "Prometheus prefix")
 
-	flags.StringVar(&httpInputOptions.K8sURL, "http-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
-	flags.StringVar(&httpInputOptions.RancherURL, "http-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
-	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
-	flags.StringVar(&httpInputOptions.GitlabURL, "http-gitlab-url", httpInputOptions.GitlabURL, "Http Gitlab url")
-	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
-	flags.StringVar(&httpInputOptions.Listen, "http-listen", httpInputOptions.Listen, "Http listen")
-	flags.BoolVar(&httpInputOptions.Tls, "http-tls", httpInputOptions.Tls, "Http TLS")
-	flags.StringVar(&httpInputOptions.Cert, "http-cert", httpInputOptions.Cert, "Http cert file or content")
-	flags.StringVar(&httpInputOptions.Key, "http-key", httpInputOptions.Key, "Http key file or content")
-	flags.StringVar(&httpInputOptions.Chain, "http-chain", httpInputOptions.Chain, "Http CA chain file or content")
-	flags.StringVar(&httpInputOptions.HeaderTraceID, "http-header-trace-id", httpInputOptions.HeaderTraceID, "Http trace ID header")
+	flags.StringVar(&httpInputOptions.K8sURL, "http-in-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
+	flags.StringVar(&httpInputOptions.RancherURL, "http-in-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
+	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-in-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
+	flags.StringVar(&httpInputOptions.GitlabURL, "http-in-gitlab-url", httpInputOptions.GitlabURL, "Http Gitlab url")
+	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
+	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
+	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")
+	flags.StringVar(&httpInputOptions.Cert, "http-in-cert", httpInputOptions.Cert, "Http cert file or content")
+	flags.StringVar(&httpInputOptions.Key, "http-in-key", httpInputOptions.Key, "Http key file or content")
+	flags.StringVar(&httpInputOptions.Chain, "http-in-chain", httpInputOptions.Chain, "Http CA chain file or content")
+	flags.StringVar(&httpInputOptions.HeaderTraceID, "http-in-header-trace-id", httpInputOptions.HeaderTraceID, "Http trace ID header")
 
-	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
-	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-topic", kafkaOutputOptions.Topic, "Kafka topic")
-	flags.StringVar(&kafkaOutputOptions.ClientID, "kafka-client-id", kafkaOutputOptions.ClientID, "Kafka client id")
-	flags.StringVar(&kafkaOutputOptions.Message, "kafka-message", kafkaOutputOptions.Message, "Kafka message template")
-	flags.IntVar(&kafkaOutputOptions.FlushFrequency, "kafka-flush-frequency", kafkaOutputOptions.FlushFrequency, "Kafka Producer flush frequency")
-	flags.IntVar(&kafkaOutputOptions.FlushMaxMessages, "kafka-flush-max-messages", kafkaOutputOptions.FlushMaxMessages, "Kafka Producer flush max messages")
-	flags.IntVar(&kafkaOutputOptions.NetMaxOpenRequests, "kafka-net-max-open-requests", kafkaOutputOptions.NetMaxOpenRequests, "Kafka Net max open requests")
-	flags.IntVar(&kafkaOutputOptions.NetDialTimeout, "kafka-net-dial-timeout", kafkaOutputOptions.NetDialTimeout, "Kafka Net dial timeout")
-	flags.IntVar(&kafkaOutputOptions.NetReadTimeout, "kafka-net-read-timeout", kafkaOutputOptions.NetReadTimeout, "Kafka Net read timeout")
-	flags.IntVar(&kafkaOutputOptions.NetWriteTimeout, "kafka-net-write-timeout", kafkaOutputOptions.NetWriteTimeout, "Kafka Net write timeout")
+	flags.StringVar(&pubsubInputOptions.Credentials, "pubsub-in-credentials", pubsubInputOptions.Credentials, "PubSub input credentials")
+	flags.StringVar(&pubsubInputOptions.ProjectID, "pubsub-in-project-id", pubsubInputOptions.ProjectID, "PubSub input project ID")
+	flags.StringVar(&pubsubInputOptions.Subscription, "pubsub-in-subscription", pubsubInputOptions.Subscription, "PubSub input subscription")
 
-	flags.StringVar(&telegramOutputOptions.URL, "telegram-url", telegramOutputOptions.URL, "Telegram URL")
-	flags.StringVar(&telegramOutputOptions.Message, "telegram-message", telegramOutputOptions.Message, "Telegram message template")
-	flags.StringVar(&telegramOutputOptions.URLSelector, "telegram-url-selector", telegramOutputOptions.URLSelector, "Telegram URL selector template")
-	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
-	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
-	flags.StringVar(&telegramOutputOptions.DisableNotification, "telegram-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
+	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-out-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
+	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-out-topic", kafkaOutputOptions.Topic, "Kafka topic")
+	flags.StringVar(&kafkaOutputOptions.ClientID, "kafka-out-client-id", kafkaOutputOptions.ClientID, "Kafka client id")
+	flags.StringVar(&kafkaOutputOptions.Message, "kafka-out-message", kafkaOutputOptions.Message, "Kafka message template")
+	flags.IntVar(&kafkaOutputOptions.FlushFrequency, "kafka-out-flush-frequency", kafkaOutputOptions.FlushFrequency, "Kafka Producer flush frequency")
+	flags.IntVar(&kafkaOutputOptions.FlushMaxMessages, "kafka-out-flush-max-messages", kafkaOutputOptions.FlushMaxMessages, "Kafka Producer flush max messages")
+	flags.IntVar(&kafkaOutputOptions.NetMaxOpenRequests, "kafka-out-net-max-open-requests", kafkaOutputOptions.NetMaxOpenRequests, "Kafka Net max open requests")
+	flags.IntVar(&kafkaOutputOptions.NetDialTimeout, "kafka-out-net-dial-timeout", kafkaOutputOptions.NetDialTimeout, "Kafka Net dial timeout")
+	flags.IntVar(&kafkaOutputOptions.NetReadTimeout, "kafka-out-net-read-timeout", kafkaOutputOptions.NetReadTimeout, "Kafka Net read timeout")
+	flags.IntVar(&kafkaOutputOptions.NetWriteTimeout, "kafka-out-net-write-timeout", kafkaOutputOptions.NetWriteTimeout, "Kafka Net write timeout")
 
-	flags.StringVar(&slackOutputOptions.URL, "slack-url", slackOutputOptions.URL, "Slack URL")
-	flags.StringVar(&slackOutputOptions.Message, "slack-message", slackOutputOptions.Message, "Slack message template")
-	flags.StringVar(&slackOutputOptions.URLSelector, "slack-url-selector", slackOutputOptions.URLSelector, "Slack URL selector template")
-	flags.IntVar(&slackOutputOptions.Timeout, "slack-timeout", slackOutputOptions.Timeout, "Slack timeout")
-	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
+	flags.StringVar(&telegramOutputOptions.URL, "telegram-out-url", telegramOutputOptions.URL, "Telegram URL")
+	flags.StringVar(&telegramOutputOptions.Message, "telegram-out-message", telegramOutputOptions.Message, "Telegram message template")
+	flags.StringVar(&telegramOutputOptions.URLSelector, "telegram-out-url-selector", telegramOutputOptions.URLSelector, "Telegram URL selector template")
+	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-out-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
+	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
+	flags.StringVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 
-	flags.StringVar(&workchatOutputOptions.URL, "workchat-url", workchatOutputOptions.URL, "Workchat URL")
-	flags.StringVar(&workchatOutputOptions.Message, "workchat-message", workchatOutputOptions.Message, "Workchat message template")
-	flags.StringVar(&workchatOutputOptions.URLSelector, "workchat-url-selector", workchatOutputOptions.URLSelector, "Workchat URL selector template")
-	flags.IntVar(&workchatOutputOptions.Timeout, "workchat-timeout", workchatOutputOptions.Timeout, "Workchat timeout")
-	flags.StringVar(&workchatOutputOptions.AlertExpression, "workchat-alert-expression", workchatOutputOptions.AlertExpression, "Workchat alert expression")
-	flags.StringVar(&workchatOutputOptions.NotificationType, "workchat-notification-type", workchatOutputOptions.NotificationType, "Workchat notification type")
+	flags.StringVar(&slackOutputOptions.URL, "slack-out-url", slackOutputOptions.URL, "Slack URL")
+	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")
+	flags.StringVar(&slackOutputOptions.URLSelector, "slack-out-url-selector", slackOutputOptions.URLSelector, "Slack URL selector template")
+	flags.IntVar(&slackOutputOptions.Timeout, "slack-out-timeout", slackOutputOptions.Timeout, "Slack timeout")
+	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-out-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
+
+	flags.StringVar(&workchatOutputOptions.URL, "workchat-out-url", workchatOutputOptions.URL, "Workchat URL")
+	flags.StringVar(&workchatOutputOptions.Message, "workchat-out-message", workchatOutputOptions.Message, "Workchat message template")
+	flags.StringVar(&workchatOutputOptions.URLSelector, "workchat-out-url-selector", workchatOutputOptions.URLSelector, "Workchat URL selector template")
+	flags.IntVar(&workchatOutputOptions.Timeout, "workchat-out-timeout", workchatOutputOptions.Timeout, "Workchat timeout")
+	flags.StringVar(&workchatOutputOptions.AlertExpression, "workchat-out-alert-expression", workchatOutputOptions.AlertExpression, "Workchat alert expression")
+	flags.StringVar(&workchatOutputOptions.NotificationType, "workchat-out-notification-type", workchatOutputOptions.NotificationType, "Workchat notification type")
+
+	flags.StringVar(&pubsubOutputOptions.Credentials, "pubsub-out-credentials", pubsubOutputOptions.Credentials, "PubSub output credentials")
+	flags.StringVar(&pubsubOutputOptions.ProjectID, "pubsub-out-project-id", pubsubOutputOptions.ProjectID, "PubSub output project ID")
+	flags.StringVar(&pubsubOutputOptions.TopicSelector, "pubsub-out-topic-selector", pubsubOutputOptions.TopicSelector, "PubSub output topic selector")
+	flags.StringVar(&pubsubOutputOptions.Message, "pubsub-out-message", pubsubOutputOptions.Message, "PubSub output message")
 
 	flags.StringVar(&grafanaRenderOptions.URL, "grafana-render-url", grafanaRenderOptions.URL, "Grafana render URL")
 	flags.IntVar(&grafanaRenderOptions.Timeout, "grafana-render-timeout", grafanaRenderOptions.Timeout, "Grafan render timeout")
@@ -544,8 +563,8 @@ func Execute() {
 	flags.StringVar(&newrelicMeterOptions.Endpoint, "newrelic-meter-endpoint", newrelicMeterOptions.Endpoint, "NewRelic meter endpoint")
 	flags.StringVar(&newrelicMeterOptions.Prefix, "newrelic-meter-prefix", newrelicMeterOptions.Prefix, "NewRelic meter prefix")
 	flags.StringVar(&newrelicEventerOptions.Endpoint, "newrelic-eventer-endpoint", newrelicEventerOptions.Endpoint, "NewRelic eventer endpoint")
-	flags.StringVar(&newrelicOutputOptions.Message, "newrelic-message", newrelicOutputOptions.Message, "NewRelic message template")
-	flags.StringVar(&newrelicOutputOptions.AttributesSelector, "newrelic-attributes-selector", newrelicOutputOptions.AttributesSelector, "NewRelic attributes selector template")
+	flags.StringVar(&newrelicOutputOptions.Message, "newrelic-out-message", newrelicOutputOptions.Message, "NewRelic message template")
+	flags.StringVar(&newrelicOutputOptions.AttributesSelector, "newrelic-out-attributes-selector", newrelicOutputOptions.AttributesSelector, "NewRelic attributes selector template")
 
 	flags.StringVar(&grafanaOptions.URL, "grafana-url", grafanaOptions.URL, "Grafana URL")
 	flags.IntVar(&grafanaOptions.Timeout, "grafana-timeout", grafanaOptions.Timeout, "Grafan timeout")
@@ -553,8 +572,8 @@ func Execute() {
 	flags.StringVar(&grafanaOptions.Tags, "grafana-tags", grafanaOptions.Tags, "Grafana tags")
 	flags.StringVar(&grafanaEventerOptions.Endpoint, "grafana-eventer-endpoint", grafanaEventerOptions.Endpoint, "Grafana eventer endpoint")
 	flags.IntVar(&grafanaEventerOptions.Duration, "grafana-eventer-duration", grafanaEventerOptions.Duration, "Grafana eventer duration")
-	flags.StringVar(&grafanaOutputOptions.Message, "grafana-message", grafanaOutputOptions.Message, "Grafana message template")
-	flags.StringVar(&grafanaOutputOptions.AttributesSelector, "grafana-attributes-selector", grafanaOutputOptions.AttributesSelector, "Grafana attributes selector template")
+	flags.StringVar(&grafanaOutputOptions.Message, "grafana-out-message", grafanaOutputOptions.Message, "Grafana message template")
+	flags.StringVar(&grafanaOutputOptions.AttributesSelector, "grafana-out-attributes-selector", grafanaOutputOptions.AttributesSelector, "Grafana attributes selector template")
 
 	interceptSyscall()
 
