@@ -1,8 +1,10 @@
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
-    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- end}}
+    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
+      {{ toJSON .}}
+    {{- end}}
   {{- end}}
-  {{- if eq .type "AlertmanagerEvent"}}{{- end}}
-  {{- if eq .type "GitlabEvent"}}Hello{{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{ toJSON .}}{{- end}}
+  {{- if eq .type "GitlabEvent"}}{{ toJSON .}}{{- end}}
 {{- end}}
 {{- define "pubsub-message"}}{{template "text" .}}{{- end}}

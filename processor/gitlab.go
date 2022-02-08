@@ -28,10 +28,6 @@ type GitlabResponse struct {
 	Message string
 }
 
-func (p *GitlabProcessor) Type() string {
-	return "GitlabEvent"
-}
-
 func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
@@ -50,6 +46,14 @@ func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o inte
 	}
 	p.outputs.Send(e)
 	p.counter.Inc(channel)
+}
+
+func (p *GitlabProcessor) Type() string {
+	return "GitlabEvent"
+}
+
+func (p *GitlabProcessor) Handle() {
+
 }
 
 func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {

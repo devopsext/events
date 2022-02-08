@@ -163,7 +163,6 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 				h.logger.Panic(err)
 			}
 		}
-
 	}(wg)
 }
 

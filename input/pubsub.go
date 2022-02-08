@@ -1,10 +1,15 @@
 package input
 
 import (
+	"context"
+	"os"
 	"sync"
 
+	pubsub "cloud.google.com/go/pubsub"
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/utils"
+	"google.golang.org/api/option"
 )
 
 type PubSubInputOptions struct {
@@ -15,6 +20,8 @@ type PubSubInputOptions struct {
 
 type PubSubInput struct {
 	options PubSubInputOptions
+	client  *pubsub.Client
+	ctx     context.Context
 	eventer sreCommon.Eventer
 	tracer  sreCommon.Tracer
 	logger  sreCommon.Logger
@@ -30,14 +37,50 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		defer wg.Done()
 		ps.logger.Info("Start pubsub input...")
 
+		sub := ps.client.Subscription(ps.options.Subscription)
+		ps.logger.Info("PubSub input is up. Listening...")
+
+		err := sub.Receive(ps.ctx, func(ctx context.Context, m *pubsub.Message) {
+
+			// get processor based on message type
+			// run processor on outputs
+			m.Ack()
+		})
+
+		if err != nil {
+			ps.logger.Error(err)
+		}
+
 	}(wg)
 }
 
 func NewPubSubInput(options PubSubInputOptions, observability common.Observability) *PubSubInput {
 
+	logger := observability.Logs()
+	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) || utils.IsEmpty(options.Subscription) {
+		logger.Debug("PubSub input credentials, project ID or subscription is not defined. Skipped")
+		return nil
+	}
+
+	var o option.ClientOption
+	if _, err := os.Stat(options.Credentials); err == nil {
+		o = option.WithCredentialsFile(options.Credentials)
+	} else {
+		o = option.WithCredentialsJSON([]byte(options.Credentials))
+	}
+
+	ctx := context.Background()
+	client, err := pubsub.NewClient(ctx, options.ProjectID, o)
+	if err != nil {
+		logger.Error(err)
+		return nil
+	}
+
 	meter := observability.Metrics()
 	return &PubSubInput{
 		options: options,
+		client:  client,
+		ctx:     ctx,
 		eventer: observability.Events(),
 		tracer:  observability.Traces(),
 		logger:  observability.Logs(),
