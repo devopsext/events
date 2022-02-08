@@ -107,8 +107,10 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 			serverID, err := t.Publish(ps.ctx, &pubsub.Message{Data: []byte(message)}).Get(ps.ctx)
 			if err != nil {
 				ps.logger.SpanError(span, err)
+				continue
 			}
 			ps.logger.SpanDebug(span, "PubSub server ID => %s", serverID)
+			ps.counter.Inc(topic)
 		}
 
 	}()
@@ -120,6 +122,10 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 	observability common.Observability) *PubSubOutput {
 
 	logger := observability.Logs()
+	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) {
+		logger.Debug("PubSub output credentials or project ID is not defined. Skipped")
+		return nil
+	}
 
 	var o option.ClientOption
 	if _, err := os.Stat(options.Credentials); err == nil {

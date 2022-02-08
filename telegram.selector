@@ -2,14 +2,14 @@
 {{- define "rules"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.location | regexMatch "(kube-system.ack-controlplane-healthcheck)")}}
-      {{$a := getEnv "EVENTS_TELEGRAM_BOT_DEVOPS" | split "="}}{{template "render" $a}}
+      {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_DEVOPS" | split "="}}{{template "render" $a}}
     {{- end}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
-    {{$a := getEnv "EVENTS_TELEGRAM_BOT_DEVOPS" | split "="}}{{template "render" $a}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_DEVOPS" | split "="}}{{template "render" $a}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
-    {{$a := getEnv "EVENTS_TELEGRAM_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
   {{- end}}
 {{- end}}
 {{- define "telegram-selector"}}{{template "rules" .}}{{end}}
