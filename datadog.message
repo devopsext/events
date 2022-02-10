@@ -1,6 +1,6 @@
 {{- define "k8s-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "%s: %s / %s\n%s: %s\nby %s" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
+  {{- printf "%s: %s / %s %s: %s by %s" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
 {{- end}}
 {{- define "k8s-namespace"}}{{- end}}
 {{- define "k8s-node"}}{{- end}}
@@ -45,8 +45,8 @@
 {{- end}}
 {{- define "gitlab-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- if .data.project}}{{- printf "%s: %s / %s@%s\n%s: %s\nby %s" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
-  {{- else}}{{- printf "%s: %s@%s\n%s: %s\nby %s" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
+  {{- if .data.project}}{{- printf "%s: %s / %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
+  {{- else}}{{- printf "%s: %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}

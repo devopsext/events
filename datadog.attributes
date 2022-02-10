@@ -1,13 +1,13 @@
 {{- define "gitlab-commit"}}
-  {{- if .commit.author}}{{- printf "\nCommit author => %s" .commit.author.name}}{{else}}{{- printf "\nCommit author => %s" .commit.author_name}}{{end}}
-  {{- printf "\nCommit message => %s" .commit.message}}
-  {{- if .commit.url}}{{- printf "\n%s" .commit.url}}{{else}}{{- printf "\n%s/-/commit/%s" .repository.homepage .commit.sha}}{{end}}
+  {{- if .commit.author}}{{- printf "\\nCommit author => %s" .commit.author.name}}{{else}}{{- printf "\\nCommit author => %s" .commit.author_name}}{{end}}
+  {{- printf "\\nCommit message => %s" .commit.message}}
+  {{- if .commit.url}}{{- printf "\\n%s" .commit.url}}{{else}}{{- printf "\\n%s/-/commit/%s" .repository.homepage .commit.sha}}{{end}}
 {{- end}}
 {{- define "gitlab-stages"}}
   {{- $match := .match}}
   {{- range .stages}}
     {{- if and (.runner.description | regexMatch $match) (not (empty .finished_at))}}
-      {{- printf "\n%s/%s [%s] => %s" .stage .name .user.username .runner.description}}
+      {{- printf "\\n%s/%s [%s] => %s" .stage .name .user.username .runner.description}}
     {{- end}}
   {{- end}}
 {{- end}}
@@ -19,27 +19,32 @@
   {{- if $ok}}
     {{- template "gitlab-commit" (dict "repository" "" "commit" .data.commit)}}
     {{- template "gitlab-stages" (dict "stages" (reverse .data.builds) "match" $match)}}
-    {{- printf "\n%s/-/pipelines/%.0f" .data.project.web_url .data.object_attributes.id}}
+    {{- printf "\\n%s/-/pipelines/%.0f" .data.project.web_url .data.object_attributes.id}}
   {{- end}}
 {{- end}}
 {{- define "gitlab-build"}}
   {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}
   {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}
     {{- template "gitlab-commit" (dict "repository" .data.repository "commit" .data.commit)}}
-    {{- printf "\n%s/%s => %s" .data.build_stage .data.build_name .data.runner.description}}
-    {{- printf "\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
+    {{- printf "\\n%s/%s => %s" .data.build_stage .data.build_name .data.runner.description}}
+    {{- printf "\\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
   {{- end}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
-    {{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"kind\":\"%s\",\"location\":\"%s\"}" .type .channel .data.kind .data.location}}
+    {{printf "{\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\"}" .type .data.kind .data.location}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
-    {{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"alert\":\"%s\"}" .type .channel .data.labels.alertname}}
+    {{printf "{\"type\":\"%s\",\"source_type_name\":\"%s\",\"alert\":\"%s\"}" .type .channel .data.labels.alertname}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
-    {{- if eq .data.object_kind "pipeline"}}{{printf "{\"source_type_name\"=\"gitlab\",\"text\"=\"%s\",\"type\":\"%s\",\"channel\":\"%s\",\"project\":\"%s / %s@%s\"}" {{template "gitlab-pipeline" .}} .type .channel .data.project.namespace .data.project.name .data.object_attributes.ref}}{{end}}
-    {{- if eq .data.object_kind "build"}}{{printf "{\"source_type_name\"=\"gitlab\",\"text\"=\"%s\",\"type\":\"%s\",\"channel\":\"%s\",\"project\":\"%s / %s@%s\"}" {{template "gitlab-build" .}} .type .channel .data.project.namespace .data.project.name .data.object_attributes.ref}}{{end}}
+    {
+        "source_type_name":"{{.channel}}",
+        {{- if .data.project}}{{printf "\"namespace\":\"%s\",\"project\":\"%s\"" .data.project.namespace .data.project.name}}
+        {{else}}{{printf "\"project\":\"%s\"" .data.project_name}}{{end}},
+        "text":"{{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .}}{{end}}
+                    {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}"
+    }
   {{- end}}
 {{- end}}
 {{- define "datadog-attributes"}}{{template "text" .}}{{- end}}
