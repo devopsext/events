@@ -121,7 +121,7 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 func NewNewRelicOutput(wg *sync.WaitGroup,
 	options NewRelicOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	observability common.Observability,
+	observability *common.Observability,
 	newrelicEventer *sreProvider.NewRelicEventer) *NewRelicOutput {
 
 	logger := observability.Logs()

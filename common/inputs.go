@@ -27,6 +27,6 @@ func (is *Inputs) Start(wg *sync.WaitGroup, ots *Outputs) {
 	}
 }
 
-func NewInputs() *Inputs {
-	return &Inputs{}
+func NewInputs() Inputs {
+	return Inputs{}
 }

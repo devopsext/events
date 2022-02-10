@@ -28,11 +28,19 @@ type GitlabResponse struct {
 	Message string
 }
 
+func GitlabProcessorType() string {
+	return "Gitlab"
+}
+
+func (p *GitlabProcessor) EventType() string {
+	return common.AsEventType(GitlabProcessorType())
+}
+
 func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
-		Type:    p.Type(),
+		Type:    p.EventType(),
 		Data:    o,
 	}
 	if t != nil && (*t).UnixNano() > 0 {
@@ -45,15 +53,18 @@ func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o inte
 		e.SetLogger(p.logger)
 	}
 	p.outputs.Send(e)
-	p.counter.Inc(channel)
+	p.counter.Inc(e.Channel)
 }
 
-func (p *GitlabProcessor) Type() string {
-	return "GitlabEvent"
-}
+func (p *GitlabProcessor) HandleEvent(e *common.Event) {
 
-func (p *GitlabProcessor) Handle() {
+	if e == nil {
+		p.logger.Debug("Event is not defined")
+		return
+	}
 
+	p.outputs.Send(e)
+	p.counter.Inc(e.Channel)
 }
 
 func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
@@ -149,8 +160,9 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func NewGitlabProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *GitlabProcessor {
+func NewGitlabProcessor(outputs *common.Outputs, observability *common.Observability) *GitlabProcessor {
 
+	logger := observability.Logs()
 	hook, err := gitlab.New()
 	if err != nil {
 		logger.Debug("Gitlab processor is disabled.")
@@ -160,8 +172,8 @@ func NewGitlabProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer
 	return &GitlabProcessor{
 		outputs: outputs,
 		logger:  logger,
-		tracer:  tracer,
+		tracer:  observability.Traces(),
 		hook:    hook,
-		counter: meter.Counter("requests", "Count of all gitlab processor requests", []string{"channel"}, "gitlab", "processor"),
+		counter: observability.Metrics().Counter("requests", "Count of all gitlab processor requests", []string{"channel"}, "gitlab", "processor"),
 	}
 }

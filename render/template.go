@@ -131,6 +131,15 @@ func (tpl *TextTemplate) fTimeFormat(s string, format string) (string, error) {
 	return t.Format(format), nil
 }
 
+func (tpl *TextTemplate) fTimeNano(s string) (string, error) {
+
+	t1, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatInt(t1.UnixNano(), 10), nil
+}
+
 func (tpl *TextTemplate) fJsonEscape(s string) (string, error) {
 
 	bytes, err := json.Marshal(s)
@@ -196,6 +205,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	funcs["getEnv"] = tpl.fGetEnv
 	funcs["getVar"] = tpl.fGetVar
 	funcs["timeFormat"] = tpl.fTimeFormat
+	funcs["timeNano"] = tpl.fTimeNano
 	funcs["jsonEscape"] = tpl.fJsonEscape
 	funcs["toString"] = tpl.fToString
 

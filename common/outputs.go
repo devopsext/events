@@ -53,8 +53,8 @@ func (ots *Outputs) Send(e *Event) {
 	}
 }
 
-func NewOutputs(logger sreCommon.Logger) *Outputs {
-	return &Outputs{
+func NewOutputs(logger sreCommon.Logger) Outputs {
+	return Outputs{
 		logger: logger,
 	}
 }

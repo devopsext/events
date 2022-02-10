@@ -119,7 +119,7 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 func NewPubSubOutput(wg *sync.WaitGroup,
 	options PubSubOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	observability common.Observability) *PubSubOutput {
+	observability *common.Observability) *PubSubOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) {

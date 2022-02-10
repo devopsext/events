@@ -121,7 +121,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 func NewGrafanaOutput(wg *sync.WaitGroup,
 	options GrafanaOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	observability common.Observability,
+	observability *common.Observability,
 	grafanaEventer *sreProvider.GrafanaEventer) *GrafanaOutput {
 
 	logger := observability.Logs()

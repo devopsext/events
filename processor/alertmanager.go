@@ -11,6 +11,7 @@ import (
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/tidwall/gjson"
 )
 
 type AlertmanagerProcessor struct {
@@ -24,8 +25,12 @@ type AlertmanagerResponse struct {
 	Message string
 }
 
-func (p *AlertmanagerProcessor) Type() string {
-	return "AlertmanagerEvent"
+func AlertmanagerProcessorType() string {
+	return "Alertmanager"
+}
+
+func (p *AlertmanagerProcessor) EventType() string {
+	return common.AsEventType(AlertmanagerProcessorType())
 }
 
 func (p *AlertmanagerProcessor) prepareStatus(status string) string {
@@ -39,7 +44,7 @@ func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, 
 		status := p.prepareStatus(alert.Status)
 		e := &common.Event{
 			Channel: channel,
-			Type:    p.Type(),
+			Type:    p.EventType(),
 			Data:    alert,
 		}
 		e.SetTime(alert.StartsAt.UTC())
@@ -50,6 +55,25 @@ func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, 
 		p.outputs.Send(e)
 		p.counter.Inc(status, channel)
 	}
+}
+
+func (p *AlertmanagerProcessor) HandleEvent(e *common.Event) {
+
+	if e == nil {
+		p.logger.Debug("Event is not defined")
+		return
+	}
+
+	json, err := e.JsonBytes()
+	if err != nil {
+		p.logger.Error(err)
+		return
+	}
+
+	status := gjson.GetBytes(json, "data.status").String()
+
+	p.outputs.Send(e)
+	p.counter.Inc(status, e.Channel)
 }
 
 func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
@@ -114,12 +138,12 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	}
 }
 
-func NewAlertmanagerProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *AlertmanagerProcessor {
+func NewAlertmanagerProcessor(outputs *common.Outputs, observability *common.Observability) *AlertmanagerProcessor {
 
 	return &AlertmanagerProcessor{
 		outputs: outputs,
-		tracer:  tracer,
-		logger:  logger,
-		counter: meter.Counter("requests", "Count of all alertmanager processor requests", []string{"status", "channel"}, "alertmanager", "processor"),
+		tracer:  observability.Traces(),
+		logger:  observability.Logs(),
+		counter: observability.Metrics().Counter("requests", "Count of all alertmanager processor requests", []string{"status", "channel"}, "alertmanager", "processor"),
 	}
 }

@@ -353,7 +353,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 	options WorkchatOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
-	observability common.Observability) *WorkchatOutput {
+	observability *common.Observability) *WorkchatOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {

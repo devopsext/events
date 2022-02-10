@@ -104,7 +104,7 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 	return &producer
 }
 
-func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions, observability common.Observability) *KafkaOutput {
+func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions, observability *common.Observability) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0

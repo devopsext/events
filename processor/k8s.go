@@ -11,6 +11,7 @@ import (
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/tidwall/gjson"
 	admv1beta1 "k8s.io/api/admission/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -39,6 +40,7 @@ type K8sData struct {
 	Kind      string      `json:"kind"`
 	Location  string      `json:"location"`
 	Operation string      `json:"operation"`
+	Namespace string      `json:"namespace"`
 	Object    interface{} `json:"object,omitempty"`
 	User      *K8sUser    `json:"user"`
 }
@@ -49,9 +51,14 @@ var (
 	deserializer  = codecs.UniversalDeserializer()
 )
 
-func (p *K8sProcessor) Type() string {
-	return "K8sEvent"
+func K8sProcessorType() string {
+	return "K8s"
 }
+
+func (p *K8sProcessor) EventType() string {
+	return common.AsEventType(K8sProcessorType())
+}
+
 func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
 	return strings.Title(strings.ToLower(string(operation)))
 }
@@ -63,10 +70,11 @@ func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1
 
 	e := &common.Event{
 		Channel: channel,
-		Type:    p.Type(),
+		Type:    p.EventType(),
 		Data: K8sData{
 			Kind:      ar.Kind.Kind,
 			Operation: operation,
+			Namespace: ar.Namespace,
 			Location:  location,
 			Object:    o,
 			User:      user,
@@ -343,6 +351,28 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
 }
 
+func (p *K8sProcessor) HandleEvent(e *common.Event) {
+
+	if e == nil {
+		p.logger.Debug("Event is not defined")
+		return
+	}
+
+	json, err := e.JsonBytes()
+	if err != nil {
+		p.logger.Error(err)
+		return
+	}
+
+	userName := gjson.GetBytes(json, "data.user.name").String()
+	operation := gjson.GetBytes(json, "data.operation").String()
+	namespace := gjson.GetBytes(json, "data.namespace").String()
+	kind := gjson.GetBytes(json, "data.kind").String()
+
+	p.outputs.Send(e)
+	p.counter.Inc(userName, operation, e.Channel, namespace, kind)
+}
+
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 
 	span := p.tracer.StartChildSpan(r.Header)
@@ -446,12 +476,11 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func NewK8sProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *K8sProcessor {
-
+func NewK8sProcessor(outputs *common.Outputs, observability *common.Observability) *K8sProcessor {
 	return &K8sProcessor{
 		outputs: outputs,
-		logger:  logger,
-		tracer:  tracer,
-		counter: meter.Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
+		logger:  observability.Logs(),
+		tracer:  observability.Traces(),
+		counter: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
 	}
 }
