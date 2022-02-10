@@ -2,6 +2,7 @@ package input
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"sync"
 
@@ -19,14 +20,15 @@ type PubSubInputOptions struct {
 }
 
 type PubSubInput struct {
-	options PubSubInputOptions
-	client  *pubsub.Client
-	ctx     context.Context
-	eventer sreCommon.Eventer
-	tracer  sreCommon.Tracer
-	logger  sreCommon.Logger
-	meter   sreCommon.Meter
-	counter sreCommon.Counter
+	options    PubSubInputOptions
+	client     *pubsub.Client
+	ctx        context.Context
+	processors *common.Processors
+	eventer    sreCommon.Eventer
+	tracer     sreCommon.Tracer
+	logger     sreCommon.Logger
+	meter      sreCommon.Meter
+	counter    sreCommon.Counter
 }
 
 func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -42,8 +44,28 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 		err := sub.Receive(ps.ctx, func(ctx context.Context, m *pubsub.Message) {
 
-			// get processor based on message type
-			// run processor on outputs
+			span := ps.tracer.StartSpan()
+			defer span.Finish()
+
+			var event common.Event
+			if err := json.Unmarshal(m.Data, &event); err != nil {
+				ps.logger.SpanError(span, err)
+				m.Nack()
+				return
+			}
+
+			p := ps.processors.Find(event.Type)
+			if p == nil {
+				ps.logger.SpanDebug(span, "PubSub processor is not found for %", event.Type)
+				m.Nack()
+				return
+			}
+
+			event.SetLogger(ps.logger)
+			event.SetSpanContext(span.GetContext())
+
+			p.HandleEvent(&event)
+			ps.counter.Inc(ps.options.Subscription)
 			m.Ack()
 		})
 
@@ -54,7 +76,7 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func NewPubSubInput(options PubSubInputOptions, observability common.Observability) *PubSubInput {
+func NewPubSubInput(options PubSubInputOptions, processors *common.Processors, observability *common.Observability) *PubSubInput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) || utils.IsEmpty(options.Subscription) {
@@ -78,13 +100,14 @@ func NewPubSubInput(options PubSubInputOptions, observability common.Observabili
 
 	meter := observability.Metrics()
 	return &PubSubInput{
-		options: options,
-		client:  client,
-		ctx:     ctx,
-		eventer: observability.Events(),
-		tracer:  observability.Traces(),
-		logger:  observability.Logs(),
-		meter:   meter,
-		counter: meter.Counter("requests", "Count of all pubsub input requests", []string{}, "pubsub", "input"),
+		options:    options,
+		client:     client,
+		ctx:        ctx,
+		processors: processors,
+		eventer:    observability.Events(),
+		tracer:     observability.Traces(),
+		logger:     observability.Logs(),
+		meter:      meter,
+		counter:    meter.Counter("requests", "Count of all pubsub input requests", []string{"subscription"}, "pubsub", "input"),
 	}
 }

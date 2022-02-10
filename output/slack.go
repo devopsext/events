@@ -319,7 +319,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
-	observability common.Observability) *SlackOutput {
+	observability *common.Observability) *SlackOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {

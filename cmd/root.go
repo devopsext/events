@@ -13,6 +13,7 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/input"
 	"github.com/devopsext/events/output"
+	"github.com/devopsext/events/processor"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
@@ -415,12 +416,19 @@ func Execute() {
 		Run: func(cmd *cobra.Command, args []string) {
 
 			observability := common.NewObservability(logs, traces, metrics, events)
+			outputs := common.NewOutputs(logs)
+
+			processors := common.NewProcessors()
+			processors.Add(processor.NewK8sProcessor(&outputs, observability))
+			processors.Add(processor.NewGitlabProcessor(&outputs, observability))
+			processors.Add(processor.NewAlertmanagerProcessor(&outputs, observability))
+			processors.Add(processor.NewCustomJsonProcessor(&outputs, observability))
+			processors.Add(processor.NewRancherProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
-			inputs.Add(input.NewHttpInput(httpInputOptions, observability))
-			inputs.Add(input.NewPubSubInput(pubsubInputOptions, observability))
+			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
+			inputs.Add(input.NewPubSubInput(pubsubInputOptions, processors, observability))
 
-			outputs := common.NewOutputs(logs)
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
@@ -430,7 +438,7 @@ func Execute() {
 			outputs.Add(output.NewGrafanaOutput(&mainWG, grafanaOutputOptions, textTemplateOptions, observability, grafanaEventer))
 			outputs.Add(output.NewPubSubOutput(&mainWG, pubsubOutputOptions, textTemplateOptions, observability))
 
-			inputs.Start(&mainWG, outputs)
+			inputs.Start(&mainWG, &outputs)
 			mainWG.Wait()
 		},
 	}

@@ -31,12 +31,13 @@ type HttpInputOptions struct {
 }
 
 type HttpInput struct {
-	options HttpInputOptions
-	eventer sreCommon.Eventer
-	tracer  sreCommon.Tracer
-	logger  sreCommon.Logger
-	meter   sreCommon.Meter
-	counter sreCommon.Counter
+	options    HttpInputOptions
+	processors *common.Processors
+	eventer    sreCommon.Eventer
+	tracer     sreCommon.Tracer
+	logger     sreCommon.Logger
+	meter      sreCommon.Meter
+	counter    sreCommon.Counter
 }
 
 type HttpProcessHandleFunc = func(w http.ResponseWriter, r *http.Request)
@@ -63,8 +64,8 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProc
 			span.SetTag("path", r.URL.Path)
 			defer span.Finish()
 
-			h.counter.Inc(r.URL.Path)
 			p.HandleHttpRequest(w, r)
+			h.counter.Inc(r.URL.Path)
 		})
 	}
 }
@@ -132,7 +133,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		}
 
 		mux := http.NewServeMux()
-		processors := h.getProcessors(outputs)
+		processors := h.getProcessors(h.processors, outputs)
 		for u, p := range processors {
 			h.processURL(u, mux, p)
 		}
@@ -166,42 +167,37 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 	}(wg)
 }
 
-func (h *HttpInput) getProcessors(outputs *common.Outputs) map[string]common.HttpProcessor {
+func (h *HttpInput) setProcessor(m map[string]common.HttpProcessor, url string, t string) {
 
-	processors := make(map[string]common.HttpProcessor)
-
-	if !utils.IsEmpty(h.options.K8sURL) {
-		processors[h.options.K8sURL] = processor.NewK8sProcessor(outputs, h.logger, h.tracer, h.meter)
+	if !utils.IsEmpty(url) {
+		p := h.processors.FindHttpProcessor(common.AsEventType(t))
+		if p != nil {
+			m[url] = p
+		}
 	}
-
-	if !utils.IsEmpty(h.options.RancherURL) {
-		processors[h.options.RancherURL] = processor.NewRancherProcessor(outputs, h.logger, h.tracer)
-	}
-
-	if !utils.IsEmpty(h.options.AlertmanagerURL) {
-		processors[h.options.AlertmanagerURL] = processor.NewAlertmanagerProcessor(outputs, h.logger, h.tracer, h.meter)
-	}
-
-	if !utils.IsEmpty(h.options.GitlabURL) {
-		processors[h.options.GitlabURL] = processor.NewGitlabProcessor(outputs, h.logger, h.tracer, h.meter)
-	}
-
-	if !utils.IsEmpty(h.options.CustomJsonURL) {
-		processors[h.options.CustomJsonURL] = processor.NewCustomJsonProcessor(outputs, h.logger, h.tracer, h.meter)
-	}
-
-	return processors
 }
 
-func NewHttpInput(options HttpInputOptions, observability common.Observability) *HttpInput {
+func (h *HttpInput) getProcessors(processors *common.Processors, outputs *common.Outputs) map[string]common.HttpProcessor {
+
+	m := make(map[string]common.HttpProcessor)
+	h.setProcessor(m, h.options.K8sURL, processor.K8sProcessorType())
+	h.setProcessor(m, h.options.AlertmanagerURL, processor.AlertmanagerProcessorType())
+	h.setProcessor(m, h.options.GitlabURL, processor.GitlabProcessorType())
+	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
+	h.setProcessor(m, h.options.RancherURL, processor.RancherProcessorType())
+	return m
+}
+
+func NewHttpInput(options HttpInputOptions, processors *common.Processors, observability *common.Observability) *HttpInput {
 
 	meter := observability.Metrics()
 	return &HttpInput{
-		options: options,
-		eventer: observability.Events(),
-		tracer:  observability.Traces(),
-		logger:  observability.Logs(),
-		meter:   meter,
-		counter: meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
+		options:    options,
+		processors: processors,
+		eventer:    observability.Events(),
+		tracer:     observability.Traces(),
+		logger:     observability.Logs(),
+		meter:      meter,
+		counter:    meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
 	}
 }

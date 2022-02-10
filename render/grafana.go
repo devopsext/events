@@ -264,7 +264,7 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	return nil, "", err
 }
 
-func NewGrafanaRender(options GrafanaRenderOptions, observability common.Observability) *GrafanaRender {
+func NewGrafanaRender(options GrafanaRenderOptions, observability *common.Observability) *GrafanaRender {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {

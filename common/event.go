@@ -9,7 +9,6 @@ import (
 
 type Event struct {
 	Time        time.Time   `json:"time"`
-	TimeNano    int64       `json:"timeNano"`
 	Channel     string      `json:"channel"`
 	Type        string      `json:"type"`
 	Data        interface{} `json:"data"`
@@ -17,25 +16,26 @@ type Event struct {
 	logger      sreCommon.Logger
 }
 
-func (e *Event) JsonObject() (interface{}, error) {
+func (e *Event) JsonBytes() ([]byte, error) {
 
 	bytes, err := json.Marshal(e)
 	if err != nil {
-		if e.logger != nil {
-			e.logger.Error(err)
-		}
-		return "", err
+		return []byte{}, err
+	}
+	return bytes, nil
+}
+
+func (e *Event) JsonObject() (interface{}, error) {
+
+	bytes, err := e.JsonBytes()
+	if err != nil {
+		return nil, err
 	}
 
 	var object interface{}
-
 	if err := json.Unmarshal(bytes, &object); err != nil {
-		if e.logger != nil {
-			e.logger.Error(err)
-		}
 		return "", err
 	}
-
 	return object, nil
 }
 
@@ -53,5 +53,4 @@ func (e *Event) SetLogger(logger sreCommon.Logger) {
 
 func (e *Event) SetTime(time time.Time) {
 	e.Time = time
-	e.TimeNano = time.UnixNano()
 }

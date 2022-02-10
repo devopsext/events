@@ -21,4 +21,4 @@
     {{.kind}} => rancher
   {{- end}}
 {{- end}}
-{{define "collector-message"}}{{- if not (.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- .operation}},source={{.orchestration}},location={{.location}} description="{{template "description" .}}",duration=0i {{printf "%.0f" .timeNano}}{{- end}}{{end}}
+{{define "collector-message"}}{{- if not (.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}{{- .operation}},source={{.orchestration}},location={{.location}} description="{{template "description" .}}",duration=0i {{printf "%.0f" (timeNano .time)}}{{- end}}{{end}}

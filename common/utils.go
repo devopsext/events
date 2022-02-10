@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"path"
@@ -74,4 +75,8 @@ func HasElem(s interface{}, elem interface{}) bool {
 		}
 	}
 	return false
+}
+
+func AsEventType(s string) string {
+	return fmt.Sprintf("%sEvent", s)
 }

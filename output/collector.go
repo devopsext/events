@@ -95,7 +95,8 @@ func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net
 	return connection
 }
 
-func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions, templateOptions render.TextTemplateOptions, observability common.Observability) *CollectorOutput {
+func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
+	templateOptions render.TextTemplateOptions, observability *common.Observability) *CollectorOutput {
 
 	logger := observability.Logs()
 	connection := makeCollectorOutputConnection(options.Address, logger)

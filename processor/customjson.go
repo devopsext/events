@@ -16,14 +16,22 @@ type CustomJsonProcessor struct {
 	outputs *common.Outputs
 	tracer  sreCommon.Tracer
 	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type CustomJsonResponse struct {
 	Message string
 }
 
-func (p *CustomJsonProcessor) Type() string {
-	return "CustomJsonEvent"
+func CustomJsonProcessorType() string {
+	return "CustomJson"
+}
+
+func (p *CustomJsonProcessor) EventType() string {
+	return common.AsEventType(CustomJsonProcessorType())
+}
+
+func (p *CustomJsonProcessor) HandleEvent(e *common.Event) {
 }
 
 func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
@@ -87,11 +95,12 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 	}
 }
 
-func NewCustomJsonProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer, meter sreCommon.Meter) *CustomJsonProcessor {
+func NewCustomJsonProcessor(outputs *common.Outputs, observability *common.Observability) *CustomJsonProcessor {
 
 	return &CustomJsonProcessor{
 		outputs: outputs,
-		logger:  logger,
-		tracer:  tracer,
+		logger:  observability.Logs(),
+		tracer:  observability.Traces(),
+		meter:   observability.Metrics(),
 	}
 }

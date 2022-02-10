@@ -11,19 +11,28 @@ type RancherProcessor struct {
 	outputs *common.Outputs
 	logger  sreCommon.Logger
 	tracer  sreCommon.Tracer
+	meter   sreCommon.Meter
 }
 
-func (p *RancherProcessor) Type() string {
-	return "RancherEvent"
+func RancherProcessorType() string {
+	return "Rancher"
+}
+
+func (p *RancherProcessor) EventType() string {
+	return common.AsEventType(RancherProcessorType())
+}
+
+func (p *RancherProcessor) HandleEvent(e *common.Event) {
 }
 
 func (p *RancherProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 }
 
-func NewRancherProcessor(outputs *common.Outputs, logger sreCommon.Logger, tracer sreCommon.Tracer) *RancherProcessor {
+func NewRancherProcessor(outputs *common.Outputs, observability *common.Observability) *RancherProcessor {
 	return &RancherProcessor{
 		outputs: outputs,
-		logger:  logger,
-		tracer:  tracer,
+		logger:  observability.Logs(),
+		tracer:  observability.Traces(),
+		meter:   observability.Metrics(),
 	}
 }

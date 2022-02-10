@@ -350,7 +350,8 @@ func (t *TelegramOutput) Send(event *common.Event) {
 func NewTelegramOutput(wg *sync.WaitGroup,
 	options TelegramOutputOptions,
 	templateOptions render.TextTemplateOptions,
-	grafanaRenderOptions render.GrafanaRenderOptions, observability common.Observability) *TelegramOutput {
+	grafanaRenderOptions render.GrafanaRenderOptions,
+	observability *common.Observability) *TelegramOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
