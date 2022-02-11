@@ -1,0 +1,79 @@
+{{- define "k8s-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- printf "%s: %s / %s %s: %s by %s" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
+{{- end}}
+{{- define "k8s-namespace"}}{{- end}}
+{{- define "k8s-node"}}{{- end}}
+{{- define "k8s-replicaset"}}{{- end}}
+{{- define "k8s-statefulset"}}
+  {{- printf "\nReplicas => %.0f\nSelector => %s" .spec.replicas .spec.selector}}
+  {{- template "k8s-pod" .spec.template}}
+{{- end}}
+{{- define "k8s-daemonset"}}{{- end}}
+{{- define "k8s-secret"}}{{- end}}
+{{- define "k8s-ingress"}}{{- end}}
+{{- define "k8s-cronjob"}}{{- end}}
+{{- define "k8s-job"}}{{- end}}
+{{- define "k8s-configmap"}}{{- end}}
+{{- define "k8s-role"}}{{- end}}
+{{- define "k8s-deployment"}}
+  {{- printf "\nReplicas => %.0f\nSelector => %s" .spec.replicas .spec.selector}}
+  {{- template "k8s-pod" .spec.template}}
+{{- end}}
+{{- define "k8s-service"}}
+  {{- printf "\n%s => %s" .spec.type .spec.clusterIP}}
+  {{- range .spec.ports}}
+    {{- printf "\n%s %.0f => %.0f" .protocol .port .targetPort}}
+  {{- end}}
+  {{- printf "\nSelector => %s" .spec.selector}}
+{{- end}}
+{{- define "k8s-pod"}}
+  {{- range .spec.containers}}
+    {{- printf "\n%s => %s" .name .image}}
+    {{- range .ports}}
+      {{- printf " [%s: %.0f]" .protocol .containerPort}}
+    {{- end}}
+  {{- end}}
+{{- end}}
+{{- define "alertmanager-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- printf "%s: %s\n%s: %s" (toUpper .data.status) .data.labels.alertname .channel $t}}
+{{- end}}
+{{- define "alertmanager-body"}}
+  {{- if eq .status "firing"}}{{- printf "\nStartsAt: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
+  {{- if eq .status "resolved"}}{{- printf "\nendsAt: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
+{{- end}}
+{{- define "gitlab-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- if .data.project}}{{- printf "%s: %s / %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
+  {{- else}}{{- printf "%s: %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
+{{- end}}
+{{- define "text"}}
+  {{- if eq .type "K8sEvent"}}
+    {{- if and (not (.data.location | regexMatch "kube-system.ack-controlplane-healthcheck")) (not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)"))}}
+      {{- if .data.object}}
+        {{- if eq .data.kind "Namespace"}}{{template "k8s-header" .}}{{template "k8s-namespace" .data.object}}{{end}}
+        {{- if eq .data.kind "Node"}}{{template "k8s-header" .}}{{template "k8s-node" .data.object}}{{end}}
+        {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-header" .}}{{template "k8s-replicaset" .data.object}}{{end}}
+        {{- if eq .data.kind "StatefulSet"}}{{template "k8s-header" .}}{{template "k8s-statefulset" .data.object}}{{end}}
+        {{- if eq .data.kind "DaemonSet"}}{{template "k8s-header" .}}{{template "k8s-daemonset" .data.object}}{{end}}
+        {{- if eq .data.kind "Secret"}}{{template "k8s-header" .}}{{template "k8s-secret" .data.object}}{{end}}
+        {{- if eq .data.kind "Ingress"}}{{template "k8s-header" .}}{{template "k8s-ingress" .data.object}}{{end}}
+        {{- if eq .data.kind "CronJob"}}{{template "k8s-header" .}}{{template "k8s-cronjob" .data.object}}{{end}}
+        {{- if eq .data.kind "Job"}}{{template "k8s-header" .}}{{template "k8s-job" .data.object}}{{end}}
+        {{- if eq .data.kind "ConfigMap"}}{{template "k8s-header" .}}{{template "k8s-configmap" .data.object}}{{end}}
+        {{- if eq .data.kind "Role"}}{{template "k8s-header" .}}{{template "k8s-role" .data.object}}{{end}}
+        {{- if eq .data.kind "Deployment"}}{{template "k8s-header" .}}{{template "k8s-deployment" .data.object}}{{end}}
+        {{- if eq .data.kind "Service"}}{{template "k8s-header" .}}{{template "k8s-service" .data.object}}{{end}}
+        {{- if eq .data.kind "Pod"}}{{template "k8s-header" .}}{{template "k8s-pod" .data.object}}{{end}}
+      {{- else}}{{template "k8s-header" .}}{{end}}
+    {{- end}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}
+    {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
+  {{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{template "gitlab-header" .}}
+  {{- end}}
+{{- end}}
+{{- define "datadog-message"}}{{template "text" .}}{{- end}}
