@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/Shopify/sarama v1.31.1
 	github.com/VictoriaMetrics/metricsql v0.40.0
-	github.com/devopsext/sre v0.1.0
+	github.com/devopsext/sre v0.1.1
 	github.com/devopsext/utils v0.0.3
 	github.com/go-playground/webhooks/v6 v6.0.0-rc.1
 	github.com/grafana-tools/sdk v0.0.0-20210521150820-354cd37a4b4e

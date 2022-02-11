@@ -134,6 +134,11 @@ var newrelicOutputOptions = output.NewRelicOutputOptions{
 	AttributesSelector: envGet("NEWRELIC_OUT_ATTRIBUTES_SELECTOR", "").(string),
 }
 
+var datadogOutputOptions = output.DataDogOutputOptions{
+	Message:            envGet("DATADOG_OUT_MESSAGE", "").(string),
+	AttributesSelector: envGet("DATADOG_OUT_ATTRIBUTES_SELECTOR", "").(string),
+}
+
 var grafanaOutputOptions = output.GrafanaOutputOptions{
 	Message:            envGet("GRAFANA_OUT_MESSAGE", "").(string),
 	AttributesSelector: envGet("GRAFANA_OUT_ATTRIBUTES_SELECTOR", "").(string),
@@ -171,6 +176,7 @@ var jaegerOptions = sreProvider.JaegerOptions{
 }
 
 var datadogOptions = sreProvider.DataDogOptions{
+	ApiKey:      envGet("DATADOG_API_KEY", "").(string),
 	ServiceName: envGet("DATADOG_SERVICE_NAME", appName).(string),
 	Environment: envGet("DATADOG_ENVIRONMENT", "none").(string),
 	Tags:        envGet("DATADOG_TAGS", "").(string),
@@ -192,6 +198,10 @@ var datadogMeterOptions = sreProvider.DataDogMeterOptions{
 	AgentHost: envGet("DATADOG_METER_HOST", "").(string),
 	AgentPort: envGet("DATADOG_METER_PORT", 10518).(int),
 	Prefix:    envGet("DATADOG_METER_PREFIX", appName).(string),
+}
+
+var datadogEventerOptions = sreProvider.DataDogEventerOptions{
+	Site: envGet("DATADOG_EVENTER_SITE", "").(string),
 }
 
 var opentelemetryOptions = sreProvider.OpentelemetryOptions{
@@ -272,6 +282,7 @@ func Execute() {
 
 	var newrelicEventer *sreProvider.NewRelicEventer
 	var grafanaEventer *sreProvider.GrafanaEventer
+	var datadogEventer *sreProvider.DataDogEventer
 
 	rootCmd := &cobra.Command{
 		Use:   "events",
@@ -403,6 +414,17 @@ func Execute() {
 				events.Register(newrelicEventer)
 			}
 
+			datadogEventerOptions.Version = VERSION
+			datadogEventerOptions.ApiKey = datadogOptions.ApiKey
+			datadogEventerOptions.ServiceName = datadogOptions.ServiceName
+			datadogEventerOptions.Environment = datadogOptions.Environment
+			datadogEventerOptions.Tags = datadogOptions.Tags
+			datadogEventerOptions.Debug = datadogOptions.Debug
+			datadogEventer = sreProvider.NewDataDogEventer(datadogEventerOptions, logs, stdout)
+			if utils.Contains(rootOptions.Events, "datadog") && datadogEventer != nil {
+				events.Register(datadogEventer)
+			}
+
 			grafanaEventerOptions.Version = VERSION
 			grafanaEventerOptions.URL = grafanaOptions.URL
 			grafanaEventerOptions.ApiKey = grafanaOptions.ApiKey
@@ -435,6 +457,7 @@ func Execute() {
 			outputs.Add(output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
 			outputs.Add(output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
 			outputs.Add(output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability, newrelicEventer))
+			outputs.Add(output.NewDataDogOutput(&mainWG, datadogOutputOptions, textTemplateOptions, observability, datadogEventer))
 			outputs.Add(output.NewGrafanaOutput(&mainWG, grafanaOutputOptions, textTemplateOptions, observability, grafanaEventer))
 			outputs.Add(output.NewPubSubOutput(&mainWG, pubsubOutputOptions, textTemplateOptions, observability))
 
@@ -535,6 +558,7 @@ func Execute() {
 	flags.StringVar(&jaegerOptions.Tags, "jaeger-tags", jaegerOptions.Tags, "Jaeger tags, comma separated list of name=value")
 	flags.BoolVar(&jaegerOptions.Debug, "jaeger-debug", jaegerOptions.Debug, "Jaeger debug")
 
+	flags.StringVar(&datadogOptions.ApiKey, "datadog-api-key", datadogOptions.ApiKey, "DataDog API key")
 	flags.StringVar(&datadogOptions.ServiceName, "datadog-service-name", datadogOptions.ServiceName, "DataDog service name")
 	flags.StringVar(&datadogOptions.Environment, "datadog-environment", datadogOptions.Environment, "DataDog environment")
 	flags.StringVar(&datadogOptions.Tags, "datadog-tags", datadogOptions.Tags, "DataDog tags")
@@ -547,6 +571,9 @@ func Execute() {
 	flags.StringVar(&datadogMeterOptions.AgentHost, "datadog-meter-agent-host", datadogMeterOptions.AgentHost, "DataDog meter agent host")
 	flags.IntVar(&datadogMeterOptions.AgentPort, "datadog-meter-agent-port", datadogMeterOptions.AgentPort, "Datadog meter agent port")
 	flags.StringVar(&datadogMeterOptions.Prefix, "datadog-meter-prefix", datadogMeterOptions.Prefix, "DataDog meter prefix")
+	flags.StringVar(&datadogEventerOptions.Site, "datadog-eventer-site", datadogEventerOptions.Site, "DataDog eventer site")
+	flags.StringVar(&datadogOutputOptions.Message, "datadog-out-message", datadogOutputOptions.Message, "DataDog message template")
+	flags.StringVar(&datadogOutputOptions.AttributesSelector, "datadog-out-attributes-selector", datadogOutputOptions.AttributesSelector, "DataDog attributes selector template")
 
 	flags.StringVar(&opentelemetryOptions.ServiceName, "opentelemetry-service-name", opentelemetryOptions.ServiceName, "Opentelemetry service name")
 	flags.StringVar(&opentelemetryOptions.Environment, "opentelemetry-environment", opentelemetryOptions.Environment, "Opentelemetry environment")
