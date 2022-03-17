@@ -47,17 +47,19 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			span := ps.tracer.StartSpan()
 			defer span.Finish()
 
+			ps.logger.SpanDebug(span, string(m.Data))
+
 			var event common.Event
 			if err := json.Unmarshal(m.Data, &event); err != nil {
 				ps.logger.SpanError(span, err)
-				m.Nack()
+				m.Ack()
 				return
 			}
 
 			p := ps.processors.Find(event.Type)
 			if p == nil {
 				ps.logger.SpanDebug(span, "PubSub processor is not found for %", event.Type)
-				m.Nack()
+				m.Ack()
 				return
 			}
 

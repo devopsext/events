@@ -37,7 +37,7 @@ EOF
 
   local __out=""
 
-  openssl genrsa -out "${KEY_FILE}" 2048 >__openSsl.out 2>&1
+  openssl genrsa -out "${KEY_FILE}" 4096 >__openSsl.out 2>&1
   __out=$(cat __openSsl.out)
   if [[ ! "$?" -eq 0 ]]; then
     echo "$__out"

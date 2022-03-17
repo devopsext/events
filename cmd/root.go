@@ -70,6 +70,7 @@ var httpInputOptions = input.HttpInputOptions{
 	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
 	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
 	GitlabURL:       envGet("HTTP_IN_GITLAB_URL", "").(string),
+	DataDogURL:      envGet("HTTP_IN_DATADOG_URL", "").(string),
 	CustomJsonURL:   envGet("HTTP_IN_CUSTOMJSON_URL", "").(string),
 	Listen:          envGet("HTTP_IN_LISTEN", ":80").(string),
 	Tls:             envGet("HTTP_IN_TLS", false).(bool),
@@ -467,6 +468,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.RancherURL, "http-in-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
 	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-in-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
 	flags.StringVar(&httpInputOptions.GitlabURL, "http-in-gitlab-url", httpInputOptions.GitlabURL, "Http Gitlab url")
+	flags.StringVar(&httpInputOptions.DataDogURL, "http-in-datadog-url", httpInputOptions.DataDogURL, "Http DataDog url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")
