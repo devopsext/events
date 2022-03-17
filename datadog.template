@@ -1,0 +1,41 @@
+{
+  "id": "$ID",
+  "date": "$DATE",
+  "last_updated": "$LAST_UPDATED",
+  "link": "$LINK",
+  "priority": "$PRIORITY",
+  "snapshot": "$SNAPSHOT",
+  "event": {
+    "type": "$EVENT_TYPE",
+    "msg": "$EVENT_MSG",
+    "title": "$EVENT_TITLE"
+  }, 
+  "alert": {
+    "id": "$ALERT_ID",
+    "metric": "$ALERT_METRIC",
+    "priority": "$ALERT_PRIORITY",
+    "query": "$ALERT_QUERY",
+    "scope": "$ALERT_SCOPE",
+    "status": "$ALERT_STATUS",
+    "title": "$ALERT_TITLE",
+    "transition": "$ALERT_TRANSITION",
+    "type": "$ALERT_TYPE"
+  },
+  "incident": {
+    "title": "$INCIDENT_TITLE"
+  },
+  "metric": {
+    "namespace": "$METRIC_NAMESPACE"
+  },
+  "security": {
+    "rule_name": "$SECURITY_RULE_NAME"
+  },  
+  "org": {
+    "id": "$ORG_ID",
+    "name": "$ORG_NAME"
+  },
+  "tags": "$TAGS",
+  "text_only_msg": "$TEXT_ONLY_MSG",
+  "user": "$USER",
+  "username": "$USERNAME"
+}
