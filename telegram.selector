@@ -11,5 +11,8 @@
   {{- if eq .type "AlertmanagerEvent"}}
     {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
   {{- end}}
+  {{- if eq .type "DataDogEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
 {{- end}}
 {{- define "telegram-selector"}}{{template "rules" .}}{{end}}

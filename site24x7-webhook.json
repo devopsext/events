@@ -1,0 +1,22 @@
+{
+  "MONITOR_DASHBOARD_LINK": "https://site24x7.com",
+  "MONITORTYPE": "URL",
+  "MONITOR_ID": 195603000000025001,
+  "STATUS": "DOWN",
+  "MONITORNAME": "Zylker Monitor ",
+  "FAILED_LOCATIONS": "California-US",
+  "INCIDENT_REASON": "Service Unavailable",
+  "GROUP_TAGS": [
+    "ZylkerGrp",
+    "URL"
+  ],
+  "MONITORURL": "http://zylker.com",
+  "MONITOR_GROUPNAME": "Zylker Web Group ",
+  "POLLFREQUENCY": 1,
+  "TAGS": [
+    "zylker",
+    "website"
+  ],
+  "INCIDENT_TIME": "18 Mar 2022 08:51:19 GMT",
+  "INCIDENT_TIME_ISO": "2022-03-18T01:51:19-0700"
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/devopsext/events/common"
@@ -17,6 +18,60 @@ type DataDogProcessor struct {
 	tracer  sreCommon.Tracer
 	logger  sreCommon.Logger
 	counter sreCommon.Counter
+}
+
+type DataDogEvent struct {
+	Type  string `json:"type"`
+	Msg   string `json:"msg"`
+	Title string `json:"title"`
+}
+
+type DataDogAlert struct {
+	ID         string `json:"id"`
+	Metric     string `json:"metric"`
+	Priority   string `json:"priority"`
+	Query      string `json:"query"`
+	Scope      string `json:"scope,omitempty"`
+	Status     string `json:"status"`
+	Title      string `json:"title"`
+	Transition string `json:"transition"`
+	Type       string `json:"type"`
+}
+
+type DataDogIncident struct {
+	Title string `json:"title"`
+}
+
+type DataDogMetric struct {
+	Namespace string `json:"namespace"`
+}
+
+type DataDogSecurity struct {
+	RuleName string `json:"rule_name"`
+}
+
+type DataDogOrg struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type DataDogRequest struct {
+	ID          string           `json:"id"`
+	Date        int              `json:"date"`
+	LastUpdated int              `json:"last_updated"`
+	Link        string           `json:"link"`
+	Priority    string           `json:"priority"`
+	Snapshot    string           `json:"snapshot"`
+	Event       *DataDogEvent    `json:"event"`
+	Alert       *DataDogAlert    `json:"alert,omitempty"`
+	Incident    *DataDogIncident `json:"incident,omitempty"`
+	Metric      *DataDogMetric   `json:"metric,omitempty"`
+	Security    *DataDogSecurity `json:"security,omitempty"`
+	Org         *DataDogOrg      `json:"org,omitempty"`
+	Tags        string           `json:"tags,omitempty"`
+	TextOnlyMsg string           `json:"text_only_msg,omitempty"`
+	User        string           `json:"user,omitempty"`
+	UserName    string           `json:"username,omitempty"`
 }
 
 type DataDogResponse struct {
@@ -90,7 +145,15 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	//channel := strings.TrimLeft(r.URL.Path, "/")
+	var datadog DataDogRequest
+	if err := json.Unmarshal(body, &datadog); err != nil {
+		p.logger.SpanError(span, err)
+		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
+		return
+	}
+
+	channel := strings.TrimLeft(r.URL.Path, "/")
+	p.send(span, channel, datadog, nil)
 
 	response := &DataDogResponse{
 		Message: "OK",
@@ -110,16 +173,9 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 
 func NewDataDogProcessor(outputs *common.Outputs, observability *common.Observability) *DataDogProcessor {
 
-	logger := observability.Logs()
-	/*	hook, err := gitlab.New()
-		if err != nil {
-			logger.Debug("Gitlab processor is disabled.")
-			return nil
-		}*/
-
 	return &DataDogProcessor{
 		outputs: outputs,
-		logger:  logger,
+		logger:  observability.Logs(),
 		tracer:  observability.Traces(),
 		counter: observability.Metrics().Counter("requests", "Count of all datadog processor requests", []string{"channel"}, "datadog", "processor"),
 	}
