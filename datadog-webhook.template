@@ -1,7 +1,7 @@
 {
   "id": "$ID",
-  "date": "$DATE",
-  "last_updated": "$LAST_UPDATED",
+  "date": $DATE,
+  "last_updated": $LAST_UPDATED,
   "link": "$LINK",
   "priority": "$PRIORITY",
   "snapshot": "$SNAPSHOT",

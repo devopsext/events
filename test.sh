@@ -7,4 +7,4 @@
 
 #curl -sk -X POST -H "Content-type: application/json" -d @alertmanager.json "http://localhost:8081/alertmanager"
 
-curl -sk -X POST -H "Content-type: application/json" -d @datadog.json "http://localhost:8081/datadog"
+curl -sk -X POST -H "Content-type: application/json" -d @datadog-webhook.json "http://localhost:8081/datadog"

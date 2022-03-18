@@ -447,6 +447,7 @@ func Execute() {
 			processors.Add(processor.NewAlertmanagerProcessor(&outputs, observability))
 			processors.Add(processor.NewCustomJsonProcessor(&outputs, observability))
 			processors.Add(processor.NewRancherProcessor(&outputs, observability))
+			processors.Add(processor.NewDataDogProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
