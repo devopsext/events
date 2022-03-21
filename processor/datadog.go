@@ -153,7 +153,9 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.send(span, channel, datadog, nil)
+
+	t := time.Unix(int64(datadog.LastUpdated), 0)
+	p.send(span, channel, datadog, &t)
 
 	response := &DataDogResponse{
 		Message: "OK",

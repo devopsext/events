@@ -448,6 +448,8 @@ func Execute() {
 			processors.Add(processor.NewCustomJsonProcessor(&outputs, observability))
 			processors.Add(processor.NewRancherProcessor(&outputs, observability))
 			processors.Add(processor.NewDataDogProcessor(&outputs, observability))
+			processors.Add(processor.NewSite24x7Processor(&outputs, observability))
+			processors.Add(processor.NewCloudflareProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
@@ -493,6 +495,8 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-in-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
 	flags.StringVar(&httpInputOptions.GitlabURL, "http-in-gitlab-url", httpInputOptions.GitlabURL, "Http Gitlab url")
 	flags.StringVar(&httpInputOptions.DataDogURL, "http-in-datadog-url", httpInputOptions.DataDogURL, "Http DataDog url")
+	flags.StringVar(&httpInputOptions.Site24x7URL, "http-in-site24x7-url", httpInputOptions.Site24x7URL, "Http Site24x7 url")
+	flags.StringVar(&httpInputOptions.CloudflareURL, "http-in-cloudflare-url", httpInputOptions.CloudflareURL, "Http Cloudflare url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")
