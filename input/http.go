@@ -22,6 +22,8 @@ type HttpInputOptions struct {
 	AlertmanagerURL string
 	GitlabURL       string
 	DataDogURL      string
+	Site24x7URL     string
+	CloudflareURL   string
 	CustomJsonURL   string
 	Listen          string
 	Tls             bool
@@ -184,9 +186,11 @@ func (h *HttpInput) getProcessors(processors *common.Processors, outputs *common
 	h.setProcessor(m, h.options.K8sURL, processor.K8sProcessorType())
 	h.setProcessor(m, h.options.AlertmanagerURL, processor.AlertmanagerProcessorType())
 	h.setProcessor(m, h.options.GitlabURL, processor.GitlabProcessorType())
-	h.setProcessor(m, h.options.DataDogURL, processor.DataDogProcessorType())
-	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
 	h.setProcessor(m, h.options.RancherURL, processor.RancherProcessorType())
+	h.setProcessor(m, h.options.DataDogURL, processor.DataDogProcessorType())
+	h.setProcessor(m, h.options.Site24x7URL, processor.Site24x7ProcessorType())
+	h.setProcessor(m, h.options.CloudflareURL, processor.CloudflareProcessorType())
+	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
 	return m
 }
 

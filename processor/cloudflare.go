@@ -13,45 +13,30 @@ import (
 	sreCommon "github.com/devopsext/sre/common"
 )
 
-type Site24x7Processor struct {
+type CloudflareProcessor struct {
 	outputs *common.Outputs
 	tracer  sreCommon.Tracer
 	logger  sreCommon.Logger
 	counter sreCommon.Counter
 }
 
-type Site24x7Request struct {
-	MonitorID            int64  `json:"MONITOR_ID"`
-	MonitorDashboardLink string `json:"MONITOR_DASHBOARD_LINK"`
-	MonitorType          string `json:"MONITORTYPE"`
-	MonitorName          string `json:"MONITORNAME"`
-	MonitorURL           string `json:"MONITORURL"`
-	MonitorGroupName     string `json:"MONITOR_GROUPNAME"`
-
-	IncidentReason  string `json:"INCIDENT_REASON"`
-	IncidentTime    string `json:"INCIDENT_TIME"`
-	IncidentTimeISO string `json:"INCIDENT_TIME_ISO"`
-
-	PollFrequency   int      `json:"POLLFREQUENCY"`
-	Status          string   `json:"STATUS"`
-	FailedLocations string   `json:"FAILED_LOCATIONS"`
-	GroupTags       []string `json:"GROUP_TAGS,omitempty"`
-	Tags            []string `json:"TAGS,omitempty"`
+type CloudflareRequest struct {
+	Text string `json:"text"`
 }
 
-type Site24x7Response struct {
+type CloudflareResponse struct {
 	Message string
 }
 
-func Site24x7ProcessorType() string {
-	return "Site24x7"
+func CloudflareProcessorType() string {
+	return "Cloudflare"
 }
 
-func (p *Site24x7Processor) EventType() string {
-	return common.AsEventType(Site24x7ProcessorType())
+func (p *CloudflareProcessor) EventType() string {
+	return common.AsEventType(CloudflareProcessorType())
 }
 
-func (p *Site24x7Processor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
+func (p *CloudflareProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
@@ -71,7 +56,7 @@ func (p *Site24x7Processor) send(span sreCommon.TracerSpan, channel string, o in
 	p.counter.Inc(e.Channel)
 }
 
-func (p *Site24x7Processor) HandleEvent(e *common.Event) {
+func (p *CloudflareProcessor) HandleEvent(e *common.Event) {
 
 	if e == nil {
 		p.logger.Debug("Event is not defined")
@@ -82,7 +67,7 @@ func (p *Site24x7Processor) HandleEvent(e *common.Event) {
 	p.counter.Inc(e.Channel)
 }
 
-func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
+func (p *CloudflareProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
 
 	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
@@ -110,25 +95,17 @@ func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var site24x7 Site24x7Request
-	if err := json.Unmarshal(body, &site24x7); err != nil {
+	var Cloudflare CloudflareRequest
+	if err := json.Unmarshal(body, &Cloudflare); err != nil {
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return
 	}
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
+	p.send(span, channel, Cloudflare, nil)
 
-	// 2022-03-18T01:51:19-0700"
-	t, err := time.Parse("2006-01-02T15:04:05-0700", site24x7.IncidentTimeISO)
-	if err != nil {
-		p.logger.SpanError(span, err)
-		http.Error(w, "Error incident time ISO format", http.StatusInternalServerError)
-		return
-	}
-	p.send(span, channel, site24x7, &t)
-
-	response := &Site24x7Response{
+	response := &CloudflareResponse{
 		Message: "OK",
 	}
 
@@ -144,12 +121,12 @@ func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func NewSite24x7Processor(outputs *common.Outputs, observability *common.Observability) *Site24x7Processor {
+func NewCloudflareProcessor(outputs *common.Outputs, observability *common.Observability) *CloudflareProcessor {
 
-	return &Site24x7Processor{
+	return &CloudflareProcessor{
 		outputs: outputs,
 		logger:  observability.Logs(),
 		tracer:  observability.Traces(),
-		counter: observability.Metrics().Counter("requests", "Count of all site24x7 processor requests", []string{"channel"}, "site24x7", "processor"),
+		counter: observability.Metrics().Counter("requests", "Count of all cloudflare processor requests", []string{"channel"}, "cloudflare", "processor"),
 	}
 }

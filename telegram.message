@@ -82,8 +82,14 @@
     {{- printf "\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
   {{- end}}
 {{- end}}
-{{- define "datadog-event"}}
+{{- define "datadog"}}
   {{- printf "%s" .data.text_only_msg}}
+{{- end}}
+{{- define "site24x7"}}
+  {{- .data.INCIDENT_REASON}}
+{{- end}}
+{{- define "cloudflare"}}
+  {{- .data.text}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
@@ -114,7 +120,13 @@
     {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
   {{- end}}
   {{- if eq .type "DataDogEvent"}}
-    {{- if .data.event}}{{template "datadog-event" .}}{{end}}
+    {{- if .data.event}}{{template "datadog" .}}{{end}}
+  {{- end}}
+  {{- if eq .type "Site24x7Event"}}
+    {{- if .data}}{{template "site24x7" .}}{{end}}
+  {{- end}}
+  {{- if eq .type "CloudflareEvent"}}
+    {{- if .data}}{{template "cloudflare" .}}{{end}}
   {{- end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- end}}
