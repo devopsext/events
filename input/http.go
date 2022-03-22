@@ -24,6 +24,7 @@ type HttpInputOptions struct {
 	DataDogURL      string
 	Site24x7URL     string
 	CloudflareURL   string
+	GoogleURL       string
 	CustomJsonURL   string
 	Listen          string
 	Tls             bool
@@ -190,6 +191,7 @@ func (h *HttpInput) getProcessors(processors *common.Processors, outputs *common
 	h.setProcessor(m, h.options.DataDogURL, processor.DataDogProcessorType())
 	h.setProcessor(m, h.options.Site24x7URL, processor.Site24x7ProcessorType())
 	h.setProcessor(m, h.options.CloudflareURL, processor.CloudflareProcessorType())
+	h.setProcessor(m, h.options.GoogleURL, processor.GoogleProcessorType())
 	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
 	return m
 }

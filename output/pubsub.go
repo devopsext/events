@@ -2,7 +2,6 @@ package output
 
 import (
 	"context"
-	"errors"
 	"os"
 	"strings"
 	"sync"
@@ -54,8 +53,7 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			ps.logger.SpanError(span, err)
+			ps.logger.SpanError(span, "Event data is empty")
 			return
 		}
 
@@ -76,8 +74,7 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(topics) {
-			err := errors.New("PubSub topics are not found")
-			ps.logger.SpanError(span, err)
+			ps.logger.SpanError(span, "PubSub topics are not found")
 			return
 		}
 

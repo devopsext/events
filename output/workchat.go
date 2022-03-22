@@ -286,8 +286,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			w.logger.SpanError(span, err)
+			w.logger.SpanError(span, "Event data is empty")
 			return
 		}
 
@@ -309,8 +308,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(URLs) {
-			err := errors.New("Workchat URLs are not found")
-			w.logger.SpanError(span, err)
+			w.logger.SpanError(span, "Workchat URLs are not found")
 			return
 		}
 
