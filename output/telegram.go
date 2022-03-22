@@ -286,8 +286,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			t.logger.SpanError(span, err)
+			t.logger.SpanError(span, "Event data is empty")
 			return
 		}
 
@@ -308,8 +307,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(URLs) {
-			err := errors.New("Telegram URLs are not found")
-			t.logger.SpanError(span, err)
+			t.logger.SpanError(span, "Telegram URLs are not found")
 			return
 		}
 

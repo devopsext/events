@@ -252,8 +252,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			s.logger.SpanError(span, err)
+			s.logger.SpanError(span, "Event data is empty")
 			return
 		}
 
@@ -275,8 +274,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(URLs) {
-			err := errors.New("Slack URLs are not found")
-			s.logger.SpanError(span, err)
+			s.logger.SpanError(span, "Slack URLs are not found")
 			return
 		}
 

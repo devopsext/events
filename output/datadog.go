@@ -2,15 +2,15 @@ package output
 
 import (
 	"encoding/json"
-	"errors"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
 	"github.com/devopsext/utils"
-	"strings"
-	"sync"
-	"time"
 )
 
 type DataDogOutputOptions struct {
@@ -86,8 +86,7 @@ func (d *DataDogOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			d.logger.SpanError(span, err)
+			d.logger.SpanError(span, "Event data is empty")
 			return
 		}
 

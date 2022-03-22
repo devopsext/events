@@ -2,8 +2,6 @@ package output
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 	"sync"
@@ -101,8 +99,7 @@ func (g *GitlabOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			g.logger.SpanError(span, err)
+			g.logger.SpanError(span, "Event data is empty")
 			return
 		}
 
@@ -123,8 +120,7 @@ func (g *GitlabOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(projects) {
-			err := errors.New("gitlab projects are not found")
-			g.logger.SpanError(span, err)
+			g.logger.SpanError(span, "Gitlab projects are not found")
 			return
 		}
 
@@ -160,7 +156,7 @@ func (g *GitlabOutput) Send(event *common.Event) {
 			}
 
 			if response.StatusCode < 200 || response.StatusCode >= 300 {
-				g.logger.SpanError(span, fmt.Errorf("gitlab reposne: %s", response.Status))
+				g.logger.SpanError(span, "Gitlab reposne: %s", response.Status)
 				continue
 			}
 

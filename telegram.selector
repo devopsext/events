@@ -20,5 +20,8 @@
   {{- if eq .type "CloudflareEvent"}}
     {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
   {{- end}}
+  {{- if eq .type "GoogleEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
 {{- end}}
 {{- define "telegram-selector"}}{{template "rules" .}}{{end}}

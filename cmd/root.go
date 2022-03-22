@@ -457,6 +457,7 @@ func Execute() {
 			processors.Add(processor.NewDataDogProcessor(&outputs, observability))
 			processors.Add(processor.NewSite24x7Processor(&outputs, observability))
 			processors.Add(processor.NewCloudflareProcessor(&outputs, observability))
+			processors.Add(processor.NewGoogleProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
@@ -505,6 +506,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.DataDogURL, "http-in-datadog-url", httpInputOptions.DataDogURL, "Http DataDog url")
 	flags.StringVar(&httpInputOptions.Site24x7URL, "http-in-site24x7-url", httpInputOptions.Site24x7URL, "Http Site24x7 url")
 	flags.StringVar(&httpInputOptions.CloudflareURL, "http-in-cloudflare-url", httpInputOptions.CloudflareURL, "Http Cloudflare url")
+	flags.StringVar(&httpInputOptions.GoogleURL, "http-in-google-url", httpInputOptions.GoogleURL, "Http Google url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")

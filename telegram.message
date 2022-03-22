@@ -91,6 +91,9 @@
 {{- define "cloudflare"}}
   {{- .data.text}}
 {{- end}}
+{{- define "google-incident"}}
+  {{- .data.incident.summary}}
+{{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
@@ -127,6 +130,9 @@
   {{- end}}
   {{- if eq .type "CloudflareEvent"}}
     {{- if .data}}{{template "cloudflare" .}}{{end}}
+  {{- end}}
+  {{- if eq .type "GoogleEvent"}}
+    {{- if .data.incident}}{{template "google-incident" .}}{{end}}
   {{- end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- end}}

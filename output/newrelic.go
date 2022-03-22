@@ -2,7 +2,6 @@ package output
 
 import (
 	"encoding/json"
-	"errors"
 	"sync"
 
 	"github.com/devopsext/events/common"
@@ -82,8 +81,7 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			r.logger.SpanError(span, err)
+			r.logger.SpanError(span, "Event data is empty")
 			return
 		}
 

@@ -2,7 +2,6 @@ package output
 
 import (
 	"encoding/json"
-	"errors"
 	"sync"
 
 	"github.com/devopsext/events/common"
@@ -83,8 +82,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("event data is empty")
-			g.logger.SpanError(span, err)
+			g.logger.SpanError(span, "Event data is empty")
 			return
 		}
 
