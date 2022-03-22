@@ -286,7 +286,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		defer span.Finish()
 
 		if event.Data == nil {
-			err := errors.New("Event data is empty")
+			err := errors.New("event data is empty")
 			w.logger.SpanError(span, err)
 			return
 		}

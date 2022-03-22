@@ -57,8 +57,8 @@ type DataDogOrg struct {
 
 type DataDogRequest struct {
 	ID          string           `json:"id"`
-	Date        int              `json:"date"`
-	LastUpdated int              `json:"last_updated"`
+	Date        int64            `json:"date"`
+	LastUpdated int64            `json:"last_updated"`
 	Link        string           `json:"link"`
 	Priority    string           `json:"priority"`
 	Snapshot    string           `json:"snapshot"`
@@ -154,7 +154,7 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
 
-	t := time.Unix(int64(datadog.LastUpdated), 0)
+	t := time.UnixMilli(datadog.LastUpdated)
 	p.send(span, channel, datadog, &t)
 
 	response := &DataDogResponse{
