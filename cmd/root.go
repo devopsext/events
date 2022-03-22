@@ -152,6 +152,13 @@ var pubsubOutputOptions = output.PubSubOutputOptions{
 	TopicSelector: envGet("PUBSUB_OUT_TOPIC_SELECTOR", "").(string),
 }
 
+var gitlabOutputOptions = output.GitlabOutputOptions{
+	BaseURL:   envGet("GITLAB_OUT_BASE_URL", "").(string),
+	Token:     envGet("GITLAB_OUT_TOKEN", "").(string),
+	Projects:  envGet("GITLAB_OUT_PROJECTS", "").(string),
+	Variables: envGet("GITLAB_OUT_VARIABLES", "").(string),
+}
+
 var grafanaRenderOptions = render.GrafanaRenderOptions{
 	URL:         envGet("GRAFANA_RENDER_URL", "").(string),
 	Timeout:     envGet("GRAFANA_RENDER_TIMEOUT", 60).(int),
@@ -464,6 +471,7 @@ func Execute() {
 			outputs.Add(output.NewDataDogOutput(&mainWG, datadogOutputOptions, textTemplateOptions, observability, datadogEventer))
 			outputs.Add(output.NewGrafanaOutput(&mainWG, grafanaOutputOptions, textTemplateOptions, observability, grafanaEventer))
 			outputs.Add(output.NewPubSubOutput(&mainWG, pubsubOutputOptions, textTemplateOptions, observability))
+			outputs.Add(output.NewGitlabOutput(&mainWG, gitlabOutputOptions, textTemplateOptions, observability))
 
 			inputs.Start(&mainWG, &outputs)
 			mainWG.Wait()
@@ -544,6 +552,11 @@ func Execute() {
 	flags.StringVar(&pubsubOutputOptions.ProjectID, "pubsub-out-project-id", pubsubOutputOptions.ProjectID, "PubSub output project ID")
 	flags.StringVar(&pubsubOutputOptions.TopicSelector, "pubsub-out-topic-selector", pubsubOutputOptions.TopicSelector, "PubSub output topic selector")
 	flags.StringVar(&pubsubOutputOptions.Message, "pubsub-out-message", pubsubOutputOptions.Message, "PubSub output message")
+
+	flags.StringVar(&gitlabOutputOptions.BaseURL, "gitlab-out-base-url", gitlabOutputOptions.BaseURL, "Gitlab output base URL")
+	flags.StringVar(&gitlabOutputOptions.Token, "gitlab-out-token", gitlabOutputOptions.Token, "Gitlab output token")
+	flags.StringVar(&gitlabOutputOptions.Projects, "gitlab-out-projects", gitlabOutputOptions.Projects, "Gitlab output projects")
+	flags.StringVar(&gitlabOutputOptions.Variables, "gitlab-out-variables", gitlabOutputOptions.Variables, "Gitlab output variables")
 
 	flags.StringVar(&grafanaRenderOptions.URL, "grafana-render-url", grafanaRenderOptions.URL, "Grafana render URL")
 	flags.IntVar(&grafanaRenderOptions.Timeout, "grafana-render-timeout", grafanaRenderOptions.Timeout, "Grafan render timeout")
