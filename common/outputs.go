@@ -20,7 +20,7 @@ func (ots *Outputs) Add(o Output) {
 	ots.list = append(ots.list, o)
 }
 
-func (ots *Outputs) Send(e *Event) {
+func (ots *Outputs) send(e *Event, exclude []Output) {
 
 	if e == nil {
 		if ots.logger != nil {
@@ -44,13 +44,23 @@ func (ots *Outputs) Send(e *Event) {
 	for _, o := range ots.list {
 
 		if o != nil {
-			o.Send(e)
+			if !HasElem(exclude, o) {
+				o.Send(e)
+			}
 		} else {
 			if ots.logger != nil {
 				ots.logger.Warn("Output is not defined")
 			}
 		}
 	}
+}
+
+func (ots *Outputs) Send(e *Event) {
+	ots.send(e, []Output{})
+}
+
+func (ots *Outputs) SendExclude(e *Event, exclude []Output) {
+	ots.send(e, exclude)
 }
 
 func NewOutputs(logger sreCommon.Logger) Outputs {

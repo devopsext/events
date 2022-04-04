@@ -1,4 +1,10 @@
 {{- define "text"}}
-  {{printf "{\"type\":\"%s\",\"channel\":\"%s\"}" .type .channel}}
+  {{- if .via}}
+    {{- if hasKey .via "slack"}}
+      {{- if eq .type "DataDogEvent"}}
+        {{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"slack_channel\":\"%s\"}" .type .channel (get .via "slack").file.shares}}
+      {{- end}}
+    {{- end}}
+  {{- end}}
 {{- end}}
 {{- define "gitlab-variables"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}
