@@ -2,7 +2,8 @@ package output
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -35,6 +36,7 @@ type SlackOutput struct {
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
 	options  SlackOutputOptions
+	outputs  *common.Outputs
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
 	counter  sreCommon.Counter
@@ -60,7 +62,7 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
+func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (error, []byte) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -71,7 +73,7 @@ func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
 		s.logger.SpanError(span, err)
-		return err
+		return err, nil
 	}
 
 	req.Header.Set("Content-Type", contentType)
@@ -79,7 +81,7 @@ func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType
 	resp, err := s.client.Do(req)
 	if err != nil {
 		s.logger.SpanError(span, err)
-		return err
+		return err, nil
 	}
 
 	defer resp.Body.Close()
@@ -87,16 +89,16 @@ func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		s.logger.SpanError(span, err)
-		return err
+		return err, nil
 	}
 
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
 	s.counter.Inc(s.getChannel(URL))
 
-	return nil
+	return nil, b
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) error {
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) (error, []byte) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -110,30 +112,30 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, mess
 	}()
 
 	if err := w.WriteField("initial_comment", message); err != nil {
-		return err
+		return err, nil
 	}
 
 	if err := w.WriteField("title", title); err != nil {
-		return err
+		return err, nil
 	}
 
 	if err := w.WriteField("content", content); err != nil {
-		return err
+		return err, nil
 	}
 
 	if err := w.Close(); err != nil {
-		return err
+		return err, nil
 	}
-
 	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
 func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title string, err error) error {
 
-	return s.sendMessage(spanCtx, URL, message, title, err.Error())
+	e, _ := s.sendMessage(spanCtx, URL, message, title, err.Error())
+	return e
 }
 
-func (s *SlackOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName, title string, photo []byte) error {
+func (s *SlackOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName, title string, photo []byte) (error, []byte) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -147,37 +149,36 @@ func (s *SlackOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, messag
 	}()
 
 	if err := w.WriteField("initial_comment", message); err != nil {
-		return err
+		return err, nil
 	}
 
 	if err := w.WriteField("title", title); err != nil {
-		return err
+		return err, nil
 	}
 
 	fw, err := w.CreateFormFile("file", fileName)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	if _, err := fw.Write(photo); err != nil {
-		return err
+		return err, nil
 	}
 
 	if err := w.Close(); err != nil {
-		return err
+		return err, nil
 	}
-
 	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) error {
+func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) (error, []byte) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	values := u.Query()
@@ -187,8 +188,7 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 
 	query, ok := alert.Labels[s.options.AlertExpression]
 	if !ok {
-		err := errors.New("No alert expression")
-		return err
+		return fmt.Errorf("no alert expression"), nil
 	}
 
 	caption := alert.Labels["alertname"]
@@ -202,7 +202,7 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	metric := query
@@ -226,10 +226,39 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 	photo, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
-		return nil
+		return nil, nil
+	}
+	return s.sendPhoto(span.GetContext(), URL, message, fileName, query, photo)
+}
+
+func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
+
+	span := s.tracer.StartChildSpan(spanCtx)
+	defer span.Finish()
+
+	var obj interface{}
+	if err := json.Unmarshal(bytes, &obj); err != nil {
+		s.logger.SpanError(span, err)
+		return
 	}
 
-	return s.sendPhoto(span.GetContext(), URL, message, fileName, query, photo)
+	via := event.Via
+	if via == nil {
+		via = make(map[string]interface{})
+	}
+	via["slack"] = obj
+
+	e := common.Event{
+		Time:    event.Time,
+		Channel: event.Channel,
+		Type:    event.Type,
+		Data:    event.Data,
+		Via:     via,
+	}
+	e.SetLogger(s.logger)
+	e.SetSpanContext(span.GetContext())
+
+	s.outputs.SendExclude(&e, []common.Output{s})
 }
 
 func (s *SlackOutput) Send(event *common.Event) {
@@ -256,7 +285,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		jsonObject, err := event.JsonObject()
+		jsonMap, err := event.JsonMap()
 		if err != nil {
 			s.logger.SpanError(span, err)
 			return
@@ -265,7 +294,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		URLs := s.options.URL
 		if s.selector != nil {
 
-			b, err := s.selector.Execute(jsonObject)
+			b, err := s.selector.Execute(jsonMap)
 			if err != nil {
 				s.logger.SpanDebug(span, err)
 			} else {
@@ -278,7 +307,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := s.message.Execute(jsonObject)
+		b, err := s.message.Execute(jsonMap)
 		if err != nil {
 			s.logger.SpanError(span, err)
 			return
@@ -291,7 +320,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		s.logger.SpanDebug(span, "Slack message => %s", message)
-
 		arr := strings.Split(URLs, "\n")
 
 		for _, URL := range arr {
@@ -303,11 +331,17 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				if err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
+				err, bytes := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
+				if err != nil {
 					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
+				} else {
+					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
+				err, bytes := s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
+				if err == nil {
+					s.sendGlobally(span.GetContext(), event, bytes)
+				}
 			}
 		}
 	}()
@@ -317,7 +351,8 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
-	observability *common.Observability) *SlackOutput {
+	observability *common.Observability,
+	outputs *common.Outputs) *SlackOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
@@ -332,6 +367,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		selector: render.NewTextTemplate("slack-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
+		outputs:  outputs,
 		logger:   logger,
 		tracer:   observability.Traces(),
 		counter:  observability.Metrics().Counter("requests", "Count of all slack requests", []string{"channel"}, "slack", "output"),

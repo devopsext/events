@@ -466,7 +466,7 @@ func Execute() {
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
-			outputs.Add(output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
+			outputs.Add(output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaRenderOptions, observability, &outputs))
 			outputs.Add(output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
 			outputs.Add(output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability, newrelicEventer))
 			outputs.Add(output.NewDataDogOutput(&mainWG, datadogOutputOptions, textTemplateOptions, observability, datadogEventer))

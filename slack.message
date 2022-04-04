@@ -82,6 +82,11 @@
     {{- printf "\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
   {{- end}}
 {{- end}}
+{{- define "datadog"}}
+  {{- if not (.via)}}
+    {{- .data.text_only_msg}}
+  {{- end}}
+{{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
@@ -109,6 +114,9 @@
   {{- if eq .type "GitlabEvent"}}
     {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .}}{{end}}
     {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
+  {{- end}}
+  {{- if eq .type "DataDogEvent"}}
+    {{template "datadog" .}}{{template "datadog" .data}}
   {{- end}}
 {{- end}}
 {{- define "slack-message"}}{{template "text" .}}{{- end}}
