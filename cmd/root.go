@@ -17,7 +17,6 @@ import (
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
-	"github.com/devopsext/tools/messaging"
 	utils "github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
@@ -114,10 +113,8 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
-	SlackOptions: messaging.SlackOptions{
-		URL:     envGet("SLACK_OUT_URL", "").(string),
-		Timeout: envGet("SLACK_OUT_TIMEOUT", 30).(int),
-	},
+	URL:             envGet("SLACK_OUT_URL", "").(string),
+	Timeout:         envGet("SLACK_OUT_TIMEOUT", 30).(int),
 	Message:         envGet("SLACK_OUT_MESSAGE", "").(string),
 	URLSelector:     envGet("SLACK_OUT_URL_SELECTOR", "").(string),
 	AlertExpression: envGet("SLACK_OUT_ALERT_EXPRESSION", "g0.expr").(string),
@@ -467,7 +464,7 @@ func Execute() {
 
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
-			outputs.Add(output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
+			outputs.Add(output.NewTelegramOutput(&mainWG, telegramOutputOptions, textTemplateOptions, grafanaRenderOptions, observability, &outputs))
 			outputs.Add(output.NewSlackOutput(&mainWG, slackOutputOptions, textTemplateOptions, grafanaRenderOptions, observability, &outputs))
 			outputs.Add(output.NewWorkchatOutput(&mainWG, workchatOutputOptions, textTemplateOptions, grafanaRenderOptions, observability))
 			outputs.Add(output.NewNewRelicOutput(&mainWG, newrelicOutputOptions, textTemplateOptions, observability, newrelicEventer))
