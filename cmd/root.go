@@ -17,6 +17,7 @@ import (
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
+	"github.com/devopsext/tools/messaging"
 	utils "github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
@@ -113,10 +114,12 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
+	SlackOptions: messaging.SlackOptions{
+		URL:     envGet("SLACK_OUT_URL", "").(string),
+		Timeout: envGet("SLACK_OUT_TIMEOUT", 30).(int),
+	},
 	Message:         envGet("SLACK_OUT_MESSAGE", "").(string),
 	URLSelector:     envGet("SLACK_OUT_URL_SELECTOR", "").(string),
-	URL:             envGet("SLACK_OUT_URL", "").(string),
-	Timeout:         envGet("SLACK_OUT_TIMEOUT", 30).(int),
 	AlertExpression: envGet("SLACK_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 }
 
