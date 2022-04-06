@@ -20,7 +20,8 @@ import (
 )
 
 type SlackOutputOptions struct {
-	messaging.SlackOptions
+	URL             string
+	Timeout         int
 	Message         string
 	URLSelector     string
 	AlertExpression string

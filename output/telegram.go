@@ -1,12 +1,9 @@
 package output
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"mime/multipart"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -16,6 +13,8 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	toolsCommon "github.com/devopsext/tools/common"
+	"github.com/devopsext/tools/messaging"
 	"github.com/devopsext/utils"
 
 	"github.com/prometheus/alertmanager/template"
@@ -32,11 +31,12 @@ type TelegramOutputOptions struct {
 
 type TelegramOutput struct {
 	wg       *sync.WaitGroup
-	client   *http.Client
+	telegram toolsCommon.Messenger
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
 	options  TelegramOutputOptions
+	outputs  *common.Outputs
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
 	counter  sreCommon.Counter
@@ -78,139 +78,47 @@ func (t *TelegramOutput) getChatID(URL string) string {
 }
 
 func (t *TelegramOutput) getSendPhotoURL(URL string) string {
-
 	return strings.Replace(URL, "sendMessage", "sendPhoto", -1)
 }
 
-func (t *TelegramOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) error {
+func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) (error, []byte) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	t.logger.SpanDebug(span, "Post to Telegram (%s) => %s", URL, message)
-	reader := bytes.NewReader(body.Bytes())
-
-	req, err := http.NewRequest("POST", URL, reader)
+	err, b := t.telegram.SendMessage(URL, message, "", "")
 	if err != nil {
 		t.logger.SpanError(span, err)
-		return err
-	}
-
-	req.Header.Set("Content-Type", contentType)
-
-	resp, err := t.client.Do(req)
-	if err != nil {
-		t.logger.SpanError(span, err)
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.logger.SpanError(span, err)
-		return err
+		return err, nil
 	}
 
 	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
 	t.counter.Inc(t.getChatID(URL))
-
-	return nil
-}
-
-func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) error {
-
-	span := t.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
-
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	defer func() {
-		if err := w.Close(); err != nil {
-			t.logger.SpanWarn(span, "Failed to close writer")
-		}
-	}()
-
-	if err := w.WriteField("text", message); err != nil {
-		return err
-	}
-
-	if err := w.WriteField("parse_mode", "HTML"); err != nil {
-		return err
-	}
-
-	if err := w.WriteField("disable_web_page_preview", "true"); err != nil {
-		return err
-	}
-
-	if err := w.WriteField("disable_notification", t.options.DisableNotification); err != nil {
-		return err
-	}
-
-	if err := w.Close(); err != nil {
-		return err
-	}
-
-	return t.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
+	return nil, b
 }
 
 func (t *TelegramOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message string, err error) error {
-	return t.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+
+	e, _ := t.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+	return e
 }
 
-func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, photo []byte) error {
+func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, photo []byte) (error, []byte) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	defer func() {
-		if err := w.Close(); err != nil {
-			t.logger.SpanWarn(span, "Failed to close writer")
-		}
-	}()
-
-	if err := w.WriteField("caption", message); err != nil {
-		return err
-	}
-
-	if err := w.WriteField("parse_mode", "HTML"); err != nil {
-		return err
-	}
-
-	if err := w.WriteField("disable_web_page_preview", "true"); err != nil {
-		return err
-	}
-
-	if err := w.WriteField("disable_notification", t.options.DisableNotification); err != nil {
-		return err
-	}
-
-	fw, err := w.CreateFormFile("photo", fileName)
-	if err != nil {
-		return err
-	}
-
-	if _, err := fw.Write(photo); err != nil {
-		return err
-	}
-
-	if err := w.Close(); err != nil {
-		return err
-	}
-
-	return t.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
+	return t.telegram.SendPhoto(URL, message, fileName, "", photo)
 }
 
-func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) error {
+func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) (error, []byte) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	values := u.Query()
@@ -221,7 +129,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 	query, ok := alert.Labels[t.options.AlertExpression]
 	if !ok {
 		err := errors.New("No alert expression")
-		return err
+		return err, nil
 	}
 
 	caption := alert.Labels["alertname"]
@@ -235,7 +143,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	metric := query
@@ -260,10 +168,40 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 	photo, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
-		return nil
+		return nil, nil
 	}
 
 	return t.sendPhoto(span.GetContext(), t.getSendPhotoURL(URL), messageQuery, fileName, photo)
+}
+
+func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
+
+	span := t.tracer.StartChildSpan(spanCtx)
+	defer span.Finish()
+
+	var obj interface{}
+	if err := json.Unmarshal(bytes, &obj); err != nil {
+		t.logger.SpanError(span, err)
+		return
+	}
+
+	via := event.Via
+	if via == nil {
+		via = make(map[string]interface{})
+	}
+	via["Telegram"] = obj
+
+	e := common.Event{
+		Time:    event.Time,
+		Channel: event.Channel,
+		Type:    event.Type,
+		Data:    event.Data,
+		Via:     via,
+	}
+	e.SetLogger(t.logger)
+	e.SetSpanContext(span.GetContext())
+
+	t.outputs.SendExclude(&e, []common.Output{t})
 }
 
 func (t *TelegramOutput) Send(event *common.Event) {
@@ -272,8 +210,8 @@ func (t *TelegramOutput) Send(event *common.Event) {
 	go func() {
 		defer t.wg.Done()
 
-		if t.client == nil || t.message == nil {
-			t.logger.Debug("No client or message")
+		if t.telegram == nil || t.message == nil {
+			t.logger.Debug("No telegram client or message")
 			return
 		}
 
@@ -335,11 +273,17 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				if err := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
+				err, bytes := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
+				if err != nil {
 					t.sendErrorMessage(span.GetContext(), URL, message, err)
+				} else {
+					t.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				t.sendMessage(span.GetContext(), URL, message)
+				err, bytes := t.sendMessage(span.GetContext(), URL, message)
+				if err == nil {
+					t.sendGlobally(span.GetContext(), event, bytes)
+				}
 			}
 		}
 	}()
@@ -349,7 +293,8 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	options TelegramOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
-	observability *common.Observability) *TelegramOutput {
+	observability *common.Observability,
+	outputs *common.Outputs) *TelegramOutput {
 
 	logger := observability.Logs()
 	if utils.IsEmpty(options.URL) {
@@ -358,12 +303,17 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	}
 
 	return &TelegramOutput{
-		wg:       wg,
-		client:   utils.NewHttpInsecureClient(options.Timeout),
+		wg: wg,
+		telegram: messaging.NewTelegram(messaging.TelegramOptions{
+			URL:                 options.URL,
+			Timeout:             options.Timeout,
+			DisableNotification: options.DisableNotification,
+		}),
 		message:  render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
 		selector: render.NewTextTemplate("telegram-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
+		outputs:  outputs,
 		logger:   logger,
 		tracer:   observability.Traces(),
 		counter:  observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"chat_id"}, "telegram", "output"),
