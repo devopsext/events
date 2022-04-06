@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	sreCommon "github.com/devopsext/sre/common"
+	"github.com/devopsext/utils"
 )
 
 type Outputs struct {
@@ -44,7 +45,7 @@ func (ots *Outputs) send(e *Event, exclude []Output) {
 	for _, o := range ots.list {
 
 		if o != nil {
-			if !HasElem(exclude, o) {
+			if !utils.Contains(exclude, o) {
 				o.Send(e)
 			}
 		} else {

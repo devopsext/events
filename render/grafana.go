@@ -273,7 +273,7 @@ func NewGrafanaRender(options GrafanaRenderOptions, observability *common.Observ
 	}
 
 	return &GrafanaRender{
-		client:  sreCommon.MakeHttpClient(options.Timeout),
+		client:  utils.NewHttpInsecureClient(options.Timeout),
 		options: options,
 		logger:  logger,
 		tracer:  observability.Traces(),

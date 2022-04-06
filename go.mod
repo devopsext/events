@@ -3,21 +3,20 @@ module github.com/devopsext/events
 go 1.17
 
 require (
-	cloud.google.com/go/monitoring v1.4.0
 	cloud.google.com/go/pubsub v1.3.1
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/Shopify/sarama v1.31.1
 	github.com/VictoriaMetrics/metricsql v0.40.0
-	github.com/devopsext/sre v0.1.1
-	github.com/devopsext/utils v0.0.3
+	github.com/devopsext/sre v0.1.3
+	github.com/devopsext/utils v0.1.4
 	github.com/go-playground/webhooks/v6 v6.0.0-rc.1
 	github.com/grafana-tools/sdk v0.0.0-20210521150820-354cd37a4b4e
 	github.com/prometheus/alertmanager v0.22.0
-	github.com/spf13/cobra v1.3.0
+	github.com/spf13/cobra v1.4.0
 	github.com/tidwall/gjson v1.14.0
 	github.com/xanzy/go-gitlab v0.60.0
 	google.golang.org/api v0.70.0
-	google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf
+	google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf // indirect
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 )
