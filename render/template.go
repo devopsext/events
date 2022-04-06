@@ -18,9 +18,6 @@ import (
 	utils "github.com/devopsext/utils"
 )
 
-var env = utils.GetEnvironment()
-var log = utils.GetLog()
-
 type TextTemplateOptions struct {
 	TimeFormat string
 }
@@ -103,7 +100,7 @@ func (tpl *TextTemplate) fIsEmpty(s string) (bool, error) {
 }
 
 func (tpl *TextTemplate) fGetEnv(key string) (string, error) {
-	return env.Get(key, "").(string), nil
+	return utils.EnvGet(key, "").(string), nil
 }
 
 func (tpl *TextTemplate) fGetVar(key string) (string, error) {

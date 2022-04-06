@@ -359,7 +359,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 
 	return &TelegramOutput{
 		wg:       wg,
-		client:   sreCommon.MakeHttpClient(options.Timeout),
+		client:   utils.NewHttpInsecureClient(options.Timeout),
 		message:  render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
 		selector: render.NewTextTemplate("telegram-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),

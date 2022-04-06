@@ -361,7 +361,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 
 	return &WorkchatOutput{
 		wg:       wg,
-		client:   sreCommon.MakeHttpClient(options.Timeout),
+		client:   utils.NewHttpInsecureClient(options.Timeout),
 		message:  render.NewTextTemplate("workchat-message", options.Message, templateOptions, options, logger),
 		selector: render.NewTextTemplate("workchat-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),

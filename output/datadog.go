@@ -114,7 +114,7 @@ func (d *DataDogOutput) Send(event *common.Event) {
 		if err != nil {
 			d.logger.SpanError(span, err)
 		}
-		d.logger.Debug("Message: %s, Attributes: %s, Time: %s", message, strings.Join(sreCommon.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
+		d.logger.Debug("Message: %s, Attributes: %s, Time: %s", message, strings.Join(utils.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
 
 		d.datadogEventer.At(message, attributes, event.Time)
 		d.counter.Inc()

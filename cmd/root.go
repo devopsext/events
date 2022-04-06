@@ -25,7 +25,6 @@ var VERSION = "unknown"
 var APPNAME = "EVENTS"
 var appName = strings.ToLower(APPNAME)
 
-var env = utils.GetEnvironment()
 var logs = sreCommon.NewLogs()
 var traces = sreCommon.NewTraces()
 var metrics = sreCommon.NewMetrics()
@@ -272,7 +271,7 @@ var grafanaEventerOptions = sreProvider.GrafanaEventerOptions{
 }
 
 func envGet(s string, d interface{}) interface{} {
-	return env.Get(fmt.Sprintf("%s_%s", APPNAME, s), d)
+	return utils.EnvGet(fmt.Sprintf("%s_%s", APPNAME, s), d)
 }
 
 func interceptSyscall() {
@@ -299,7 +298,7 @@ func Execute() {
 
 			stdoutOptions.Version = VERSION
 			stdout = sreProvider.NewStdout(stdoutOptions)
-			if common.HasElem(rootOptions.Logs, "stdout") && stdout != nil {
+			if utils.Contains(rootOptions.Logs, "stdout") && stdout != nil {
 				stdout.SetCallerOffset(2)
 				logs.Register(stdout)
 			}
@@ -310,7 +309,7 @@ func Execute() {
 			datadogLoggerOptions.Tags = datadogOptions.Tags
 			datadogLoggerOptions.Debug = datadogOptions.Debug
 			datadogLogger := sreProvider.NewDataDogLogger(datadogLoggerOptions, logs, stdout)
-			if common.HasElem(rootOptions.Logs, "datadog") && datadogLogger != nil {
+			if utils.Contains(rootOptions.Logs, "datadog") && datadogLogger != nil {
 				logs.Register(datadogLogger)
 			}
 
@@ -331,7 +330,7 @@ func Execute() {
 
 			prometheusOptions.Version = VERSION
 			prometheus := sreProvider.NewPrometheusMeter(prometheusOptions, logs, stdout)
-			if common.HasElem(rootOptions.Metrics, "prometheus") && prometheus != nil {
+			if utils.Contains(rootOptions.Metrics, "prometheus") && prometheus != nil {
 				prometheus.StartInWaitGroup(&mainWG)
 				metrics.Register(prometheus)
 			}
@@ -342,7 +341,7 @@ func Execute() {
 			datadogMeterOptions.Tags = datadogOptions.Tags
 			datadogMeterOptions.Debug = datadogOptions.Debug
 			datadogMetricer := sreProvider.NewDataDogMeter(datadogMeterOptions, logs, stdout)
-			if common.HasElem(rootOptions.Metrics, "datadog") && datadogMetricer != nil {
+			if utils.Contains(rootOptions.Metrics, "datadog") && datadogMetricer != nil {
 				metrics.Register(datadogMetricer)
 			}
 
@@ -352,7 +351,7 @@ func Execute() {
 			opentelemetryMeterOptions.Attributes = opentelemetryOptions.Attributes
 			opentelemetryMeterOptions.Debug = opentelemetryOptions.Debug
 			opentelemetryMeter := sreProvider.NewOpentelemetryMeter(opentelemetryMeterOptions, logs, stdout)
-			if common.HasElem(rootOptions.Metrics, "opentelemetry") && opentelemetryMeter != nil {
+			if utils.Contains(rootOptions.Metrics, "opentelemetry") && opentelemetryMeter != nil {
 				metrics.Register(opentelemetryMeter)
 			}
 
@@ -371,7 +370,7 @@ func Execute() {
 
 			jaegerOptions.Version = VERSION
 			jaeger := sreProvider.NewJaegerTracer(jaegerOptions, logs, stdout)
-			if common.HasElem(rootOptions.Traces, "jaeger") && jaeger != nil {
+			if utils.Contains(rootOptions.Traces, "jaeger") && jaeger != nil {
 				traces.Register(jaeger)
 			}
 
@@ -383,7 +382,7 @@ func Execute() {
 			datadogTracer := sreProvider.NewDataDogTracer(datadogTracerOptions, logs, stdout)
 			if datadogTracer != nil {
 				datadogTracer.SetCallerOffset(1)
-				if common.HasElem(rootOptions.Traces, "datadog") {
+				if utils.Contains(rootOptions.Traces, "datadog") {
 					traces.Register(datadogTracer)
 				}
 			}
@@ -394,7 +393,7 @@ func Execute() {
 			opentelemetryTracerOptions.Attributes = opentelemetryOptions.Attributes
 			opentelemetryTracerOptions.Debug = opentelemetryOptions.Debug
 			opentelemtryTracer := sreProvider.NewOpentelemetryTracer(opentelemetryTracerOptions, logs, stdout)
-			if common.HasElem(rootOptions.Traces, "opentelemetry") && opentelemtryTracer != nil {
+			if utils.Contains(rootOptions.Traces, "opentelemetry") && opentelemtryTracer != nil {
 				traces.Register(opentelemtryTracer)
 			}
 

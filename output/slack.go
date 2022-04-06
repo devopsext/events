@@ -43,16 +43,6 @@ type SlackOutput struct {
 }
 
 // assume that url is => https://slack.com/api/files.upload?token=%s&channels=%s
-
-func (s *SlackOutput) getToken(URL string) string {
-
-	u, err := url.Parse(URL)
-	if err != nil {
-		return ""
-	}
-	return u.Query().Get("token")
-}
-
 func (s *SlackOutput) getChannel(URL string) string {
 
 	u, err := url.Parse(URL)
@@ -246,7 +236,7 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 	if via == nil {
 		via = make(map[string]interface{})
 	}
-	via["slack"] = obj
+	via["Slack"] = obj
 
 	e := common.Event{
 		Time:    event.Time,
@@ -362,7 +352,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 
 	return &SlackOutput{
 		wg:       wg,
-		client:   sreCommon.MakeHttpClient(options.Timeout),
+		client:   utils.NewHttpInsecureClient(options.Timeout),
 		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
