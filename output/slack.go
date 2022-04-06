@@ -1,18 +1,16 @@
 package output
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"mime/multipart"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 
 	sreCommon "github.com/devopsext/sre/common"
+	toolsCommon "github.com/devopsext/tools/common"
+	messaging "github.com/devopsext/tools/messaging"
 	"github.com/devopsext/utils"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -22,16 +20,15 @@ import (
 )
 
 type SlackOutputOptions struct {
+	messaging.SlackOptions
 	Message         string
 	URLSelector     string
-	URL             string
-	Timeout         int
 	AlertExpression string
 }
 
 type SlackOutput struct {
 	wg       *sync.WaitGroup
-	client   *http.Client
+	slack    toolsCommon.Messenger
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
@@ -52,31 +49,12 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (error, []byte) {
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) (error, []byte) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	s.logger.SpanDebug(span, "Post to Slack (%s) => %s", URL, message)
-	reader := bytes.NewReader(body.Bytes())
-
-	req, err := http.NewRequest("POST", URL, reader)
-	if err != nil {
-		s.logger.SpanError(span, err)
-		return err, nil
-	}
-
-	req.Header.Set("Content-Type", contentType)
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		s.logger.SpanError(span, err)
-		return err, nil
-	}
-
-	defer resp.Body.Close()
-
-	b, err := ioutil.ReadAll(resp.Body)
+	err, b := s.slack.SendMessage(URL, message, title, content)
 	if err != nil {
 		s.logger.SpanError(span, err)
 		return err, nil
@@ -84,39 +62,7 @@ func (s *SlackOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType
 
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
 	s.counter.Inc(s.getChannel(URL))
-
 	return nil, b
-}
-
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) (error, []byte) {
-
-	span := s.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
-
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	defer func() {
-		if err := w.Close(); err != nil {
-			s.logger.SpanWarn(span, "Failed to close writer")
-		}
-	}()
-
-	if err := w.WriteField("initial_comment", message); err != nil {
-		return err, nil
-	}
-
-	if err := w.WriteField("title", title); err != nil {
-		return err, nil
-	}
-
-	if err := w.WriteField("content", content); err != nil {
-		return err, nil
-	}
-
-	if err := w.Close(); err != nil {
-		return err, nil
-	}
-	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
 }
 
 func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title string, err error) error {
@@ -130,35 +76,7 @@ func (s *SlackOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, messag
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	var body bytes.Buffer
-	w := multipart.NewWriter(&body)
-	defer func() {
-		if err := w.Close(); err != nil {
-			s.logger.SpanWarn(span, "Failed to close writer")
-		}
-	}()
-
-	if err := w.WriteField("initial_comment", message); err != nil {
-		return err, nil
-	}
-
-	if err := w.WriteField("title", title); err != nil {
-		return err, nil
-	}
-
-	fw, err := w.CreateFormFile("file", fileName)
-	if err != nil {
-		return err, nil
-	}
-
-	if _, err := fw.Write(photo); err != nil {
-		return err, nil
-	}
-
-	if err := w.Close(); err != nil {
-		return err, nil
-	}
-	return s.post(span.GetContext(), URL, w.FormDataContentType(), body, message)
+	return s.slack.SendPhoto(URL, message, fileName, title, photo)
 }
 
 func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) (error, []byte) {
@@ -257,8 +175,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 	go func() {
 		defer s.wg.Done()
 
-		if s.client == nil || s.message == nil {
-			s.logger.Debug("No client or message")
+		if s.slack == nil || s.message == nil {
+			s.logger.Debug("No slack client or message")
 			return
 		}
 
@@ -351,8 +269,11 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	}
 
 	return &SlackOutput{
-		wg:       wg,
-		client:   utils.NewHttpInsecureClient(options.Timeout),
+		wg: wg,
+		slack: messaging.NewSlack(messaging.SlackOptions{
+			URL:     options.URL,
+			Timeout: options.Timeout,
+		}),
 		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
