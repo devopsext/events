@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var VERSION = "unknown"
+var version = "unknown"
 var APPNAME = "EVENTS"
 var appName = strings.ToLower(APPNAME)
 
@@ -296,14 +296,14 @@ func Execute() {
 		Short: "Events",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 
-			stdoutOptions.Version = VERSION
+			stdoutOptions.Version = version
 			stdout = sreProvider.NewStdout(stdoutOptions)
 			if utils.Contains(rootOptions.Logs, "stdout") && stdout != nil {
 				stdout.SetCallerOffset(2)
 				logs.Register(stdout)
 			}
 
-			datadogLoggerOptions.Version = VERSION
+			datadogLoggerOptions.Version = version
 			datadogLoggerOptions.ServiceName = datadogOptions.ServiceName
 			datadogLoggerOptions.Environment = datadogOptions.Environment
 			datadogLoggerOptions.Tags = datadogOptions.Tags
@@ -313,7 +313,7 @@ func Execute() {
 				logs.Register(datadogLogger)
 			}
 
-			newrelicLoggerOptions.Version = VERSION
+			newrelicLoggerOptions.Version = version
 			newrelicLoggerOptions.ApiKey = newrelicOptions.ApiKey
 			newrelicLoggerOptions.ServiceName = newrelicOptions.ServiceName
 			newrelicLoggerOptions.Environment = newrelicOptions.Environment
@@ -328,14 +328,14 @@ func Execute() {
 
 			// Metrics
 
-			prometheusOptions.Version = VERSION
+			prometheusOptions.Version = version
 			prometheus := sreProvider.NewPrometheusMeter(prometheusOptions, logs, stdout)
 			if utils.Contains(rootOptions.Metrics, "prometheus") && prometheus != nil {
 				prometheus.StartInWaitGroup(&mainWG)
 				metrics.Register(prometheus)
 			}
 
-			datadogMeterOptions.Version = VERSION
+			datadogMeterOptions.Version = version
 			datadogMeterOptions.ServiceName = datadogOptions.ServiceName
 			datadogMeterOptions.Environment = datadogOptions.Environment
 			datadogMeterOptions.Tags = datadogOptions.Tags
@@ -345,7 +345,7 @@ func Execute() {
 				metrics.Register(datadogMetricer)
 			}
 
-			opentelemetryMeterOptions.Version = VERSION
+			opentelemetryMeterOptions.Version = version
 			opentelemetryMeterOptions.ServiceName = opentelemetryOptions.ServiceName
 			opentelemetryMeterOptions.Environment = opentelemetryOptions.Environment
 			opentelemetryMeterOptions.Attributes = opentelemetryOptions.Attributes
@@ -355,7 +355,7 @@ func Execute() {
 				metrics.Register(opentelemetryMeter)
 			}
 
-			newrelicMeterOptions.Version = VERSION
+			newrelicMeterOptions.Version = version
 			newrelicMeterOptions.ApiKey = newrelicOptions.ApiKey
 			newrelicMeterOptions.ServiceName = newrelicOptions.ServiceName
 			newrelicMeterOptions.Environment = newrelicOptions.Environment
@@ -368,13 +368,13 @@ func Execute() {
 
 			// Tracing
 
-			jaegerOptions.Version = VERSION
+			jaegerOptions.Version = version
 			jaeger := sreProvider.NewJaegerTracer(jaegerOptions, logs, stdout)
 			if utils.Contains(rootOptions.Traces, "jaeger") && jaeger != nil {
 				traces.Register(jaeger)
 			}
 
-			datadogTracerOptions.Version = VERSION
+			datadogTracerOptions.Version = version
 			datadogTracerOptions.ServiceName = datadogOptions.ServiceName
 			datadogTracerOptions.Environment = datadogOptions.Environment
 			datadogTracerOptions.Tags = datadogOptions.Tags
@@ -387,7 +387,7 @@ func Execute() {
 				}
 			}
 
-			opentelemetryTracerOptions.Version = VERSION
+			opentelemetryTracerOptions.Version = version
 			opentelemetryTracerOptions.ServiceName = opentelemetryOptions.ServiceName
 			opentelemetryTracerOptions.Environment = opentelemetryOptions.Environment
 			opentelemetryTracerOptions.Attributes = opentelemetryOptions.Attributes
@@ -397,7 +397,7 @@ func Execute() {
 				traces.Register(opentelemtryTracer)
 			}
 
-			newrelicTracerOptions.Version = VERSION
+			newrelicTracerOptions.Version = version
 			newrelicTracerOptions.ApiKey = newrelicOptions.ApiKey
 			newrelicTracerOptions.ServiceName = newrelicOptions.ServiceName
 			newrelicTracerOptions.Environment = newrelicOptions.Environment
@@ -410,7 +410,7 @@ func Execute() {
 
 			// Events
 
-			newrelicEventerOptions.Version = VERSION
+			newrelicEventerOptions.Version = version
 			newrelicEventerOptions.ApiKey = newrelicOptions.ApiKey
 			newrelicEventerOptions.ServiceName = newrelicOptions.ServiceName
 			newrelicEventerOptions.Environment = newrelicOptions.Environment
@@ -421,7 +421,7 @@ func Execute() {
 				events.Register(newrelicEventer)
 			}
 
-			datadogEventerOptions.Version = VERSION
+			datadogEventerOptions.Version = version
 			datadogEventerOptions.ApiKey = datadogOptions.ApiKey
 			datadogEventerOptions.ServiceName = datadogOptions.ServiceName
 			datadogEventerOptions.Environment = datadogOptions.Environment
@@ -432,7 +432,7 @@ func Execute() {
 				events.Register(datadogEventer)
 			}
 
-			grafanaEventerOptions.Version = VERSION
+			grafanaEventerOptions.Version = version
 			grafanaEventerOptions.URL = grafanaOptions.URL
 			grafanaEventerOptions.ApiKey = grafanaOptions.ApiKey
 			grafanaEventerOptions.Tags = grafanaOptions.Tags
@@ -637,7 +637,7 @@ func Execute() {
 		Use:   "version",
 		Short: "Print the version number",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(VERSION)
+			fmt.Println(version)
 		},
 	})
 
