@@ -50,44 +50,44 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) (error, []byte) {
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	err, b := s.slack.SendMessage(URL, message, title, content)
+	b, err := s.slack.SendCustom(URL, message, title, content)
 	if err != nil {
 		s.logger.SpanError(span, err)
-		return err, nil
+		return nil, err
 	}
 
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
 	s.counter.Inc(s.getChannel(URL))
-	return nil, b
+	return b, nil
 }
 
 func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title string, err error) error {
 
-	e, _ := s.sendMessage(spanCtx, URL, message, title, err.Error())
+	_, e := s.sendMessage(spanCtx, URL, message, title, err.Error())
 	return e
 }
 
-func (s *SlackOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName, title string, photo []byte) (error, []byte) {
+func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, URL, message, fileName, title string, image []byte) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	return s.slack.SendPhoto(URL, message, fileName, title, photo)
+	return s.slack.SendCustomFile(URL, message, fileName, title, image)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) (error, []byte) {
+func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	values := u.Query()
@@ -97,7 +97,7 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 
 	query, ok := alert.Labels[s.options.AlertExpression]
 	if !ok {
-		return fmt.Errorf("no alert expression"), nil
+		return nil, fmt.Errorf("no alert expression")
 	}
 
 	caption := alert.Labels["alertname"]
@@ -111,7 +111,7 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	metric := query
@@ -132,12 +132,12 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 		return s.sendMessage(span.GetContext(), URL, message, query, "No image")
 	}
 
-	photo, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
+	image, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
 		return nil, nil
 	}
-	return s.sendPhoto(span.GetContext(), URL, message, fileName, query, photo)
+	return s.sendImage(span.GetContext(), URL, message, fileName, query, image)
 }
 
 func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
@@ -240,14 +240,14 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				err, bytes := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
+				bytes, err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
 				if err != nil {
 					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				err, bytes := s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
+				bytes, err := s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
 				if err == nil {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}

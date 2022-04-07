@@ -81,44 +81,44 @@ func (t *TelegramOutput) getSendPhotoURL(URL string) string {
 	return strings.Replace(URL, "sendMessage", "sendPhoto", -1)
 }
 
-func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) (error, []byte) {
+func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) ([]byte, error) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	err, b := t.telegram.SendMessage(URL, message, "", "")
+	b, err := t.telegram.SendCustom(URL, message, "", "")
 	if err != nil {
 		t.logger.SpanError(span, err)
-		return err, nil
+		return nil, err
 	}
 
 	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
 	t.counter.Inc(t.getChatID(URL))
-	return nil, b
+	return b, err
 }
 
 func (t *TelegramOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message string, err error) error {
 
-	e, _ := t.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+	_, e := t.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
 	return e
 }
 
-func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, photo []byte) (error, []byte) {
+func (t *TelegramOutput) sendImage(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, image []byte) ([]byte, error) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	return t.telegram.SendPhoto(URL, message, fileName, "", photo)
+	return t.telegram.SendCustomFile(URL, message, fileName, "", image)
 }
 
-func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) (error, []byte) {
+func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) ([]byte, error) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	values := u.Query()
@@ -129,7 +129,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 	query, ok := alert.Labels[t.options.AlertExpression]
 	if !ok {
 		err := errors.New("No alert expression")
-		return err, nil
+		return nil, err
 	}
 
 	caption := alert.Labels["alertname"]
@@ -143,7 +143,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	expr, err := metricsql.Parse(query)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
 	metric := query
@@ -165,13 +165,13 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 		return t.sendMessage(span.GetContext(), URL, messageQuery)
 	}
 
-	photo, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
+	image, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
 		return nil, nil
 	}
 
-	return t.sendPhoto(span.GetContext(), t.getSendPhotoURL(URL), messageQuery, fileName, photo)
+	return t.sendImage(span.GetContext(), t.getSendPhotoURL(URL), messageQuery, fileName, image)
 }
 
 func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
@@ -273,14 +273,14 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				err, bytes := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
+				bytes, err := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
 				if err != nil {
 					t.sendErrorMessage(span.GetContext(), URL, message, err)
 				} else {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				err, bytes := t.sendMessage(span.GetContext(), URL, message)
+				bytes, err := t.sendMessage(span.GetContext(), URL, message)
 				if err == nil {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
