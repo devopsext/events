@@ -109,15 +109,17 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	URL:                 envGet("TELEGRAM_OUT_URL", "").(string),
 	Timeout:             envGet("TELEGRAM_OUT_TIMEOUT", 30).(int),
 	AlertExpression:     envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
-	DisableNotification: envGet("TELEGRAM_OUT_DISABLE_NOTIFICATION", "false").(string),
+	DisableNotification: envGet("TELEGRAM_OUT_DISABLE_NOTIFICATION", false).(bool),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
-	URL:             envGet("SLACK_OUT_URL", "").(string),
+	//URL:             envGet("SLACK_OUT_URL", "").(string),
+	ChannelSelector: envGet("SLACK_OUT_CHANNEL_SELECTOR", "").(string),
 	Timeout:         envGet("SLACK_OUT_TIMEOUT", 30).(int),
 	Message:         envGet("SLACK_OUT_MESSAGE", "").(string),
-	URLSelector:     envGet("SLACK_OUT_URL_SELECTOR", "").(string),
 	AlertExpression: envGet("SLACK_OUT_ALERT_EXPRESSION", "g0.expr").(string),
+	Token:           envGet("SLACK_OUT_TOKEN", "").(string),
+	Channels:        strings.Split(envGet("SLACK_OUT_CHANNEL", "").(string), ","),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
@@ -534,13 +536,15 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.URLSelector, "telegram-out-url-selector", telegramOutputOptions.URLSelector, "Telegram URL selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-out-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
-	flags.StringVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
+	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 
-	flags.StringVar(&slackOutputOptions.URL, "slack-out-url", slackOutputOptions.URL, "Slack URL")
+	//flags.StringVar(&slackOutputOptions.URL, "slack-out-url", slackOutputOptions.URL, "Slack URL")
 	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")
-	flags.StringVar(&slackOutputOptions.URLSelector, "slack-out-url-selector", slackOutputOptions.URLSelector, "Slack URL selector template")
+	flags.StringVar(&slackOutputOptions.ChannelSelector, "slack-out-channel-selector", slackOutputOptions.ChannelSelector, "Slack Channel selector template")
 	flags.IntVar(&slackOutputOptions.Timeout, "slack-out-timeout", slackOutputOptions.Timeout, "Slack timeout")
 	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-out-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
+	flags.StringVar(&slackOutputOptions.Token, "slack-out-token", slackOutputOptions.Token, "Slack token")
+	flags.StringSliceVar(&slackOutputOptions.Channels, "slack-out-channel", slackOutputOptions.Channels, "Slack channels")
 
 	flags.StringVar(&workchatOutputOptions.URL, "workchat-out-url", workchatOutputOptions.URL, "Workchat URL")
 	flags.StringVar(&workchatOutputOptions.Message, "workchat-out-message", workchatOutputOptions.Message, "Workchat message template")

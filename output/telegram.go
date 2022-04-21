@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	toolsVendors "github.com/devopsext/tools/vendors"
 	"net/url"
 	"strconv"
 	"strings"
@@ -13,8 +14,6 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
-	toolsCommon "github.com/devopsext/tools/common"
-	"github.com/devopsext/tools/messaging"
 	"github.com/devopsext/utils"
 
 	"github.com/prometheus/alertmanager/template"
@@ -26,12 +25,12 @@ type TelegramOutputOptions struct {
 	URL                 string
 	Timeout             int
 	AlertExpression     string
-	DisableNotification string
+	DisableNotification bool
 }
 
 type TelegramOutput struct {
 	wg       *sync.WaitGroup
-	telegram toolsCommon.Messenger
+	telegram *toolsVendors.Telegram
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
@@ -304,7 +303,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 
 	return &TelegramOutput{
 		wg: wg,
-		telegram: messaging.NewTelegram(messaging.TelegramOptions{
+		telegram: toolsVendors.NewTelegram(toolsVendors.TelegramOptions{
 			URL:                 options.URL,
 			Timeout:             options.Timeout,
 			DisableNotification: options.DisableNotification,

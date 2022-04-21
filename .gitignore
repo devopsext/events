@@ -10,3 +10,4 @@ coverage.txt
 pubsub.credentials
 __debug_bin
 events
+.idea/
