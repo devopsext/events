@@ -113,13 +113,12 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
-	//URL:             envGet("SLACK_OUT_URL", "").(string),
 	ChannelSelector: envGet("SLACK_OUT_CHANNEL_SELECTOR", "").(string),
 	Timeout:         envGet("SLACK_OUT_TIMEOUT", 30).(int),
 	Message:         envGet("SLACK_OUT_MESSAGE", "").(string),
 	AlertExpression: envGet("SLACK_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 	Token:           envGet("SLACK_OUT_TOKEN", "").(string),
-	Channels:        strings.Split(envGet("SLACK_OUT_CHANNEL", "").(string), ","),
+	Channel:         envGet("SLACK_OUT_CHANNEL", "").(string),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
@@ -544,7 +543,7 @@ func Execute() {
 	flags.IntVar(&slackOutputOptions.Timeout, "slack-out-timeout", slackOutputOptions.Timeout, "Slack timeout")
 	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-out-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
 	flags.StringVar(&slackOutputOptions.Token, "slack-out-token", slackOutputOptions.Token, "Slack token")
-	flags.StringSliceVar(&slackOutputOptions.Channels, "slack-out-channel", slackOutputOptions.Channels, "Slack channels")
+	flags.StringVar(&slackOutputOptions.Channel, "slack-out-channel", slackOutputOptions.Channel, "Slack channel")
 
 	flags.StringVar(&workchatOutputOptions.URL, "workchat-out-url", workchatOutputOptions.URL, "Workchat URL")
 	flags.StringVar(&workchatOutputOptions.Message, "workchat-out-message", workchatOutputOptions.Message, "Workchat message template")

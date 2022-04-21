@@ -22,7 +22,7 @@ import (
 type SlackOutputOptions struct {
 	Timeout         int
 	Token           string
-	Channels        []string
+	Channel         string
 	Message         string
 	ChannelSelector string
 	AlertExpression string
@@ -211,8 +211,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		defChan := s.options.Channels
-		defToken := s.options.Token
+		channel := s.options.Channel
+		token := s.options.Token
 		var chans []string
 		if s.selector != nil {
 
@@ -256,47 +256,45 @@ func (s *SlackOutput) Send(event *common.Event) {
 			}
 
 			if chTuple[0] != "" {
-				defToken = chTuple[0]
+				token = chTuple[0]
 			}
 
 			if chTuple[1] != "" {
-				defChan = strings.Split(chTuple[1], ",")
+				channel = chTuple[1]
 			}
 
-			for _, slackChan := range defChan {
-				switch event.Type {
-				case "AlertmanagerEvent":
-					m := toolsVendors.SlackMessage{
-						Token:   defToken,
-						Channel: slackChan,
-						Message: message,
-						Title:   "AlertmanagerEvent",
-					}
-					bytes, err := s.sendAlertmanagerImage(span.GetContext(), defToken, slackChan, message, event.Data.(template.Alert))
-					if err != nil {
-						s.sendErrorMessage(span.GetContext(), m, err)
-					} else {
-						s.sendGlobally(span.GetContext(), event, bytes)
-					}
-				case "DataDogEvent":
-					m := slackMessageFromDDEvent(event)
-					m.Token = defToken
-					m.Channel = slackChan
-					bytes, err := s.sendMessage(span.GetContext(), m)
-					if err == nil {
-						s.sendGlobally(span.GetContext(), event, bytes)
-					}
-				default:
-					m := toolsVendors.SlackMessage{
-						Token:   defToken,
-						Channel: slackChan,
-						Message: message,
-						Title:   "No title",
-					}
-					bytes, err := s.sendMessage(span.GetContext(), m)
-					if err == nil {
-						s.sendGlobally(span.GetContext(), event, bytes)
-					}
+			switch event.Type {
+			case "AlertmanagerEvent":
+				m := toolsVendors.SlackMessage{
+					Token:   token,
+					Channel: channel,
+					Message: message,
+					Title:   "AlertmanagerEvent",
+				}
+				bytes, err := s.sendAlertmanagerImage(span.GetContext(), token, channel, message, event.Data.(template.Alert))
+				if err != nil {
+					s.sendErrorMessage(span.GetContext(), m, err)
+				} else {
+					s.sendGlobally(span.GetContext(), event, bytes)
+				}
+			case "DataDogEvent":
+				m := slackMessageFromDDEvent(event)
+				m.Token = token
+				m.Channel = channel
+				bytes, err := s.sendMessage(span.GetContext(), m)
+				if err == nil {
+					s.sendGlobally(span.GetContext(), event, bytes)
+				}
+			default:
+				m := toolsVendors.SlackMessage{
+					Token:   token,
+					Channel: channel,
+					Message: message,
+					Title:   "No title",
+				}
+				bytes, err := s.sendMessage(span.GetContext(), m)
+				if err == nil {
+					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			}
 		}
@@ -330,7 +328,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	//	return nil
 	//}
 	//
-	//if len(options.Channels) < 1 || utils.IsEmpty(options.Channels[0]) {
+	//if len(options.Channel) < 1 || utils.IsEmpty(options.Channel[0]) {
 	//	logger.Debug("Slack Channel is not defined. Skipped")
 	//	return nil
 	//}

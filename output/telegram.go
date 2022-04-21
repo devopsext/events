@@ -85,7 +85,8 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, m
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	b, err := t.telegram.SendCustom(URL, message, "", "")
+	//b, err := t.telegram.SendCustom(URL, message, "", "")
+	b, err := t.telegram.SendCustom(toolsVendors.TelegramOptions{URL: URL, Message: message})
 	if err != nil {
 		t.logger.SpanError(span, err)
 		return nil, err
@@ -107,7 +108,12 @@ func (t *TelegramOutput) sendImage(spanCtx sreCommon.TracerSpanContext, URL, mes
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	return t.telegram.SendCustomFile(URL, message, fileName, "", image)
+	return t.telegram.SendCustomDocument(toolsVendors.TelegramOptions{
+		URL:      URL,
+		Message:  message,
+		FileName: fileName,
+		Content:  string(image),
+	})
 }
 
 func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) ([]byte, error) {
