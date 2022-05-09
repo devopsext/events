@@ -83,8 +83,24 @@
   {{- end}}
 {{- end}}
 {{- define "datadog"}}
-  {{- if not (.via)}}
+  {{- if not (.data.via)}}
     {{- .data.text_only_msg}}
+  {{- end}}
+{{- end}}
+{{- define "site24x7"}}
+  {{- .data.INCIDENT_REASON}}
+{{- end}}
+{{- define "cloudflare"}}
+  {{- .data.text}}
+{{- end}}
+{{- define "google"}}
+  {{- if .data.incident}}
+    {{- .data.incident.summary}}
+  {{- end}}
+{{- end}}
+{{- define "aws"}}
+  {{- if .data.detail}}
+    {{- .data.detail.userIdentity.arn}}
   {{- end}}
 {{- end}}
 {{- define "text"}}
@@ -115,8 +131,10 @@
     {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .}}{{end}}
     {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
   {{- end}}
-  {{- if eq .type "DataDogEvent"}}
-    {{template "datadog" .}}{{template "datadog" .data}}
-  {{- end}}
+  {{- if eq .type "DataDogEvent"}}{{- if .data.event}}{{template "datadog" .}}{{end}}{{- end}}
+  {{- if eq .type "Site24x7Event"}}{{- if .data}}{{template "site24x7" .}}{{end}}{{- end}}
+  {{- if eq .type "CloudflareEvent"}}{{- if .data}}{{template "cloudflare" .}}{{end}}{{- end}}
+  {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
+  {{- if eq .type "AWSEvent"}}{{- if .data}}{{template "aws" .}}{{end}}{{- end}}
 {{- end}}
 {{- define "slack-message"}}{{template "text" .}}{{- end}}

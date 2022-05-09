@@ -91,8 +91,15 @@
 {{- define "cloudflare"}}
   {{- .data.text}}
 {{- end}}
-{{- define "google-incident"}}
-  {{- .data.incident.summary}}
+{{- define "google"}}
+  {{- if .data.incident}}
+    {{- .data.incident.summary}}
+  {{- end}}
+{{- end}}
+{{- define "aws"}}
+  {{- if .data.detail}}
+    {{- index .data "detail-type"}}
+  {{- end}}
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
@@ -122,17 +129,10 @@
     {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .}}{{end}}
     {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
   {{- end}}
-  {{- if eq .type "DataDogEvent"}}
-    {{- if .data.event}}{{template "datadog" .}}{{end}}
-  {{- end}}
-  {{- if eq .type "Site24x7Event"}}
-    {{- if .data}}{{template "site24x7" .}}{{end}}
-  {{- end}}
-  {{- if eq .type "CloudflareEvent"}}
-    {{- if .data}}{{template "cloudflare" .}}{{end}}
-  {{- end}}
-  {{- if eq .type "GoogleEvent"}}
-    {{- if .data.incident}}{{template "google-incident" .}}{{end}}
-  {{- end}}
+  {{- if eq .type "DataDogEvent"}}{{- if .data.event}}{{template "datadog" .}}{{end}}{{- end}}
+  {{- if eq .type "Site24x7Event"}}{{- if .data}}{{template "site24x7" .}}{{end}}{{- end}}
+  {{- if eq .type "CloudflareEvent"}}{{- if .data}}{{template "cloudflare" .}}{{end}}{{- end}}
+  {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
+  {{- if eq .type "AWSEvent"}}{{- if .data}}{{template "aws" .}}{{end}}{{- end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- end}}

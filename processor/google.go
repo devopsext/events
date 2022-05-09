@@ -152,19 +152,19 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var google GoogleRequest
-	if err := json.Unmarshal(body, &google); err != nil {
+	var request GoogleRequest
+	if err := json.Unmarshal(body, &request); err != nil {
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return
 	}
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	if google.Incident.StartedAt > 0 {
-		t := time.UnixMilli(google.Incident.StartedAt)
-		p.send(span, channel, google, &t)
+	if request.Incident.StartedAt > 0 {
+		t := time.UnixMilli(request.Incident.StartedAt)
+		p.send(span, channel, request, &t)
 	} else {
-		p.send(span, channel, google, nil)
+		p.send(span, channel, request, nil)
 	}
 
 	response := &GoogleResponse{

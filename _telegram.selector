@@ -1,0 +1,27 @@
+{{- define "render"}}{{$url := getVar "URL"}}{{printf $url (index . 0) (index . 1)}}{{"\n"}}{{end}}
+{{- define "rules"}}
+  {{- if eq .type "K8sEvent"}}
+    {{- if not (.data.location | regexMatch "(kube-system.ack-controlplane-healthcheck)")}}
+      {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_DEVOPS" | split "="}}{{template "render" $a}}
+    {{- end}}
+  {{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_DEVOPS" | split "="}}{{template "render" $a}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
+  {{- if eq .type "DataDogEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
+  {{- if eq .type "Site24x7Event"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
+  {{- if eq .type "CloudflareEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
+  {{- if eq .type "GoogleEvent"}}
+    {{$a := getEnv "EVENTS_TELEGRAM_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}
+  {{- end}}
+{{- end}}
+{{- define "telegram-selector"}}{{template "rules" .}}{{end}}
