@@ -17,6 +17,7 @@ import (
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
+	"github.com/devopsext/tools/vendors"
 	utils "github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
@@ -104,12 +105,14 @@ var kafkaOutputOptions = output.KafkaOutputOptions{
 }
 
 var telegramOutputOptions = output.TelegramOutputOptions{
-	Message:             envGet("TELEGRAM_OUT_MESSAGE", "").(string),
-	URLSelector:         envGet("TELEGRAM_OUT_URL_SELECTOR", "").(string),
-	URL:                 envGet("TELEGRAM_OUT_URL", "").(string),
-	Timeout:             envGet("TELEGRAM_OUT_TIMEOUT", 30).(int),
-	AlertExpression:     envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
-	DisableNotification: envGet("TELEGRAM_OUT_DISABLE_NOTIFICATION", "false").(string),
+	TelegramOptions: vendors.TelegramOptions{
+		IDToken:             envGet("TELEGRAM_OUT_ID_TOKEN", "").(string),
+		ChatID:              envGet("TELEGRAM_OUT_CHAT_ID", "").(string),
+		DisableNotification: envGet("TELEGRAM_OUT_DISABLE_NOTIFICATION", false).(bool),
+	},
+	Message:         envGet("TELEGRAM_OUT_MESSAGE", "").(string),
+	BotSelector:     envGet("TELEGRAM_OUT_BOT_SELECTOR", "").(string),
+	AlertExpression: envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
@@ -457,6 +460,7 @@ func Execute() {
 			processors.Add(processor.NewSite24x7Processor(&outputs, observability))
 			processors.Add(processor.NewCloudflareProcessor(&outputs, observability))
 			processors.Add(processor.NewGoogleProcessor(&outputs, observability))
+			processors.Add(processor.NewAWSProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
@@ -506,6 +510,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.Site24x7URL, "http-in-site24x7-url", httpInputOptions.Site24x7URL, "Http Site24x7 url")
 	flags.StringVar(&httpInputOptions.CloudflareURL, "http-in-cloudflare-url", httpInputOptions.CloudflareURL, "Http Cloudflare url")
 	flags.StringVar(&httpInputOptions.GoogleURL, "http-in-google-url", httpInputOptions.GoogleURL, "Http Google url")
+	flags.StringVar(&httpInputOptions.AWSURL, "http-in-aws-url", httpInputOptions.AWSURL, "Http AWS url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")
@@ -529,12 +534,13 @@ func Execute() {
 	flags.IntVar(&kafkaOutputOptions.NetReadTimeout, "kafka-out-net-read-timeout", kafkaOutputOptions.NetReadTimeout, "Kafka Net read timeout")
 	flags.IntVar(&kafkaOutputOptions.NetWriteTimeout, "kafka-out-net-write-timeout", kafkaOutputOptions.NetWriteTimeout, "Kafka Net write timeout")
 
-	flags.StringVar(&telegramOutputOptions.URL, "telegram-out-url", telegramOutputOptions.URL, "Telegram URL")
+	flags.StringVar(&telegramOutputOptions.IDToken, "telegram-out-id-token", telegramOutputOptions.IDToken, "Telegram ID token")
+	flags.StringVar(&telegramOutputOptions.ChatID, "telegram-out-chat-id", telegramOutputOptions.ChatID, "Telegram chat ID")
 	flags.StringVar(&telegramOutputOptions.Message, "telegram-out-message", telegramOutputOptions.Message, "Telegram message template")
-	flags.StringVar(&telegramOutputOptions.URLSelector, "telegram-out-url-selector", telegramOutputOptions.URLSelector, "Telegram URL selector template")
+	flags.StringVar(&telegramOutputOptions.BotSelector, "telegram-out-bot-selector", telegramOutputOptions.BotSelector, "Telegram Bot selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-out-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
-	flags.StringVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
+	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 
 	flags.StringVar(&slackOutputOptions.URL, "slack-out-url", slackOutputOptions.URL, "Slack URL")
 	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")

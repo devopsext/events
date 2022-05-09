@@ -9,8 +9,7 @@ import (
 	"sync"
 
 	sreCommon "github.com/devopsext/sre/common"
-	toolsCommon "github.com/devopsext/tools/common"
-	messaging "github.com/devopsext/tools/messaging"
+	vendors "github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -29,7 +28,7 @@ type SlackOutputOptions struct {
 
 type SlackOutput struct {
 	wg       *sync.WaitGroup
-	slack    toolsCommon.Messenger
+	slack    *vendors.Slack
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
@@ -55,12 +54,14 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, mess
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	b, err := s.slack.SendCustom(URL, message, title, content)
-	if err != nil {
-		s.logger.SpanError(span, err)
-		return nil, err
-	}
+	/*	b, err := s.slack.SendCustom(URL, message, title, content)
+		if err != nil {
+			s.logger.SpanError(span, err)
+			return nil, err
+		}
+	*/
 
+	var b []byte
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
 	s.counter.Inc(s.getChannel(URL))
 	return b, nil
@@ -77,7 +78,8 @@ func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, URL, messag
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	return s.slack.SendCustomFile(URL, message, fileName, title, image)
+	//return s.slack.SendCustomFile(URL, message, fileName, title, image)
+	return []byte{}, nil
 }
 
 func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) ([]byte, error) {
@@ -271,10 +273,10 @@ func NewSlackOutput(wg *sync.WaitGroup,
 
 	return &SlackOutput{
 		wg: wg,
-		slack: messaging.NewSlack(messaging.SlackOptions{
+		/*.NewSlack(messaging.SlackOptions{
 			URL:     options.URL,
 			Timeout: options.Timeout,
-		}),
+		}),*/
 		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),
 		selector: render.NewTextTemplate("slack-selector", options.URLSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),

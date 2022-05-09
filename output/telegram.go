@@ -13,25 +13,32 @@ import (
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
-	toolsCommon "github.com/devopsext/tools/common"
-	"github.com/devopsext/tools/messaging"
+	vendors "github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 
 	"github.com/prometheus/alertmanager/template"
 )
 
-type TelegramOutputOptions struct {
+/*type TelegramOutputOptions struct {
 	Message             string
 	URLSelector         string
 	URL                 string
 	Timeout             int
 	AlertExpression     string
 	DisableNotification string
+	*vendors.TelegramOptions
+}*/
+
+type TelegramOutputOptions struct {
+	vendors.TelegramOptions
+	Message         string
+	BotSelector     string
+	AlertExpression string
 }
 
 type TelegramOutput struct {
 	wg       *sync.WaitGroup
-	telegram toolsCommon.Messenger
+	telegram *vendors.Telegram
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
@@ -43,75 +50,69 @@ type TelegramOutput struct {
 }
 
 // assume that url is => https://api.telegram.org/botID:botToken/sendMessage?chat_id=%s
+func (t *TelegramOutput) getBotID(IDToken string) string {
 
-func (t *TelegramOutput) getBotID(URL string) string {
-
-	arr := strings.Split(URL, "/bot")
-	if len(arr) > 1 {
-		arr = strings.Split(arr[1], ":")
-		if len(arr) > 0 {
-			return arr[0]
-		}
+	arr := strings.Split(IDToken, ":")
+	if len(arr) > 0 {
+		return arr[0]
 	}
 	return ""
 }
 
-func (t *TelegramOutput) getBotToken(URL string) string {
-
-	arr := strings.Split(URL, "/bot")
-	if len(arr) > 1 {
-		arr = strings.Split(arr[1], ":")
-		if len(arr) > 1 {
-			return arr[1]
-		}
-	}
-	return ""
-}
-
-func (t *TelegramOutput) getChatID(URL string) string {
-
-	u, err := url.Parse(URL)
-	if err != nil {
-		return ""
-	}
-	return u.Query().Get("chat_id")
-}
-
-func (t *TelegramOutput) getSendPhotoURL(URL string) string {
-	return strings.Replace(URL, "sendMessage", "sendPhoto", -1)
-}
-
-func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) ([]byte, error) {
+func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string) ([]byte, error) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	b, err := t.telegram.SendCustom(URL, message, "", "")
+	b, err := t.telegram.SendCustomMessage(vendors.TelegramOptions{
+		IDToken:               IDToken,
+		ChatID:                chatID,
+		Timeout:               t.options.Timeout,
+		Insecure:              false,
+		DisableNotification:   t.options.DisableNotification,
+		DisableWebPagePreview: true,
+		MessageOptions: &vendors.TelegramMessageOptions{
+			Text: message,
+		},
+	})
+
 	if err != nil {
 		t.logger.SpanError(span, err)
 		return nil, err
 	}
 
 	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
-	t.counter.Inc(t.getChatID(URL))
+	t.counter.Inc(t.getBotID(IDToken), chatID)
 	return b, err
 }
 
-func (t *TelegramOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message string, err error) error {
+func (t *TelegramOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string, err error) error {
 
-	_, e := t.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+	_, e := t.sendMessage(spanCtx, IDToken, chatID, fmt.Sprintf("%s\n%s", message, err.Error()))
 	return e
 }
 
-func (t *TelegramOutput) sendImage(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, image []byte) ([]byte, error) {
+func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message, fileName string, photo []byte) ([]byte, error) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	return t.telegram.SendCustomFile(URL, message, fileName, "", image)
+	return t.telegram.SendCustomPhoto(vendors.TelegramOptions{
+		IDToken:               IDToken,
+		ChatID:                chatID,
+		Timeout:               t.options.Timeout,
+		Insecure:              false,
+		DisableNotification:   t.options.DisableNotification,
+		DisableWebPagePreview: true,
+		PhotoOptions: &vendors.TelegramPhotoOptions{
+			Caption: message,
+			Name:    fileName,
+			Content: string(photo),
+		},
+	})
 }
 
-func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) ([]byte, error) {
+func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string, alert template.Alert) ([]byte, error) {
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -162,16 +163,15 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	messageQuery := fmt.Sprintf("%s\n<i>%s</i>", message, query)
 	if t.grafana == nil {
-		return t.sendMessage(span.GetContext(), URL, messageQuery)
+		return t.sendMessage(span.GetContext(), IDToken, chatID, messageQuery)
 	}
 
 	image, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		t.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
+		t.sendErrorMessage(span.GetContext(), IDToken, chatID, messageQuery, err)
 		return nil, nil
 	}
-
-	return t.sendImage(span.GetContext(), t.getSendPhotoURL(URL), messageQuery, fileName, image)
+	return t.sendPhoto(span.GetContext(), IDToken, chatID, messageQuery, fileName, image)
 }
 
 func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
@@ -234,18 +234,22 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
-		URLs := t.options.URL
+		IDTokenChatIDs := ""
+		if !utils.IsEmpty(t.options.IDToken) && !utils.IsEmpty(t.options.ChatID) {
+			IDTokenChatIDs = fmt.Sprintf("%s=%s", t.options.IDToken, t.options.ChatID)
+		}
+
 		if t.selector != nil {
 			b, err := t.selector.Execute(jsonObject)
 			if err != nil {
 				t.logger.SpanDebug(span, err)
 			} else {
-				URLs = b.String()
+				IDTokenChatIDs = b.String()
 			}
 		}
 
-		if utils.IsEmpty(URLs) {
-			t.logger.SpanError(span, "Telegram URLs are not found")
+		if utils.IsEmpty(IDTokenChatIDs) {
+			t.logger.SpanError(span, "Telegram ID token or chat ID are not found")
 			return
 		}
 
@@ -263,24 +267,30 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 		t.logger.SpanDebug(span, "Telegram message => %s", message)
 
-		arr := strings.Split(URLs, "\n")
-		for _, URL := range arr {
+		list := strings.Split(IDTokenChatIDs, "\n")
+		for _, IDTokenChatID := range list {
 
-			URL = strings.TrimSpace(URL)
-			if utils.IsEmpty(URL) {
+			arr := strings.Split(IDTokenChatID, "=")
+			if len(arr) < 2 {
+				continue
+			}
+			if utils.IsEmpty(arr[0]) || utils.IsEmpty(arr[1]) {
 				continue
 			}
 
+			IDToken := arr[0]
+			chatID := arr[1]
+
 			switch event.Type {
 			case "AlertmanagerEvent":
-				bytes, err := t.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
+				bytes, err := t.sendAlertmanagerImage(span.GetContext(), IDToken, chatID, message, event.Data.(template.Alert))
 				if err != nil {
-					t.sendErrorMessage(span.GetContext(), URL, message, err)
+					t.sendErrorMessage(span.GetContext(), IDToken, chatID, message, err)
 				} else {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				bytes, err := t.sendMessage(span.GetContext(), URL, message)
+				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
 				if err == nil {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
@@ -297,25 +307,21 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	outputs *common.Outputs) *TelegramOutput {
 
 	logger := observability.Logs()
-	if utils.IsEmpty(options.URL) {
-		logger.Debug("Telegram URL is not defined. Skipped")
+	if utils.IsEmpty(options.Message) {
+		logger.Debug("Telegram message is not defined. Skipped")
 		return nil
 	}
 
 	return &TelegramOutput{
-		wg: wg,
-		telegram: messaging.NewTelegram(messaging.TelegramOptions{
-			URL:                 options.URL,
-			Timeout:             options.Timeout,
-			DisableNotification: options.DisableNotification,
-		}),
+		wg:       wg,
+		telegram: vendors.NewTelegram(options.TelegramOptions),
 		message:  render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
-		selector: render.NewTextTemplate("telegram-selector", options.URLSelector, templateOptions, options, logger),
+		selector: render.NewTextTemplate("telegram-selector", options.BotSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		outputs:  outputs,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"chat_id"}, "telegram", "output"),
+		counter:  observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
 	}
 }
