@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	sreCommon "github.com/devopsext/sre/common"
-	toolsVendors "github.com/devopsext/tools/vendors"
+	vendors "github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -30,7 +30,7 @@ type SlackOutputOptions struct {
 
 type SlackOutput struct {
 	wg       *sync.WaitGroup
-	slack    *toolsVendors.Slack
+	slack    *vendors.Slack
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
@@ -51,12 +51,12 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m toolsVendors.SlackMessage) ([]byte, error) {
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	b, err := s.slack.SendMessageCustom(m)
+	b, err := s.slack.SendCustomMessage(m)
 	if err != nil {
 		s.logger.SpanError(span, err)
 		return nil, err
@@ -67,7 +67,7 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m toolsVe
 	return b, nil
 }
 
-func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, m toolsVendors.SlackMessage, err error) error {
+func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage, err error) error {
 	m.FileContent = err.Error()
 	_, e := s.sendMessage(spanCtx, m)
 	return e
@@ -78,7 +78,7 @@ func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, token, chan
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	m := toolsVendors.SlackMessage{
+	m := vendors.SlackMessage{
 		Token:       token,
 		Channel:     channel,
 		Message:     message,
@@ -139,13 +139,13 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 	}
 
 	if s.grafana == nil {
-		return s.sendMessage(span.GetContext(), toolsVendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query})
+		return s.sendMessage(span.GetContext(), vendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query})
 	}
 
 	image, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
 		s.sendErrorMessage(span.GetContext(),
-			toolsVendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query}, err)
+			vendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query}, err)
 		return nil, nil
 	}
 	return s.sendImage(span.GetContext(), token, channel, message, fileName, query, image)
@@ -265,7 +265,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				m := toolsVendors.SlackMessage{
+				m := vendors.SlackMessage{
 					Token:   token,
 					Channel: channel,
 					Message: message,
@@ -286,12 +286,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				m := toolsVendors.SlackMessage{
-					Token:   token,
-					Channel: channel,
-					Message: message,
-					Title:   "No title",
-				}
+				m := prepareSlackMessage(token, channel, "", message)
 				bytes, err := s.sendMessage(span.GetContext(), m)
 				if err == nil {
 					s.sendGlobally(span.GetContext(), event, bytes)
@@ -301,8 +296,22 @@ func (s *SlackOutput) Send(event *common.Event) {
 	}()
 }
 
-func slackMessageFromDDEvent(e *common.Event) toolsVendors.SlackMessage {
-	var m toolsVendors.SlackMessage
+func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
+	if title == "" {
+		lines := strings.Split(message, "\n")
+		title = lines[0]
+		message = strings.Join(lines[1:], "\n")
+	}
+	return vendors.SlackMessage{
+		Token:   token,
+		Channel: channel,
+		Message: message,
+		Title:   title,
+	}
+}
+
+func slackMessageFromDDEvent(e *common.Event) vendors.SlackMessage {
+	var m vendors.SlackMessage
 	jsonBytes, err := e.JsonBytes()
 	if err != nil {
 		return m
@@ -335,7 +344,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 
 	return &SlackOutput{
 		wg: wg,
-		slack: toolsVendors.NewSlack(toolsVendors.SlackOptions{
+		slack: vendors.NewSlack(vendors.SlackOptions{
 			Timeout: options.Timeout,
 		}),
 		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),

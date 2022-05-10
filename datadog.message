@@ -73,7 +73,8 @@
     {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
-    {{template "gitlab-header" .}}
+    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}
+    {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{- template "gitlab-header" .}}{{- end}}
   {{- end}}
 {{- end}}
 {{- define "datadog-message"}}{{template "text" .}}{{- end}}
