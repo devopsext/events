@@ -1,4 +1,4 @@
-{{- define "render"}}{{$url := getVar "URL"}}{{printf $url (index . 0) (index . 1)}}{{"\n"}}{{end}}
+{{- define "render"}}{{printf "%s=%s" (index . 0) (index . 1)}}{{"\n"}}{{end}}
 {{- define "rules"}}
   {{- if .type | regexMatch ".*"}}{{$a := getEnv "EVENTS_SLACK_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}{{end}}
 {{- end}}

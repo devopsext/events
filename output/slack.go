@@ -3,13 +3,14 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 
 	sreCommon "github.com/devopsext/sre/common"
-	vendors "github.com/devopsext/tools/vendors"
+	toolsVendors "github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 
 	"github.com/VictoriaMetrics/metricsql"
@@ -19,16 +20,17 @@ import (
 )
 
 type SlackOutputOptions struct {
-	URL             string
 	Timeout         int
+	Token           string
+	Channel         string
 	Message         string
-	URLSelector     string
+	ChannelSelector string
 	AlertExpression string
 }
 
 type SlackOutput struct {
 	wg       *sync.WaitGroup
-	slack    *vendors.Slack
+	slack    *toolsVendors.Slack
 	message  *render.TextTemplate
 	selector *render.TextTemplate
 	grafana  *render.GrafanaRender
@@ -49,40 +51,46 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title, content string) ([]byte, error) {
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m toolsVendors.SlackMessage) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	/*	b, err := s.slack.SendCustom(URL, message, title, content)
-		if err != nil {
-			s.logger.SpanError(span, err)
-			return nil, err
-		}
-	*/
+	b, err := s.slack.SendMessageCustom(m)
+	if err != nil {
+		s.logger.SpanError(span, err)
+		return nil, err
+	}
 
-	var b []byte
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
-	s.counter.Inc(s.getChannel(URL))
+	s.counter.Inc(m.Channel)
 	return b, nil
 }
 
-func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message, title string, err error) error {
-
-	_, e := s.sendMessage(spanCtx, URL, message, title, err.Error())
+func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, m toolsVendors.SlackMessage, err error) error {
+	m.FileContent = err.Error()
+	_, e := s.sendMessage(spanCtx, m)
 	return e
 }
 
-func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, URL, message, fileName, title string, image []byte) ([]byte, error) {
+func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, token, channel, message, fileName, title string, image []byte) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	//return s.slack.SendCustomFile(URL, message, fileName, title, image)
-	return []byte{}, nil
+	m := toolsVendors.SlackMessage{
+		Token:       token,
+		Channel:     channel,
+		Message:     message,
+		FileName:    fileName,
+		Title:       title,
+		FileContent: string(image),
+	}
+
+	return s.slack.SendCustomFile(m)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) ([]byte, error) {
+func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, token, channel, message string, alert template.Alert) ([]byte, error) {
 
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
@@ -131,15 +139,16 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 	}
 
 	if s.grafana == nil {
-		return s.sendMessage(span.GetContext(), URL, message, query, "No image")
+		return s.sendMessage(span.GetContext(), toolsVendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query})
 	}
 
 	image, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		s.sendErrorMessage(span.GetContext(), URL, message, query, err)
+		s.sendErrorMessage(span.GetContext(),
+			toolsVendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query}, err)
 		return nil, nil
 	}
-	return s.sendImage(span.GetContext(), URL, message, fileName, query, image)
+	return s.sendImage(span.GetContext(), token, channel, message, fileName, query, image)
 }
 
 func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
@@ -178,7 +187,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 	go func() {
 		defer s.wg.Done()
 
-		if s.slack == nil || s.message == nil {
+		if s == nil || s.message == nil {
 			s.logger.Debug("No slack client or message")
 			return
 		}
@@ -202,21 +211,27 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		URLs := s.options.URL
+		channel := s.options.Channel
+		token := s.options.Token
+		var chans []string
 		if s.selector != nil {
 
 			b, err := s.selector.Execute(jsonMap)
 			if err != nil {
 				s.logger.SpanDebug(span, err)
 			} else {
-				URLs = b.String()
+				chans = strings.Split(b.String(), "\n")
 			}
 		}
 
-		if utils.IsEmpty(URLs) {
-			s.logger.SpanError(span, "Slack URLs are not found")
+		if len(chans) == 0 {
+			s.logger.SpanError(span, "slack no channels")
 			return
 		}
+		//if utils.IsEmpty(channels) {
+		//	s.logger.SpanError(span, "Slack channels are not found")
+		//	return
+		//}
 
 		b, err := s.message.Execute(jsonMap)
 		if err != nil {
@@ -231,31 +246,73 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		s.logger.SpanDebug(span, "Slack message => %s", message)
-		arr := strings.Split(URLs, "\n")
 
-		for _, URL := range arr {
+		for _, ch := range chans {
 
-			URL = strings.TrimSpace(URL)
-			if utils.IsEmpty(URL) {
+			ch = strings.TrimSpace(ch)
+			chTuple := strings.Split(ch, "=")
+			if len(chTuple) != 2 {
 				continue
+			}
+
+			if chTuple[0] != "" {
+				token = chTuple[0]
+			}
+
+			if chTuple[1] != "" {
+				channel = chTuple[1]
 			}
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				bytes, err := s.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert))
+				m := toolsVendors.SlackMessage{
+					Token:   token,
+					Channel: channel,
+					Message: message,
+					Title:   "AlertmanagerEvent",
+				}
+				bytes, err := s.sendAlertmanagerImage(span.GetContext(), token, channel, message, event.Data.(template.Alert))
 				if err != nil {
-					s.sendErrorMessage(span.GetContext(), URL, message, "No title", err)
+					s.sendErrorMessage(span.GetContext(), m, err)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
+			case "DataDogEvent":
+				m := slackMessageFromDDEvent(event)
+				m.Token = token
+				m.Channel = channel
+				bytes, err := s.sendMessage(span.GetContext(), m)
+				if err == nil {
+					s.sendGlobally(span.GetContext(), event, bytes)
+				}
 			default:
-				bytes, err := s.sendMessage(span.GetContext(), URL, message, "No title", "No image")
+				m := toolsVendors.SlackMessage{
+					Token:   token,
+					Channel: channel,
+					Message: message,
+					Title:   "No title",
+				}
+				bytes, err := s.sendMessage(span.GetContext(), m)
 				if err == nil {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			}
 		}
 	}()
+}
+
+func slackMessageFromDDEvent(e *common.Event) toolsVendors.SlackMessage {
+	var m toolsVendors.SlackMessage
+	jsonBytes, err := e.JsonBytes()
+	if err != nil {
+		return m
+	}
+
+	m.Title = gjson.GetBytes(jsonBytes, "data.event.title").String()
+	m.Message = gjson.GetBytes(jsonBytes, "data.text_only_msg").String()
+	m.ImageURL = gjson.GetBytes(jsonBytes, "data.snapshot").String()
+
+	return m
 }
 
 func NewSlackOutput(wg *sync.WaitGroup,
@@ -266,19 +323,23 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	outputs *common.Outputs) *SlackOutput {
 
 	logger := observability.Logs()
-	if utils.IsEmpty(options.URL) {
-		logger.Debug("Slack URL is not defined. Skipped")
-		return nil
-	}
+	//if utils.IsEmpty(options.Token) {
+	//	logger.Debug("Slack Token is not defined. Skipped")
+	//	return nil
+	//}
+	//
+	//if len(options.Channel) < 1 || utils.IsEmpty(options.Channel[0]) {
+	//	logger.Debug("Slack Channel is not defined. Skipped")
+	//	return nil
+	//}
 
 	return &SlackOutput{
 		wg: wg,
-		/*.NewSlack(messaging.SlackOptions{
-			URL:     options.URL,
+		slack: toolsVendors.NewSlack(toolsVendors.SlackOptions{
 			Timeout: options.Timeout,
-		}),*/
+		}),
 		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),
-		selector: render.NewTextTemplate("slack-selector", options.URLSelector, templateOptions, options, logger),
+		selector: render.NewTextTemplate("slack-selector", options.ChannelSelector, templateOptions, options, logger),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		outputs:  outputs,
