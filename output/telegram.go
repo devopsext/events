@@ -69,6 +69,7 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToke
 		ChatID:                chatID,
 		Timeout:               t.options.Timeout,
 		Insecure:              false,
+		ParseMode:             t.options.ParseMode,
 		DisableNotification:   t.options.DisableNotification,
 		DisableWebPagePreview: true,
 		MessageOptions: &vendors.TelegramMessageOptions{
@@ -102,6 +103,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, IDToken,
 		ChatID:                chatID,
 		Timeout:               t.options.Timeout,
 		Insecure:              false,
+		ParseMode:             t.options.ParseMode,
 		DisableNotification:   t.options.DisableNotification,
 		DisableWebPagePreview: true,
 		PhotoOptions: &vendors.TelegramPhotoOptions{
@@ -244,7 +246,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			if err != nil {
 				t.logger.SpanDebug(span, err)
 			} else {
-				IDTokenChatIDs = b.String()
+				IDTokenChatIDs = strings.TrimSpace(b.String())
 			}
 		}
 

@@ -108,6 +108,8 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	TelegramOptions: vendors.TelegramOptions{
 		IDToken:             envGet("TELEGRAM_OUT_ID_TOKEN", "").(string),
 		ChatID:              envGet("TELEGRAM_OUT_CHAT_ID", "").(string),
+		Timeout:             envGet("TELEGRAM_OUT_TIMEOUT", 30).(int),
+		ParseMode:           envGet("TELEGRAM_OUT_PARSE_MODE", "HTML").(string),
 		DisableNotification: envGet("TELEGRAM_OUT_DISABLE_NOTIFICATION", false).(bool),
 	},
 	Message:         envGet("TELEGRAM_OUT_MESSAGE", "").(string),
@@ -540,6 +542,7 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.Message, "telegram-out-message", telegramOutputOptions.Message, "Telegram message template")
 	flags.StringVar(&telegramOutputOptions.BotSelector, "telegram-out-bot-selector", telegramOutputOptions.BotSelector, "Telegram Bot selector template")
 	flags.IntVar(&telegramOutputOptions.Timeout, "telegram-out-timeout", telegramOutputOptions.Timeout, "Telegram timeout")
+	flags.StringVar(&telegramOutputOptions.ParseMode, "telegram-out-parse-mode", telegramOutputOptions.ParseMode, "Telegram parse mode")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
 	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 
