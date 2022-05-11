@@ -19,21 +19,12 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
-/*type TelegramOutputOptions struct {
-	Message             string
-	URLSelector         string
-	URL                 string
-	Timeout             int
-	AlertExpression     string
-	DisableNotification string
-	*vendors.TelegramOptions
-}*/
-
 type TelegramOutputOptions struct {
 	vendors.TelegramOptions
 	Message         string
 	BotSelector     string
 	AlertExpression string
+	Forward         string
 }
 
 type TelegramOutput struct {
@@ -47,6 +38,10 @@ type TelegramOutput struct {
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
 	counter  sreCommon.Counter
+}
+
+func (t *TelegramOutput) Name() string {
+	return "Telegram"
 }
 
 // assume that url is => https://api.telegram.org/botID:botToken/sendMessage?chat_id=%s
@@ -178,6 +173,14 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
 
+	if utils.IsEmpty(t.options.Forward) {
+		return
+	}
+
+	if utils.Contains(event.Via, t.Name()) {
+		return
+	}
+
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
@@ -191,7 +194,7 @@ func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event
 	if via == nil {
 		via = make(map[string]interface{})
 	}
-	via["Telegram"] = obj
+	via[t.Name()] = obj
 
 	e := common.Event{
 		Time:    event.Time,
@@ -203,7 +206,7 @@ func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event
 	e.SetLogger(t.logger)
 	e.SetSpanContext(span.GetContext())
 
-	t.outputs.SendExclude(&e, []common.Output{t})
+	t.outputs.SendForward(&e, []common.Output{t}, t.options.Forward)
 }
 
 func (t *TelegramOutput) Send(event *common.Event) {

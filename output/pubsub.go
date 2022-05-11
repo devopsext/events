@@ -33,6 +33,10 @@ type PubSubOutput struct {
 	counter  sreCommon.Counter
 }
 
+func (ps *PubSubOutput) Name() string {
+	return "PubSub"
+}
+
 func (ps *PubSubOutput) Send(event *common.Event) {
 
 	ps.wg.Add(1)

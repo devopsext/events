@@ -115,6 +115,7 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	Message:         envGet("TELEGRAM_OUT_MESSAGE", "").(string),
 	BotSelector:     envGet("TELEGRAM_OUT_BOT_SELECTOR", "").(string),
 	AlertExpression: envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
+	Forward:         envGet("TELEGRAM_OUT_FORWARD", "").(string),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
@@ -124,6 +125,7 @@ var slackOutputOptions = output.SlackOutputOptions{
 	AlertExpression: envGet("SLACK_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 	Token:           envGet("SLACK_OUT_TOKEN", "").(string),
 	Channel:         envGet("SLACK_OUT_CHANNEL", "").(string),
+	Forward:         envGet("SLACK_OUT_FORWARD", "").(string),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
@@ -545,14 +547,15 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.ParseMode, "telegram-out-parse-mode", telegramOutputOptions.ParseMode, "Telegram parse mode")
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
 	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
+	flags.StringVar(&telegramOutputOptions.Forward, "telegram-out-forward", telegramOutputOptions.Forward, "Telegram forward regex pattern")
 
-	//flags.StringVar(&slackOutputOptions.URL, "slack-out-url", slackOutputOptions.URL, "Slack URL")
 	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")
 	flags.StringVar(&slackOutputOptions.ChannelSelector, "slack-out-channel-selector", slackOutputOptions.ChannelSelector, "Slack Channel selector template")
 	flags.IntVar(&slackOutputOptions.Timeout, "slack-out-timeout", slackOutputOptions.Timeout, "Slack timeout")
 	flags.StringVar(&slackOutputOptions.AlertExpression, "slack-out-alert-expression", slackOutputOptions.AlertExpression, "Slack alert expression")
 	flags.StringVar(&slackOutputOptions.Token, "slack-out-token", slackOutputOptions.Token, "Slack token")
 	flags.StringVar(&slackOutputOptions.Channel, "slack-out-channel", slackOutputOptions.Channel, "Slack channel")
+	flags.StringVar(&slackOutputOptions.Forward, "slack-out-forward", slackOutputOptions.Forward, "Slack forward regex pattern")
 
 	flags.StringVar(&workchatOutputOptions.URL, "workchat-out-url", workchatOutputOptions.URL, "Workchat URL")
 	flags.StringVar(&workchatOutputOptions.Message, "workchat-out-message", workchatOutputOptions.Message, "Workchat message template")

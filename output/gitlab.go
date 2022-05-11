@@ -31,6 +31,10 @@ type GitlabOutput struct {
 	counter   sreCommon.Counter
 }
 
+func (g *GitlabOutput) Name() string {
+	return "Gitlab"
+}
+
 func (g *GitlabOutput) getVariables(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
 
 	attrs := make(map[string]string)

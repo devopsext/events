@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"reflect"
+	"regexp"
 
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
@@ -21,11 +22,18 @@ func (ots *Outputs) Add(o Output) {
 	ots.list = append(ots.list, o)
 }
 
-func (ots *Outputs) send(e *Event, exclude []Output) {
+func (ots *Outputs) send(e *Event, exclude []Output, pattern string) {
 
 	if e == nil {
 		if ots.logger != nil {
 			ots.logger.Warn("Event is not found")
+		}
+		return
+	}
+
+	if utils.IsEmpty(pattern) {
+		if ots.logger != nil {
+			ots.logger.Warn("Patter is empty")
 		}
 		return
 	}
@@ -45,9 +53,17 @@ func (ots *Outputs) send(e *Event, exclude []Output) {
 	for _, o := range ots.list {
 
 		if o != nil {
-			if !utils.Contains(exclude, o) {
-				o.Send(e)
+			matched, err := regexp.MatchString(pattern, o.Name())
+			if err != nil {
+				if ots.logger != nil {
+					ots.logger.Error(err)
+				}
+				continue
 			}
+			if !matched {
+				continue
+			}
+			o.Send(e)
 		} else {
 			if ots.logger != nil {
 				ots.logger.Warn("Output is not defined")
@@ -57,11 +73,11 @@ func (ots *Outputs) send(e *Event, exclude []Output) {
 }
 
 func (ots *Outputs) Send(e *Event) {
-	ots.send(e, []Output{})
+	ots.send(e, []Output{}, ".*")
 }
 
-func (ots *Outputs) SendExclude(e *Event, exclude []Output) {
-	ots.send(e, exclude)
+func (ots *Outputs) SendForward(e *Event, exclude []Output, pattern string) {
+	ots.send(e, exclude, pattern)
 }
 
 func NewOutputs(logger sreCommon.Logger) Outputs {

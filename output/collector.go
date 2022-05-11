@@ -25,6 +25,10 @@ type CollectorOutput struct {
 	counter    sreCommon.Counter
 }
 
+func (c *CollectorOutput) Name() string {
+	return "Collector"
+}
+
 func (c *CollectorOutput) Send(event *common.Event) {
 
 	c.wg.Add(1)
