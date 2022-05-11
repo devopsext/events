@@ -1,5 +1,12 @@
-{{- define "render"}}{{printf "%s=%s" (index . 0) (index . 1)}}{{"\n"}}{{end}}
+{{- define "render"}}{{printf (getEnv .)}}{{"\n"}}{{end}}
 {{- define "rules"}}
-  {{- if .type | regexMatch ".*"}}{{$a := getEnv "EVENTS_SLACK_OUT_BOT_PLATFORM" | split "="}}{{template "render" $a}}{{end}}
+  {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_DEVOPS"}}{{end}}
+  {{- if eq .type "GitlabEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_DEVOPS"}}{{end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "DataDogEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "Site24x7Event"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "CloudflareEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "GoogleEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "AWSEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
 {{- end}}
 {{- define "slack-selector"}}{{template "rules" .}}{{end}}

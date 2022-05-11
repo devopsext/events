@@ -27,6 +27,10 @@ type GrafanaOutput struct {
 	grafanaEventer *sreProvider.GrafanaEventer
 }
 
+func (g *GrafanaOutput) Name() string {
+	return "Grafana"
+}
+
 func (g *GrafanaOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
 
 	attrs := make(map[string]string)

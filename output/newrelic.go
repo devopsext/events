@@ -27,6 +27,10 @@ type NewRelicOutput struct {
 	newrelicEventer *sreProvider.NewRelicEventer
 }
 
+func (n *NewRelicOutput) Name() string {
+	return "NewRelic"
+}
+
 func (n *NewRelicOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
 
 	attrs := make(map[string]string)

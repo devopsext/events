@@ -135,4 +135,4 @@
   {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
   {{- if eq .type "AWSEvent"}}{{- if .data}}{{template "aws" .}}{{end}}{{- end}}
 {{- end}}
-{{- define "telegram-message"}}{{template "text" .}}{{- end}}
+{{- define "telegram-message"}}{{template "text" .}}{{- if (.via)}}{{.via.Slack.channel}}{{end}}{{- end}}

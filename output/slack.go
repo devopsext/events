@@ -3,11 +3,12 @@ package output
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/tidwall/gjson"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/tidwall/gjson"
 
 	sreCommon "github.com/devopsext/sre/common"
 	vendors "github.com/devopsext/tools/vendors"
@@ -26,6 +27,7 @@ type SlackOutputOptions struct {
 	Message         string
 	ChannelSelector string
 	AlertExpression string
+	Forward         string
 }
 
 type SlackOutput struct {
@@ -39,6 +41,10 @@ type SlackOutput struct {
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
 	counter  sreCommon.Counter
+}
+
+func (s *SlackOutput) Name() string {
+	return "Slack"
 }
 
 // assume that url is => https://slack.com/api/files.upload?token=%s&channels=%s
@@ -153,6 +159,14 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 
 func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
 
+	if utils.IsEmpty(s.options.Forward) {
+		return
+	}
+
+	if utils.Contains(event.Via, s.Name()) {
+		return
+	}
+
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
@@ -166,7 +180,7 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 	if via == nil {
 		via = make(map[string]interface{})
 	}
-	via["Slack"] = obj
+	via[s.Name()] = obj
 
 	e := common.Event{
 		Time:    event.Time,
@@ -178,7 +192,7 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 	e.SetLogger(s.logger)
 	e.SetSpanContext(span.GetContext())
 
-	s.outputs.SendExclude(&e, []common.Output{s})
+	s.outputs.SendForward(&e, []common.Output{s}, s.options.Forward)
 }
 
 func (s *SlackOutput) Send(event *common.Event) {

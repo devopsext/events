@@ -45,8 +45,11 @@ type WorkchatOutput struct {
 	counter  sreCommon.Counter
 }
 
-// assume that url is => https://graph.workplace.com/v9.0/me/messages?access_token=%s&recipient=%s
+func (w *WorkchatOutput) Name() string {
+	return "Workchat"
+}
 
+// assume that url is => https://graph.workplace.com/v9.0/me/messages?access_token=%s&recipient=%s
 func (w *WorkchatOutput) getThread(URL string) string {
 
 	u, err := url.Parse(URL)

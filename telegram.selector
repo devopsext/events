@@ -1,10 +1,6 @@
 {{- define "render"}}{{printf (getEnv .)}}{{"\n"}}{{end}}
 {{- define "rules"}}
-  {{- if eq .type "K8sEvent"}}
-    {{- if not (.data.location | regexMatch "(kube-system.ack-controlplane-healthcheck)")}}
-      {{$a := "EVENTS_TELEGRAM_OUT_BOT_DEVOPS"}}{{template "render" $a}}
-    {{- end}}
-  {{- end}}
+  {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_DEVOPS"}}{{end}}
   {{- if eq .type "GitlabEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_DEVOPS"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "DataDogEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}

@@ -37,6 +37,10 @@ type KafkaOutput struct {
 	counter  sreCommon.Counter
 }
 
+func (k *KafkaOutput) Name() string {
+	return "Kafka"
+}
+
 func (k *KafkaOutput) Send(event *common.Event) {
 
 	k.wg.Add(1)

@@ -29,6 +29,10 @@ type DataDogOutput struct {
 	datadogEventer *sreProvider.DataDogEventer
 }
 
+func (d *DataDogOutput) Name() string {
+	return "DataDog"
+}
+
 func (d *DataDogOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
 
 	attrs := make(map[string]string)
