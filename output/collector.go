@@ -22,7 +22,8 @@ type CollectorOutput struct {
 	message    *render.TextTemplate
 	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
-	counter    sreCommon.Counter
+	requests   sreCommon.Counter
+	errors     sreCommon.Counter
 }
 
 func (c *CollectorOutput) Name() string {
@@ -60,14 +61,14 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			return
 		}
 
+		c.requests.Inc(c.options.Address)
 		c.logger.SpanDebug(span, "Collector message => %s", message)
 
 		_, err = c.connection.Write(b.Bytes())
 		if err != nil {
+			c.errors.Inc(c.options.Address)
 			c.logger.SpanError(span, err)
 		}
-
-		c.counter.Inc(c.options.Address)
 	}()
 }
 
@@ -115,6 +116,7 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
 		connection: connection,
 		tracer:     observability.Traces(),
 		logger:     logger,
-		counter:    observability.Metrics().Counter("requests", "Count of all collector requests", []string{"address"}, "collector", "output"),
+		requests:   observability.Metrics().Counter("requests", "Count of all collector requests", []string{"address"}, "collector", "output"),
+		errors:     observability.Metrics().Counter("errors", "Count of all collector errors", []string{"address"}, "collector", "output"),
 	}
 }

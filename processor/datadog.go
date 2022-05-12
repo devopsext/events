@@ -14,10 +14,11 @@ import (
 )
 
 type DataDogProcessor struct {
-	outputs *common.Outputs
-	tracer  sreCommon.Tracer
-	logger  sreCommon.Logger
-	counter sreCommon.Counter
+	outputs  *common.Outputs
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
 }
 
 type DataDogEvent struct {
@@ -103,24 +104,26 @@ func (p *DataDogProcessor) send(span sreCommon.TracerSpan, channel string, o int
 		e.SetLogger(p.logger)
 	}
 	p.outputs.Send(e)
-	p.counter.Inc(e.Channel)
 }
 
-func (p *DataDogProcessor) HandleEvent(e *common.Event) {
+func (p *DataDogProcessor) HandleEvent(e *common.Event) error {
 
 	if e == nil {
 		p.logger.Debug("Event is not defined")
-		return
+		return nil
 	}
-
+	p.requests.Inc(e.Channel)
 	p.outputs.Send(e)
-	p.counter.Inc(e.Channel)
+	return nil
 }
 
-func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
+func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
 	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
+
+	channel := strings.TrimLeft(r.URL.Path, "/")
+	p.requests.Inc(channel)
 
 	var body []byte
 	if r.Body != nil {
@@ -130,29 +133,31 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	if len(body) == 0 {
+		p.errors.Inc(channel)
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		p.logger.SpanError(span, "Content-Type=%s, expect application/json", contentType)
+		p.errors.Inc(channel)
+		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
+		p.logger.SpanError(span, err)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return
+		return err
 	}
 
 	var datadog DataDogRequest
 	if err := json.Unmarshal(body, &datadog); err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
-		return
+		return err
 	}
-
-	channel := strings.TrimLeft(r.URL.Path, "/")
 
 	t := time.UnixMilli(datadog.LastUpdated)
 	p.send(span, channel, datadog, &t)
@@ -163,22 +168,28 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 
 	resp, err := json.Marshal(response)
 	if err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return err
 	}
+	return nil
 }
 
 func NewDataDogProcessor(outputs *common.Outputs, observability *common.Observability) *DataDogProcessor {
 
 	return &DataDogProcessor{
-		outputs: outputs,
-		logger:  observability.Logs(),
-		tracer:  observability.Traces(),
-		counter: observability.Metrics().Counter("requests", "Count of all datadog processor requests", []string{"channel"}, "datadog", "processor"),
+		outputs:  outputs,
+		logger:   observability.Logs(),
+		tracer:   observability.Traces(),
+		requests: observability.Metrics().Counter("requests", "Count of all datadog processor requests", []string{"channel"}, "datadog", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all datadog processor errors", []string{"channel"}, "datadog", "processor"),
 	}
 }

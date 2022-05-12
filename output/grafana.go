@@ -23,7 +23,8 @@ type GrafanaOutput struct {
 	options        GrafanaOutputOptions
 	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
-	counter        sreCommon.Counter
+	requests       sreCommon.Counter
+	errors         sreCommon.Counter
 	grafanaEventer *sreProvider.GrafanaEventer
 }
 
@@ -108,6 +109,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			return
 		}
 
+		g.requests.Inc()
 		g.logger.SpanDebug(span, "Grafana message => %s", message)
 
 		attributes, err := g.getAttributes(jsonObject, span)
@@ -115,8 +117,10 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.SpanError(span, err)
 		}
 
-		g.grafanaEventer.At(message, attributes, event.Time)
-		g.counter.Inc()
+		err = g.grafanaEventer.At(message, attributes, event.Time)
+		if err != nil {
+			g.errors.Inc()
+		}
 	}()
 }
 
@@ -139,7 +143,8 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),
-		counter:        observability.Metrics().Counter("requests", "Count of all grafana request", []string{}, "grafana", "output"),
+		requests:       observability.Metrics().Counter("requests", "Count of all grafana requests", []string{}, "grafana", "output"),
+		errors:         observability.Metrics().Counter("errors", "Count of all grafana errors", []string{}, "grafana", "output"),
 		grafanaEventer: grafanaEventer,
 	}
 }

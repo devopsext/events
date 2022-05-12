@@ -37,7 +37,8 @@ type TelegramOutput struct {
 	outputs  *common.Outputs
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	counter  sreCommon.Counter
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
 }
 
 func (t *TelegramOutput) Name() string {
@@ -78,7 +79,6 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToke
 	}
 
 	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
-	t.counter.Inc(t.getBotID(IDToken), chatID)
 	return b, err
 }
 
@@ -254,7 +254,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(IDTokenChatIDs) {
-			t.logger.SpanError(span, "Telegram ID token or chat ID are not found")
+			t.logger.SpanDebug(span, "Telegram ID token or chat ID are not found. Skipped")
 			return
 		}
 
@@ -285,18 +285,24 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			IDToken := arr[0]
 			chatID := arr[1]
+			botID := t.getBotID(IDToken)
+
+			t.requests.Inc(botID, chatID)
 
 			switch event.Type {
 			case "AlertmanagerEvent":
 				bytes, err := t.sendAlertmanagerImage(span.GetContext(), IDToken, chatID, message, event.Data.(template.Alert))
 				if err != nil {
+					t.errors.Inc(botID, chatID)
 					t.sendErrorMessage(span.GetContext(), IDToken, chatID, message, err)
 				} else {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
 				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
-				if err == nil {
+				if err != nil {
+					t.errors.Inc(botID, chatID)
+				} else {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
 			}
@@ -327,6 +333,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		outputs:  outputs,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
+		requests: observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
+		errors:   observability.Metrics().Counter("errors", "Count of all telegram errors", []string{"bot_id", "chat_id"}, "telegram", "output"),
 	}
 }

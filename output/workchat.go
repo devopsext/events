@@ -42,7 +42,8 @@ type WorkchatOutput struct {
 	options  WorkchatOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	counter  sreCommon.Counter
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
 }
 
 func (w *WorkchatOutput) Name() string {
@@ -107,7 +108,6 @@ func (w *WorkchatOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentT
 	}
 
 	w.logger.SpanDebug(span, "Response from Workchat => %s", string(b))
-	w.counter.Inc(w.getThread(URL))
 
 	var object interface{}
 
@@ -338,13 +338,20 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 				continue
 			}
 
+			thread := w.getThread(URL)
+			w.requests.Inc(thread)
+
 			switch event.Type {
 			case "AlertmanagerEvent":
 				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
+					w.errors.Inc(thread)
 					w.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			default:
-				w.sendMessage(span.GetContext(), URL, message)
+				err := w.sendMessage(span.GetContext(), URL, message)
+				if err != nil {
+					w.errors.Inc(thread)
+				}
 			}
 		}
 	}()
@@ -371,6 +378,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		options:  options,
 		tracer:   observability.Traces(),
 		logger:   logger,
-		counter:  observability.Metrics().Counter("requests", "Count of all workchar requests", []string{"thread"}, "workchat", "output"),
+		requests: observability.Metrics().Counter("requests", "Count of all workchar requests", []string{"thread"}, "workchat", "output"),
+		errors:   observability.Metrics().Counter("errors", "Count of all workchar errors", []string{"thread"}, "workchat", "output"),
 	}
 }

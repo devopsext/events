@@ -17,11 +17,12 @@ import (
 )
 
 type GitlabProcessor struct {
-	outputs *common.Outputs
-	tracer  sreCommon.Tracer
-	logger  sreCommon.Logger
-	counter sreCommon.Counter
-	hook    *gitlab.Webhook
+	outputs  *common.Outputs
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
+	hook     *gitlab.Webhook
 }
 
 type GitlabResponse struct {
@@ -53,24 +54,26 @@ func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o inte
 		e.SetLogger(p.logger)
 	}
 	p.outputs.Send(e)
-	p.counter.Inc(e.Channel)
 }
 
-func (p *GitlabProcessor) HandleEvent(e *common.Event) {
+func (p *GitlabProcessor) HandleEvent(e *common.Event) error {
 
 	if e == nil {
 		p.logger.Debug("Event is not defined")
-		return
+		return nil
 	}
-
+	p.requests.Inc(e.Channel)
 	p.outputs.Send(e)
-	p.counter.Inc(e.Channel)
+	return nil
 }
 
-func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
+func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
 	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
+
+	channel := strings.TrimLeft(r.URL.Path, "/")
+	p.requests.Inc(channel)
 
 	var body []byte
 	if r.Body != nil {
@@ -80,19 +83,22 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	if len(body) == 0 {
+		p.errors.Inc(channel)
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		p.logger.SpanError(span, "Content-Type=%s, expect application/json", contentType)
+		p.errors.Inc(channel)
+		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
+		p.logger.SpanError(span, err)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return
+		return err
 	}
 
 	r.Body.Close()
@@ -102,12 +108,11 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 		gitlab.MergeRequestEvents, gitlab.WikiPageEvents, gitlab.PipelineEvents, gitlab.BuildEvents, gitlab.JobEvents, gitlab.SystemHookEvents}
 	payload, err := p.hook.Parse(r, events...)
 	if err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
-
-	channel := strings.TrimLeft(r.URL.Path, "/")
 
 	switch pl := payload.(type) {
 	case gitlab.PushEventPayload:
@@ -150,14 +155,19 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	resp, err := json.Marshal(response)
 	if err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return err
 	}
+	return nil
 }
 
 func NewGitlabProcessor(outputs *common.Outputs, observability *common.Observability) *GitlabProcessor {
@@ -170,10 +180,11 @@ func NewGitlabProcessor(outputs *common.Outputs, observability *common.Observabi
 	}
 
 	return &GitlabProcessor{
-		outputs: outputs,
-		logger:  logger,
-		tracer:  observability.Traces(),
-		hook:    hook,
-		counter: observability.Metrics().Counter("requests", "Count of all gitlab processor requests", []string{"channel"}, "gitlab", "processor"),
+		outputs:  outputs,
+		logger:   logger,
+		tracer:   observability.Traces(),
+		hook:     hook,
+		requests: observability.Metrics().Counter("requests", "Count of all gitlab processor requests", []string{"channel"}, "gitlab", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all gitlab processor errors", []string{"channel"}, "gitlab", "processor"),
 	}
 }

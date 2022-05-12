@@ -30,7 +30,8 @@ type PubSubOutput struct {
 	options  PubSubOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	counter  sreCommon.Counter
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
 }
 
 func (ps *PubSubOutput) Name() string {
@@ -104,16 +105,17 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 				continue
 			}
 
+			ps.requests.Inc(topic)
+
 			t := ps.client.Topic(topic)
 			serverID, err := t.Publish(ps.ctx, &pubsub.Message{Data: []byte(message)}).Get(ps.ctx)
 			if err != nil {
+				ps.errors.Inc(topic)
 				ps.logger.SpanError(span, err)
 				continue
 			}
 			ps.logger.SpanDebug(span, "PubSub server ID => %s", serverID)
-			ps.counter.Inc(topic)
 		}
-
 	}()
 }
 
@@ -151,6 +153,7 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all pubsub request", []string{"topic"}, "pubsub", "output"),
+		requests: observability.Metrics().Counter("requests", "Count of all pubsub requests", []string{"topic"}, "pubsub", "output"),
+		errors:   observability.Metrics().Counter("errors", "Count of all pubsub errors", []string{"topic"}, "pubsub", "output"),
 	}
 }

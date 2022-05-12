@@ -27,8 +27,8 @@ type PubSubInput struct {
 	eventer    sreCommon.Eventer
 	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
-	meter      sreCommon.Meter
-	counter    sreCommon.Counter
+	requests   sreCommon.Counter
+	errors     sreCommon.Counter
 }
 
 func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -47,10 +47,12 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			span := ps.tracer.StartSpan()
 			defer span.Finish()
 
+			ps.requests.Inc(ps.options.Subscription)
 			ps.logger.SpanDebug(span, string(m.Data))
 
 			var event common.Event
 			if err := json.Unmarshal(m.Data, &event); err != nil {
+				ps.errors.Inc(ps.options.Subscription)
 				ps.logger.SpanError(span, err)
 				m.Ack()
 				return
@@ -66,8 +68,10 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			event.SetLogger(ps.logger)
 			event.SetSpanContext(span.GetContext())
 
-			p.HandleEvent(&event)
-			ps.counter.Inc(ps.options.Subscription)
+			err := p.HandleEvent(&event)
+			if err != nil {
+				ps.errors.Inc(ps.options.Subscription)
+			}
 			m.Ack()
 		})
 
@@ -101,6 +105,7 @@ func NewPubSubInput(options PubSubInputOptions, processors *common.Processors, o
 	}
 
 	meter := observability.Metrics()
+
 	return &PubSubInput{
 		options:    options,
 		client:     client,
@@ -109,7 +114,7 @@ func NewPubSubInput(options PubSubInputOptions, processors *common.Processors, o
 		eventer:    observability.Events(),
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		meter:      meter,
-		counter:    meter.Counter("requests", "Count of all pubsub input requests", []string{"subscription"}, "pubsub", "input"),
+		requests:   meter.Counter("requests", "Count of all pubsub input requests", []string{"subscription"}, "pubsub", "input"),
+		errors:     meter.Counter("errors", "Count of all pubsub input errors", []string{"subscription"}, "pubsub", "input"),
 	}
 }

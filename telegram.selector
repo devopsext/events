@@ -7,6 +7,6 @@
   {{- if eq .type "Site24x7Event"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "CloudflareEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "GoogleEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "AWSEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "AWSEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_TEST"}}{{end}}
 {{- end}}
 {{- define "telegram-selector"}}{{template "rules" .}}{{end}}
