@@ -83,7 +83,9 @@
   {{- end}}
 {{- end}}
 {{- define "datadog"}}
-  {{ toJSON .data}}
+  {{- if not (.data.via)}}
+    {{- printf "{\"Title\":\"%s\", \"Message\":\"%s\",\"ImageURL\":\"%s\"}" .data.event.title (regexReplaceAll "\n" "\\n" .data.text_only_msg) .data.snapshot}}
+  {{- end}}
 {{- end}}
 {{- define "site24x7"}}
   {{ toJSON .data}}
