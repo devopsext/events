@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/devopsext/events/common"
@@ -102,7 +103,7 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			r.logger.SpanDebug(span, "NewRelic message is empty")
 			return

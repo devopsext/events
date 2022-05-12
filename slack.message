@@ -83,25 +83,23 @@
   {{- end}}
 {{- end}}
 {{- define "datadog"}}
-  {{- if not (.data.via)}}
-    {{- .data.text_only_msg}}
-  {{- end}}
+  {{ toJSON .data}}
 {{- end}}
 {{- define "site24x7"}}
-  {{- .data.INCIDENT_REASON}}
+  {{ toJSON .data}}
 {{- end}}
 {{- define "cloudflare"}}
-  {{- .data.text}}
+  {{ toJSON .data}}
 {{- end}}
 {{- define "google"}}
   {{- if .data.incident}}
-    {{- .data.incident.summary}}
+    {{ toJSON .data}}
   {{- end}}
 {{- end}}
 {{- define "aws"}}
   {{- if .data.detail}}
     {{- if ne .data.detail.eventName "BatchGetImage"}}
-      {{ toJSON .}}
+      {{- .data.detail.eventName}}
     {{- end}}
   {{- end}}
 {{- end}}

@@ -107,7 +107,7 @@ func (d *DataDogOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			d.logger.SpanDebug(span, "DataDog message is empty")
 			return

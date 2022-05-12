@@ -67,7 +67,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			k.logger.SpanDebug(span, "Kafka message is empty")
 			return

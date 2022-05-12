@@ -2,6 +2,7 @@ package output
 
 import (
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/devopsext/events/common"
@@ -55,7 +56,7 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			c.logger.SpanDebug(span, "Collector message is empty")
 			return
