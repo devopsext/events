@@ -23,7 +23,8 @@ type NewRelicOutput struct {
 	options         NewRelicOutputOptions
 	tracer          sreCommon.Tracer
 	logger          sreCommon.Logger
-	counter         sreCommon.Counter
+	requests        sreCommon.Counter
+	errors          sreCommon.Counter
 	newrelicEventer *sreProvider.NewRelicEventer
 }
 
@@ -107,6 +108,7 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			return
 		}
 
+		r.requests.Inc()
 		r.logger.SpanDebug(span, "NewRelic message => %s", message)
 
 		attributes, err := r.getAttributes(jsonObject, span)
@@ -114,8 +116,10 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			r.logger.SpanError(span, err)
 		}
 
-		r.newrelicEventer.At(message, attributes, event.Time)
-		r.counter.Inc()
+		err = r.newrelicEventer.At(message, attributes, event.Time)
+		if err != nil {
+			r.errors.Inc()
+		}
 	}()
 }
 
@@ -138,7 +142,8 @@ func NewNewRelicOutput(wg *sync.WaitGroup,
 		options:         options,
 		logger:          logger,
 		tracer:          observability.Traces(),
-		counter:         observability.Metrics().Counter("requests", "Count of all newrelic requests", []string{}, "newrelic", "output"),
+		requests:        observability.Metrics().Counter("requests", "Count of all newrelic requests", []string{}, "newrelic", "output"),
+		errors:          observability.Metrics().Counter("errors", "Count of all newrelic errors", []string{}, "newrelic", "output"),
 		newrelicEventer: newrelicEventer,
 	}
 }

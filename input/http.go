@@ -38,11 +38,11 @@ type HttpInputOptions struct {
 type HttpInput struct {
 	options    HttpInputOptions
 	processors *common.Processors
-	eventer    sreCommon.Eventer
 	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
 	meter      sreCommon.Meter
-	counter    sreCommon.Counter
+	requests   sreCommon.Counter
+	errors     sreCommon.Counter
 }
 
 type HttpProcessHandleFunc = func(w http.ResponseWriter, r *http.Request)
@@ -53,7 +53,6 @@ func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
 	if utils.IsEmpty(traceID) {
 		return h.tracer.StartSpan()
 	}
-
 	return h.tracer.StartSpanWithTraceID(traceID, "")
 }
 
@@ -64,13 +63,18 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProc
 
 		mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
+			path := r.URL.Path
+
 			span := h.startSpanFromRequest(r)
 			span.SetCarrier(r.Header)
-			span.SetTag("path", r.URL.Path)
+			span.SetTag("path", path)
 			defer span.Finish()
 
-			p.HandleHttpRequest(w, r)
-			h.counter.Inc(r.URL.Path)
+			h.requests.Inc(path)
+			err := p.HandleHttpRequest(w, r)
+			if err != nil {
+				h.errors.Inc(path)
+			}
 		})
 	}
 }
@@ -204,10 +208,10 @@ func NewHttpInput(options HttpInputOptions, processors *common.Processors, obser
 	return &HttpInput{
 		options:    options,
 		processors: processors,
-		eventer:    observability.Events(),
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
 		meter:      meter,
-		counter:    meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
+		requests:   meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
+		errors:     meter.Counter("errors", "Count of all http input errors", []string{"url"}, "http", "input"),
 	}
 }

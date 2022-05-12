@@ -25,7 +25,8 @@ type DataDogOutput struct {
 	options        DataDogOutputOptions
 	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
-	counter        sreCommon.Counter
+	requests       sreCommon.Counter
+	errors         sreCommon.Counter
 	datadogEventer *sreProvider.DataDogEventer
 }
 
@@ -112,6 +113,7 @@ func (d *DataDogOutput) Send(event *common.Event) {
 			return
 		}
 
+		d.requests.Inc()
 		d.logger.SpanDebug(span, "DataDog message => %s", message)
 
 		attributes, err := d.getAttributes(jsonObject, span)
@@ -120,8 +122,10 @@ func (d *DataDogOutput) Send(event *common.Event) {
 		}
 		d.logger.Debug("Message: %s, Attributes: %s, Time: %s", message, strings.Join(utils.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
 
-		d.datadogEventer.At(message, attributes, event.Time)
-		d.counter.Inc()
+		err = d.datadogEventer.At(message, attributes, event.Time)
+		if err != nil {
+			d.errors.Inc()
+		}
 	}()
 }
 
@@ -144,7 +148,8 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),
-		counter:        observability.Metrics().Counter("requests", "Count of all datadog requests", []string{}, "datadog", "output"),
+		requests:       observability.Metrics().Counter("requests", "Count of all datadog requests", []string{}, "datadog", "output"),
+		errors:         observability.Metrics().Counter("errors", "Count of all datadog errors", []string{}, "datadog", "output"),
 		datadogEventer: datadogEventer,
 	}
 }

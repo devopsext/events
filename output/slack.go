@@ -40,7 +40,8 @@ type SlackOutput struct {
 	outputs  *common.Outputs
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	counter  sreCommon.Counter
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
 }
 
 func (s *SlackOutput) Name() string {
@@ -69,7 +70,6 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors
 	}
 
 	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
-	s.counter.Inc(m.Channel)
 	return b, nil
 }
 
@@ -277,6 +277,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 				channel = chTuple[1]
 			}
 
+			s.requests.Inc(channel)
+
 			switch event.Type {
 			case "AlertmanagerEvent":
 				m := vendors.SlackMessage{
@@ -287,6 +289,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 				}
 				bytes, err := s.sendAlertmanagerImage(span.GetContext(), token, channel, message, event.Data.(template.Alert))
 				if err != nil {
+					s.errors.Inc(channel)
 					s.sendErrorMessage(span.GetContext(), m, err)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
@@ -296,13 +299,17 @@ func (s *SlackOutput) Send(event *common.Event) {
 				m.Token = token
 				m.Channel = channel
 				bytes, err := s.sendMessage(span.GetContext(), m)
-				if err == nil {
+				if err != nil {
+					s.errors.Inc(channel)
+				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
 				m := prepareSlackMessage(token, channel, "", message)
 				bytes, err := s.sendMessage(span.GetContext(), m)
-				if err == nil {
+				if err != nil {
+					s.errors.Inc(channel)
+				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			}
@@ -368,6 +375,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		outputs:  outputs,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		counter:  observability.Metrics().Counter("requests", "Count of all slack requests", []string{"channel"}, "slack", "output"),
+		requests: observability.Metrics().Counter("requests", "Count of all slack requests", []string{"channel"}, "slack", "output"),
+		errors:   observability.Metrics().Counter("errors", "Count of all slack errors", []string{"channel"}, "slack", "output"),
 	}
 }

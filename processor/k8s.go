@@ -11,7 +11,7 @@ import (
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
-	"github.com/tidwall/gjson"
+	"github.com/devopsext/utils"
 	admv1beta1 "k8s.io/api/admission/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,10 +25,11 @@ import (
 )
 
 type K8sProcessor struct {
-	outputs *common.Outputs
-	tracer  sreCommon.Tracer
-	logger  sreCommon.Logger
-	counter sreCommon.Counter
+	outputs  *common.Outputs
+	tracer   sreCommon.Tracer
+	logger   sreCommon.Logger
+	requests sreCommon.Counter
+	errors   sreCommon.Counter
 }
 
 type K8sUser struct {
@@ -86,7 +87,6 @@ func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1
 		e.SetLogger(p.logger)
 	}
 	p.outputs.Send(e)
-	p.counter.Inc(user.Name, operation, channel, ar.Namespace, ar.Kind.Kind)
 }
 
 func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
@@ -351,14 +351,14 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), pod)
 }
 
-func (p *K8sProcessor) HandleEvent(e *common.Event) {
+func (p *K8sProcessor) HandleEvent(e *common.Event) error {
 
 	if e == nil {
 		p.logger.Debug("Event is not defined")
-		return
+		return nil
 	}
 
-	json, err := e.JsonBytes()
+	/*json, err := e.JsonBytes()
 	if err != nil {
 		p.logger.Error(err)
 		return
@@ -368,15 +368,21 @@ func (p *K8sProcessor) HandleEvent(e *common.Event) {
 	operation := gjson.GetBytes(json, "data.operation").String()
 	namespace := gjson.GetBytes(json, "data.namespace").String()
 	kind := gjson.GetBytes(json, "data.kind").String()
-
-	p.outputs.Send(e)
 	p.counter.Inc(userName, operation, e.Channel, namespace, kind)
+	*/
+
+	p.requests.Inc(e.Channel)
+	p.outputs.Send(e)
+	return nil
 }
 
-func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
+func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
 	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
+
+	channel := strings.TrimLeft(r.URL.Path, "/")
+	p.requests.Inc(channel)
 
 	var body []byte
 	if r.Body != nil {
@@ -386,37 +392,38 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	if len(body) == 0 {
+		p.errors.Inc(channel)
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-
-		p.logger.SpanError(span, "Content-Type=%s, expect application/json", contentType)
+		p.errors.Inc(channel)
+		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
+		p.logger.SpanError(span, err)
 		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return
+		return err
 	}
 
 	var admissionResponse *admv1beta1.AdmissionResponse
+	errorString := ""
 	ar := admv1beta1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
-
+		errorString = err.Error()
 		p.logger.SpanError(span, "Can't decode body: %v", err)
-
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Result: &metav1.Status{
-				Message: err.Error(),
+				Message: errorString,
 			},
 		}
 	} else {
 
 		req := ar.Request
-		channel := strings.TrimLeft(r.URL.Path, "/")
 
 		switch req.Kind.Kind {
 		case "Namespace":
@@ -456,24 +463,35 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 	admissionReview := admv1beta1.AdmissionReview{}
 	if admissionResponse != nil {
-
 		admissionReview.Response = admissionResponse
 		if ar.Request != nil {
-
 			admissionReview.Response.UID = ar.Request.UID
 		}
 	}
 
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
+		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
+		p.errors.Inc(channel)
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+		return err
 	}
+
+	if !utils.IsEmpty(errorString) {
+		p.errors.Inc(channel)
+		err := errors.New(errorString)
+		p.logger.SpanError(span, errorString)
+		http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
+		return err
+	}
+	return nil
 }
 
 func NewK8sProcessor(outputs *common.Outputs, observability *common.Observability) *K8sProcessor {
@@ -481,6 +499,8 @@ func NewK8sProcessor(outputs *common.Outputs, observability *common.Observabilit
 		outputs: outputs,
 		logger:  observability.Logs(),
 		tracer:  observability.Traces(),
-		counter: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
+		//	counter: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
+		requests: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"channel"}, "k8s", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all k8s processor errors", []string{"channel"}, "k8s", "processor"),
 	}
 }

@@ -98,7 +98,9 @@
 {{- end}}
 {{- define "aws"}}
   {{- if .data.detail}}
-    {{- index .data "detail-type"}}
+    {{- if ne .data.detail.eventName "BatchGetImage"}}
+      {{ toJSON .}}
+    {{- end}}
   {{- end}}
 {{- end}}
 {{- define "text"}}

@@ -100,7 +100,9 @@
 {{- end}}
 {{- define "aws"}}
   {{- if .data.detail}}
-    {{- .data.detail.userIdentity.arn}}
+    {{- if ne .data.detail.eventName "BatchGetImage"}}
+      {{ toJSON .}}
+    {{- end}}
   {{- end}}
 {{- end}}
 {{- define "text"}}

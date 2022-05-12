@@ -22,10 +22,12 @@ func (p *RancherProcessor) EventType() string {
 	return common.AsEventType(RancherProcessorType())
 }
 
-func (p *RancherProcessor) HandleEvent(e *common.Event) {
+func (p *RancherProcessor) HandleEvent(e *common.Event) error {
+	return nil
 }
 
-func (p *RancherProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) {
+func (p *RancherProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
+	return nil
 }
 
 func NewRancherProcessor(outputs *common.Outputs, observability *common.Observability) *RancherProcessor {

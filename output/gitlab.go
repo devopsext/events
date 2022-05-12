@@ -28,7 +28,8 @@ type GitlabOutput struct {
 	options   GitlabOutputOptions
 	tracer    sreCommon.Tracer
 	logger    sreCommon.Logger
-	counter   sreCommon.Counter
+	requests  sreCommon.Counter
+	errors    sreCommon.Counter
 }
 
 func (g *GitlabOutput) Name() string {
@@ -152,20 +153,22 @@ func (g *GitlabOutput) Send(event *common.Event) {
 				ref = "main"
 			}
 
+			g.requests.Inc(id, ref)
+
 			opt := &gitlab.RunPipelineTriggerOptions{Ref: &ref, Token: &g.options.Token, Variables: variables}
 			pipeline, response, err := g.client.PipelineTriggers.RunPipelineTrigger(id, opt)
 			if err != nil {
+				g.errors.Inc(id, ref)
 				g.logger.SpanError(span, err)
 				continue
 			}
 
 			if response.StatusCode < 200 || response.StatusCode >= 300 {
+				g.errors.Inc(id, ref)
 				g.logger.SpanError(span, "Gitlab reposne: %s", response.Status)
 				continue
 			}
-
 			g.logger.SpanDebug(span, "Gitlab pipeline => %s", pipeline.WebURL)
-			g.counter.Inc(g.getProject(pipeline.WebURL), pipeline.Ref)
 		}
 	}()
 }
@@ -195,6 +198,7 @@ func NewGitlabOutput(wg *sync.WaitGroup,
 		options:   options,
 		logger:    logger,
 		tracer:    observability.Traces(),
-		counter:   observability.Metrics().Counter("requests", "Count of all gitlab request", []string{"project", "ref"}, "gitlab", "output"),
+		requests:  observability.Metrics().Counter("requests", "Count of all gitlab requests", []string{"project_id", "ref"}, "gitlab", "output"),
+		errors:    observability.Metrics().Counter("errors", "Count of all gitlab errors", []string{"project_id", "ref"}, "gitlab", "output"),
 	}
 }
