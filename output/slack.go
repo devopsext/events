@@ -295,7 +295,14 @@ func (s *SlackOutput) Send(event *common.Event) {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			case "DataDogEvent":
-				m := slackMessageFromDDEvent(event)
+				//m := slackMessageFromDDEvent(event)
+				var m vendors.SlackMessage
+				err = json.Unmarshal([]byte(message), &m)
+				if err != nil {
+					s.errors.Inc(channel)
+					s.logger.SpanError(span, err)
+					return
+				}
 				m.Token = token
 				m.Channel = channel
 				bytes, err := s.sendMessage(span.GetContext(), m)
