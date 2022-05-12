@@ -89,7 +89,7 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			ps.logger.SpanDebug(span, "PubSub message is empty")
 			return

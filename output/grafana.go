@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/devopsext/events/common"
@@ -103,7 +104,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			g.logger.SpanDebug(span, "Grafana message is empty")
 			return

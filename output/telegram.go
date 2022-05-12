@@ -264,7 +264,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			t.logger.SpanDebug(span, "Telegram message is empty")
 			return

@@ -253,7 +253,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(b.String())
 		if utils.IsEmpty(message) {
 			s.logger.SpanDebug(span, "Slack message is empty")
 			return
@@ -318,7 +318,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 }
 
 func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
-	if title == "" {
+	if utils.IsEmpty(title) {
 		lines := strings.Split(message, "\n")
 		title = lines[0]
 		message = strings.Join(lines[1:], "\n")
