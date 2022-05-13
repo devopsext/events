@@ -213,7 +213,7 @@ func (tpl *TextTemplate) fJsonata(data interface{}, query string) (string, error
 
 	m, err := e.Eval(data)
 	if err != nil {
-		tpl.logger.Error("fail to eval jsonata expression", err)
+		tpl.logger.Error(err)
 		return "", err
 	}
 

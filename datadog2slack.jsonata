@@ -1,5 +1,5 @@
 {
-    "Title": event.title,
+    "Title": $substring(event.title, 0, 150),
     "Message": text_only_msg,
     "ImageURL": snapshot
 }
