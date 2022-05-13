@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/blues/jsonata-go"
+	"github.com/devopsext/events/common"
 	"html"
 	"io/ioutil"
 	"os"
@@ -187,16 +188,10 @@ func (tpl *TextTemplate) fUnescapeString(s string) (string, error) {
 	return html.UnescapeString(s), nil
 }
 
-func (tpl *TextTemplate) fJsonata(jsonString string, query string) (string, error) {
+func (tpl *TextTemplate) fJsonata(data interface{}, query string) (string, error) {
 	if utils.IsEmpty(query) {
 		tpl.logger.Error("query is empty")
 		return "", errors.New("query is empty")
-	}
-	var data interface{}
-	err := json.Unmarshal([]byte(jsonString), &data)
-	if err != nil {
-		tpl.logger.Error("json unmarshal fail", err)
-		return "", err
 	}
 
 	if _, err := os.Stat(query); err == nil {
@@ -222,9 +217,10 @@ func (tpl *TextTemplate) fJsonata(jsonString string, query string) (string, erro
 		return "", err
 	}
 
-	b, err := json.Marshal(m)
+	b, err := common.JsonMarshal(m)
 	if err != nil {
 		tpl.logger.Error(err)
+		return "", err
 	}
 
 	return string(b), nil
