@@ -3,7 +3,10 @@ package render
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/blues/jsonata-go"
+	"html"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -176,6 +179,57 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 	return &b, nil
 }
 
+func (tpl *TextTemplate) fEscapeString(s string) (string, error) {
+	return html.EscapeString(s), nil
+}
+
+func (tpl *TextTemplate) fUnescapeString(s string) (string, error) {
+	return html.UnescapeString(s), nil
+}
+
+func (tpl *TextTemplate) fJsonata(jsonString string, query string) (string, error) {
+	if utils.IsEmpty(query) {
+		tpl.logger.Error("query is empty")
+		return "", errors.New("query is empty")
+	}
+	var data interface{}
+	err := json.Unmarshal([]byte(jsonString), &data)
+	if err != nil {
+		tpl.logger.Error("json unmarshal fail", err)
+		return "", err
+	}
+
+	if _, err := os.Stat(query); err == nil {
+
+		content, err := ioutil.ReadFile(query)
+		if err != nil {
+			tpl.logger.Error(err)
+			return "", err
+		}
+
+		query = string(content)
+	}
+
+	e, err := jsonata.Compile(query)
+	if err != nil {
+		tpl.logger.Error("fail to compile jsonata query", err)
+		return "", err
+	}
+
+	m, err := e.Eval(data)
+	if err != nil {
+		tpl.logger.Error("fail to eval jsonata expression", err)
+		return "", err
+	}
+
+	b, err := json.Marshal(m)
+	if err != nil {
+		tpl.logger.Error(err)
+	}
+
+	return string(b), nil
+}
+
 func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger sreCommon.Logger) *TextTemplate {
 
 	var tpl = TextTemplate{}
@@ -205,6 +259,9 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	funcs["timeNano"] = tpl.fTimeNano
 	funcs["jsonEscape"] = tpl.fJsonEscape
 	funcs["toString"] = tpl.fToString
+	funcs["escapeString"] = tpl.fEscapeString
+	funcs["unescapeString"] = tpl.fUnescapeString
+	funcs["jsonata"] = tpl.fJsonata
 
 	if _, err := os.Stat(fileOrVar); err == nil {
 
