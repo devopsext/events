@@ -362,15 +362,10 @@ func NewSlackOutput(wg *sync.WaitGroup,
 	outputs *common.Outputs) *SlackOutput {
 
 	logger := observability.Logs()
-	//if utils.IsEmpty(options.Token) {
-	//	logger.Debug("Slack Token is not defined. Skipped")
-	//	return nil
-	//}
-	//
-	//if len(options.Channel) < 1 || utils.IsEmpty(options.Channel[0]) {
-	//	logger.Debug("Slack Channel is not defined. Skipped")
-	//	return nil
-	//}
+	if utils.IsEmpty(options.Message) {
+		logger.Debug("Slack message is not defined. Skipped")
+		return nil
+	}
 
 	return &SlackOutput{
 		wg: wg,

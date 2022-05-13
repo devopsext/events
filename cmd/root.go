@@ -66,6 +66,7 @@ var prometheusOptions = sreProvider.PrometheusOptions{
 }
 
 var httpInputOptions = input.HttpInputOptions{
+	HealthcheckURL:  envGet("HTTP_IN_HEALTHCHECK_URL", "/healthcheck").(string),
 	K8sURL:          envGet("HTTP_IN_K8S_URL", "").(string),
 	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
 	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
