@@ -3,6 +3,7 @@ package input
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 )
 
 type HttpInputOptions struct {
+	HealthcheckURL  string
 	K8sURL          string
 	RancherURL      string
 	AlertmanagerURL string
@@ -142,6 +144,15 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		}
 
 		mux := http.NewServeMux()
+		if !utils.IsEmpty(h.options.HealthcheckURL) {
+			mux.HandleFunc(h.options.HealthcheckURL, func(w http.ResponseWriter, r *http.Request) {
+				if _, err := w.Write([]byte("OK")); err != nil {
+					h.logger.Error("Can't write response: %v", err)
+					http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
+				}
+			})
+		}
+
 		processors := h.getProcessors(h.processors, outputs)
 		for u, p := range processors {
 			h.processURL(u, mux, p)
