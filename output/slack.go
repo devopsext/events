@@ -324,11 +324,13 @@ func (s *SlackOutput) Send(event *common.Event) {
 	}()
 }
 
+//prepareSlackMessage prepares slack message and take first lime from message as title if title is empty
 func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
 	if utils.IsEmpty(title) {
 		lines := strings.Split(message, "\n")
-		title = lines[0]
-		message = strings.Join(lines[1:], "\n")
+		if len(lines) > 0 {
+			title = lines[0]
+		}
 	}
 	return vendors.SlackMessage{
 		Token:   token,

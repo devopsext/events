@@ -1,0 +1,5 @@
+{
+    "Title": event.title,
+    "Message": text_only_msg,
+    "ImageURL": snapshot
+}
