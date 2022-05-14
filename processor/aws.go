@@ -98,15 +98,6 @@ func (p *AWSProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		p.errors.Inc(channel)
-		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
-		p.logger.SpanError(span, err)
-		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return err
-	}
-
 	var request AWSRequest
 	if err := json.Unmarshal(body, &request); err != nil {
 		p.errors.Inc(channel)
@@ -150,5 +141,6 @@ func NewAWSProcessor(outputs *common.Outputs, observability *common.Observabilit
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
 		requests: observability.Metrics().Counter("requests", "Count of all google processor requests", []string{"channel"}, "aws", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all google processor errors", []string{"channel"}, "aws", "processor"),
 	}
 }

@@ -63,20 +63,11 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		p.errors.Inc(channel)
-		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
-		p.logger.SpanError(span, err)
-		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return err
-	}
-
 	var response *CustomJsonResponse
 	errorString := ""
 	data := template.Data{}
 	if err := json.Unmarshal(body, &data); err != nil {
-		errorString = errorString
+		errorString = err.Error()
 		p.logger.SpanError(span, "Can't decode body: %v", err)
 		response = &CustomJsonResponse{
 			Message: errorString,
