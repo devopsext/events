@@ -92,15 +92,6 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		p.errors.Inc(channel)
-		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
-		p.logger.SpanError(span, err)
-		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return err
-	}
-
 	r.Body.Close()
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 

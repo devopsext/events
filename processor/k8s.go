@@ -401,15 +401,6 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "application/json" {
-		p.errors.Inc(channel)
-		err := fmt.Errorf("Content-Type=%s, expect application/json", contentType)
-		p.logger.SpanError(span, err)
-		http.Error(w, "invalid Content-Type, expect application/json", http.StatusUnsupportedMediaType)
-		return err
-	}
-
 	var admissionResponse *admv1beta1.AdmissionResponse
 	errorString := ""
 	ar := admv1beta1.AdmissionReview{}
