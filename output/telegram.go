@@ -48,8 +48,8 @@ func (t *TelegramOutput) Name() string {
 // assume that url is => https://api.telegram.org/botID:botToken/sendMessage?chat_id=%s
 func (t *TelegramOutput) getBotID(IDToken string) string {
 
-	arr := strings.Split(IDToken, ":")
-	if len(arr) > 0 {
+	arr := strings.SplitN(IDToken, ":", 2)
+	if len(arr) == 2 {
 		return arr[0]
 	}
 	return ""
@@ -275,8 +275,8 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		list := strings.Split(IDTokenChatIDs, "\n")
 		for _, IDTokenChatID := range list {
 
-			arr := strings.Split(IDTokenChatID, "=")
-			if len(arr) < 2 {
+			arr := strings.SplitN(IDTokenChatID, "=", 2)
+			if len(arr) != 2 {
 				continue
 			}
 			if utils.IsEmpty(arr[0]) || utils.IsEmpty(arr[1]) {

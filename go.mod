@@ -8,7 +8,7 @@ require (
 	github.com/Shopify/sarama v1.31.1
 	github.com/VictoriaMetrics/metricsql v0.40.0
 	github.com/devopsext/sre v0.1.6
-	github.com/devopsext/tools v0.2.2
+	github.com/devopsext/tools v0.2.5
 	github.com/devopsext/utils v0.1.6
 	github.com/go-playground/webhooks/v6 v6.0.0-rc.1
 	github.com/grafana-tools/sdk v0.0.0-20210521150820-354cd37a4b4e
@@ -21,6 +21,8 @@ require (
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 )
+
+require github.com/blues/jsonata-go v1.5.4
 
 require (
 	cloud.google.com/go v0.100.2 // indirect
@@ -35,7 +37,6 @@ require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/VictoriaMetrics/metrics v1.18.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
