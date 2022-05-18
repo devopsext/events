@@ -141,21 +141,28 @@ func (g *GitlabOutput) Send(event *common.Event) {
 			if utils.IsEmpty(project) {
 				continue
 			}
+			pair := strings.SplitN(project, "=", 2)
+			token := g.options.Token
 
-			parr := strings.Split(project, "@")
-			if len(parr) < 2 {
+			if len(pair) == 2 && !utils.IsEmpty(pair[0]) {
+				token = pair[0]
+				project = pair[1]
+			}
+
+			pair = strings.SplitN(project, "@", 2)
+			if len(pair) < 2 {
 				continue
 			}
 
-			id := parr[0]
-			ref := parr[1]
+			id := pair[0]
+			ref := pair[1]
 			if utils.IsEmpty(ref) {
 				ref = "main"
 			}
 
 			g.requests.Inc(id, ref)
 
-			opt := &gitlab.RunPipelineTriggerOptions{Ref: &ref, Token: &g.options.Token, Variables: variables}
+			opt := &gitlab.RunPipelineTriggerOptions{Ref: &ref, Token: &token, Variables: variables}
 			pipeline, response, err := g.client.PipelineTriggers.RunPipelineTrigger(id, opt)
 			if err != nil {
 				g.errors.Inc(id, ref)

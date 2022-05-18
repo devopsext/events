@@ -242,10 +242,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 			s.logger.SpanError(span, "slack no channels")
 			return
 		}
-		//if utils.IsEmpty(channels) {
-		//	s.logger.SpanError(span, "Slack channels are not found")
-		//	return
-		//}
 
 		b, err := s.message.Execute(jsonMap)
 		if err != nil {
@@ -264,7 +260,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		for _, ch := range chans {
 
 			ch = strings.TrimSpace(ch)
-			chTuple := strings.Split(ch, "=")
+			chTuple := strings.SplitN(ch, "=", 2)
 			if len(chTuple) != 2 {
 				continue
 			}
@@ -324,14 +320,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 	}()
 }
 
-//prepareSlackMessage prepares slack message and take first lime from message as title if title is empty
 func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
-	if utils.IsEmpty(title) {
-		lines := strings.Split(message, "\n")
-		if len(lines) > 0 {
-			title = lines[0]
-		}
-	}
 	return vendors.SlackMessage{
 		Token:   token,
 		Channel: channel,
