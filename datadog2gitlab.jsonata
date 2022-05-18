@@ -1,0 +1,9 @@
+(
+  {
+    'DATADOG_SLACK_CHANNEL': via.Slack.channel,
+    'DATADOG_SLACK_TS': via.Slack.ts,
+    'DATADOG_TAGS_TRIGGERED': data.tags,
+    'DATADOG_FROM': $fromMillis(data.date - 1000 * 60 * 1),
+    'DATADOG_TO': $fromMillis(data.date)
+  }
+)

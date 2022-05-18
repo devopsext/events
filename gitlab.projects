@@ -1,7 +1,7 @@
 {{- define "render"}}{{printf (getEnv .)}}{{"\n"}}{{end}}
 {{- define "rules"}}
   {{- if .via}}
-    {{- if hasKey .via "slack"}}
+    {{- if hasKey .via "Slack"}}
       {{- if eq .type "DataDogEvent"}}
         {{- template "render" "EVENTS_GITLAB_OUT_PROJECT_ANOMALY"}}
       {{- end}}
