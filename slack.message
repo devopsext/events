@@ -84,7 +84,7 @@
 {{- end}}
 {{- define "datadog"}}
   {{- if not (.data.via)}}
-    {{- jsonata .data "/datadog2slack.jsonata"}}
+    {{- jsonata .data "datadog2slack.jsonata"}}
   {{- end}}
 {{- end}}
 {{- define "site24x7"}}
