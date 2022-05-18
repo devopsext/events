@@ -125,7 +125,7 @@ func (g *GitlabOutput) Send(event *common.Event) {
 		}
 
 		if utils.IsEmpty(projects) {
-			g.logger.SpanError(span, "Gitlab projects are not found")
+			g.logger.SpanDebug(span, "Gitlab projects are not found")
 			return
 		}
 
