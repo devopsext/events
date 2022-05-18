@@ -1,8 +1,8 @@
 {{- define "text"}}
   {{- if .via}}
-    {{- if hasKey .via "slack"}}
+    {{- if hasKey .via "Slack"}}
       {{- if eq .type "DataDogEvent"}}
-        {{printf "{\"type\":\"%s\",\"channel\":\"%s\",\"slack_channel\":\"%s\"}" .type .channel (get .via "slack").file.shares}}
+        {{- jsonata . "datadog2gitlab.jsonata"}}
       {{- end}}
     {{- end}}
   {{- end}}
