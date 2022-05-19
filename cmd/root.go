@@ -91,6 +91,17 @@ var pubsubInputOptions = input.PubSubInputOptions{
 	Subscription: envGet("PUBSUB_IN_SUBSCRIPTION", "").(string),
 }
 
+var vcInputOptions = input.VCInputOptions{
+	URL:           envGet("VCENTER_IN_URL", "").(string),
+	InsecureSSL:   envGet("VCENTER_IN_INSECURE", false).(bool),
+	Checkpoint:    envGet("VCENTER_IN_CHECKPOINT", true).(bool),
+	AuthType:      envGet("VCENTER_IN_AUTHTYPE", "basic_auth").(string),
+	AuthBasicName: envGet("VCENTER_IN_BASIC_NAME", "").(string),
+	AuthBasicPass: envGet("VCENTER_IN_BASIC_PASS", "").(string),
+	RootCA:        envGet("VCENTER_IN_ROOT_CA_CRT", "vcenter_ca.crt").(string),
+	CheckpointDir: envGet("VCENTER_IN_CHECKPOINT_DIR", "checkpoint").(string),
+}
+
 var collectorOutputOptions = output.CollectorOutputOptions{
 	Address: envGet("COLLECTOR_OUT_ADDRESS", "").(string),
 	Message: envGet("COLLECTOR_OUT_MESSAGE", "").(string),
@@ -475,6 +486,7 @@ func Execute() {
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
 			inputs.Add(input.NewPubSubInput(pubsubInputOptions, processors, observability))
+			inputs.Add(input.NewVCInput(vcInputOptions, processors, observability))
 
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
@@ -532,6 +544,15 @@ func Execute() {
 	flags.StringVar(&pubsubInputOptions.Credentials, "pubsub-in-credentials", pubsubInputOptions.Credentials, "PubSub input credentials")
 	flags.StringVar(&pubsubInputOptions.ProjectID, "pubsub-in-project-id", pubsubInputOptions.ProjectID, "PubSub input project ID")
 	flags.StringVar(&pubsubInputOptions.Subscription, "pubsub-in-subscription", pubsubInputOptions.Subscription, "PubSub input subscription")
+
+	flags.StringVar(&vcInputOptions.URL, "vcenter-in-url", vcInputOptions.URL, "VCenter SDK url")
+	flags.BoolVar(&vcInputOptions.InsecureSSL, "vcenter-in-insecure", vcInputOptions.InsecureSSL, "VCenter insecure access")
+	flags.BoolVar(&vcInputOptions.Checkpoint, "vcenter-in-checkpoint", vcInputOptions.Checkpoint, "VCenter checkpoint usage")
+	flags.StringVar(&vcInputOptions.AuthType, "vcenter-in-auth-type", vcInputOptions.AuthType, "VCenter auth type")
+	flags.StringVar(&vcInputOptions.AuthBasicName, "vcenter-in-auth-basic-username", vcInputOptions.AuthBasicName, "VCenter basic auth username")
+	flags.StringVar(&vcInputOptions.AuthBasicPass, "vcenter-in-auth-basic-password", vcInputOptions.AuthBasicPass, "VCenter basic auth password")
+	flags.StringVar(&vcInputOptions.RootCA, "vcenter-in-root-ca-cert", vcInputOptions.RootCA, "VCenter RootCA cert filename")
+	flags.StringVar(&vcInputOptions.CheckpointDir, "vcenter-checkpoint-dir", vcInputOptions.CheckpointDir, "VCenter checkpoint dir")
 
 	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-out-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
 	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-out-topic", kafkaOutputOptions.Topic, "Kafka topic")

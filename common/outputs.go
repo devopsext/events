@@ -10,7 +10,7 @@ import (
 )
 
 type Outputs struct {
-	list   []Output
+	List   []Output
 	logger sreCommon.Logger
 }
 
@@ -19,7 +19,7 @@ func (ots *Outputs) Add(o Output) {
 	if reflect.ValueOf(o).IsNil() {
 		return
 	}
-	ots.list = append(ots.list, o)
+	ots.List = append(ots.List, o)
 }
 
 func (ots *Outputs) send(e *Event, exclude []Output, pattern string) {
@@ -50,7 +50,7 @@ func (ots *Outputs) send(e *Event, exclude []Output, pattern string) {
 		ots.logger.Debug("Original event => %s", string(json))
 	}
 
-	for _, o := range ots.list {
+	for _, o := range ots.List {
 
 		if o != nil {
 			matched, err := regexp.MatchString(pattern, o.Name())
