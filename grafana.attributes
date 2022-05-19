@@ -9,4 +9,20 @@
   {{- end}}
 
 {{- end}}
-{{- define "grafana-attributes"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}
+{{- define "vcenter"}}
+  {{printf "{"}}
+  {{printf "\"%s\":\"\"," .type}}
+  {{printf "\"%s\":\"\"," .data.Subject }}
+  {{printf "\"%s\":\"\"," .data.DestLocation}}
+  {{printf "\"%s\":\"\"" "test"}}
+  {{printf "}"}}
+{{- end}}
+{{- define "grafana-attributes"}}
+  {{- if .data}}
+    {{- if eq .type "vcenterEvent"}}
+      {{template "vcenter" .}}
+    {{- else }}
+      {{template "text" .}}
+    {{- end }}
+  {{end}}
+{{- end}}

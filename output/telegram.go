@@ -5,20 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
-	"strconv"
-	"strings"
-	"sync"
-
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
-
 	"github.com/prometheus/alertmanager/template"
 	"golang.org/x/time/rate"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -310,6 +308,14 @@ func (t *TelegramOutput) Send(event *common.Event) {
 				}
 			default:
 				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
+				//
+				////make single retry on 429 error
+				//if err != nil && "429 Too Many Requests" == err.Error() {
+				//	time.Sleep(1 * time.Second)
+				//	println(err)
+				//	bytes, err = t.sendMessage(span.GetContext(), IDToken, chatID, message)
+				//	println(err)
+				//}
 				if err != nil {
 					t.errors.Inc(botID, chatID)
 				} else {

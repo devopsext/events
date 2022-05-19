@@ -58,7 +58,7 @@
     {{- printf "\n<b>%s</b> => %s" .name .image}}
     {{- range .ports}}
       {{- printf " [%s: %.0f]" .protocol .containerPort}}
-    {{- end}}   
+    {{- end}}
   {{- end}}
 {{- end}}
 
@@ -149,7 +149,6 @@
   {{- template "object" (list .data.detail.userIdentity "(accessKeyId|arn)")}}
   {{- template "object" (list .data.detail "(userAgent)")}}
 {{- end}}
-
 {{- define "aws-ecs"}}
   {{- $cluster := index (split "/" .data.detail.clusterArn) 1}}
   {{- $l := (printf "%s / %s / %s / %s" .data.region .data.source $cluster .data.detail.group)}}
@@ -206,7 +205,15 @@
   {{- template "object" (list .data.detail.userIdentity "(arn)")}}
   {{- template "object" (list .data.detail "(DaysToExpiry|userAgent)")}}
 {{- end}}
-
+{{- define "vcenter"}}
+  {{- if .data.Subject}}
+    {{- if (.data.Subject | regexMatch "(.*)")}}
+    {{- if not (.data.Subject | regexMatch "(VmReconfiguredEvent|VmAcquiredTicketEvent)")}}
+  {{- jsonata .data "vc2telegram.jsonata" }}
+    {{- end}}
+    {{- end}}
+  {{- end}}
+{{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
@@ -259,5 +266,6 @@
       {{- if eq .data.source "aws.acm"}}{{template "aws-acm" .}}{{end}}
     {{- end}}
   {{- end}}
+  {{- if eq .type "vcenterEvent"}}{{- if .data}}{{template "vcenter" .}}{{end}}{{end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- if (.via)}}{{.via.Slack.channel}}{{end}}{{- end}}
