@@ -45,6 +45,7 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		err := sub.Receive(ps.ctx, func(ctx context.Context, m *pubsub.Message) {
 
 			span := ps.tracer.StartSpan()
+			defer m.Ack()
 			defer span.Finish()
 
 			ps.requests.Inc(ps.options.Subscription)
@@ -54,14 +55,12 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			if err := json.Unmarshal(m.Data, &event); err != nil {
 				ps.errors.Inc(ps.options.Subscription)
 				ps.logger.SpanError(span, err)
-				m.Ack()
 				return
 			}
 
 			p := ps.processors.Find(event.Type)
 			if p == nil {
 				ps.logger.SpanDebug(span, "PubSub processor is not found for %s", event.Type)
-				m.Ack()
 				return
 			}
 
@@ -72,7 +71,6 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			if err != nil {
 				ps.errors.Inc(ps.options.Subscription)
 			}
-			m.Ack()
 		})
 
 		if err != nil {
