@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	pubsub "cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
@@ -99,7 +99,6 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 
 		arr := strings.Split(topics, "\n")
 		for _, topic := range arr {
-
 			topic = strings.TrimSpace(topic)
 			if utils.IsEmpty(topic) {
 				continue
@@ -123,7 +122,6 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 	options PubSubOutputOptions,
 	templateOptions render.TextTemplateOptions,
 	observability *common.Observability) *PubSubOutput {
-
 	logger := observability.Logs()
 	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) {
 		logger.Debug("PubSub output credentials or project ID is not defined. Skipped")
