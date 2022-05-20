@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	pubsub "cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub"
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
@@ -32,10 +32,8 @@ type PubSubInput struct {
 }
 
 func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
-
 	wg.Add(1)
 	go func(wg *sync.WaitGroup) {
-
 		defer wg.Done()
 		ps.logger.Info("Start pubsub input...")
 
@@ -43,7 +41,6 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		ps.logger.Info("PubSub input is up. Listening...")
 
 		err := sub.Receive(ps.ctx, func(ctx context.Context, m *pubsub.Message) {
-
 			span := ps.tracer.StartSpan()
 			defer m.Ack()
 			defer span.Finish()
@@ -76,12 +73,10 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		if err != nil {
 			ps.logger.Error(err)
 		}
-
 	}(wg)
 }
 
 func NewPubSubInput(options PubSubInputOptions, processors *common.Processors, observability *common.Observability) *PubSubInput {
-
 	logger := observability.Logs()
 	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) || utils.IsEmpty(options.Subscription) {
 		logger.Debug("PubSub input credentials, project ID or subscription is not defined. Skipped")
