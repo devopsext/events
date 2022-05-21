@@ -131,14 +131,6 @@
   {{- end}}
 {{- end}}
 
-{{- define "aws"}}
-  {{- if .data.detail}}
-    {{- if ne .data.detail.eventName "BatchGetImage"}}
-      {{- .data.detail.eventName}}
-    {{- end}}
-  {{- end}}
-{{- end}}
-
 {{- define "aws-ec2"}}
   {{- $instanceId := .data.detail.requestParameters.instanceId}}
   {{- if .data.detail.requestParameters.tagSet.items}}
