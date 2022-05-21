@@ -1,7 +1,28 @@
-{{- define "k8s-header"}}
-  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "*%s*: %s / %s\n*%s*: %s\nby _%s_" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
+{{- define "header"}}
+  {{- $t := timeFormat .t "02.01.06 15:04:05"}}
+  {{- $by := ""}}
+  {{- if .u}}{{- $by = printf "\nby _%s_" .u}}{{end}}
+  {{- printf "*%s*: %s\n*%s*: %s%s\n" .o .l .c $t $by}}
 {{- end}}
+
+{{- define "object"}}
+  {{- if (index . 0)}}
+    {{- $o := index . 0}}
+    {{- $m := ".*"}}
+    {{- if (index . 1)}}{{$m = index . 1}}{{end}}
+    {{- range $k, $v := $o}}
+      {{- if ($k | regexMatch $m)}}
+        {{- printf "\n*%s* => %s" $k (toString $v)}}
+      {{- end}}
+    {{- end}}
+  {{- end}}
+{{- end}}
+
+{{- define "k8s-header"}}
+  {{- $l := (printf "%s / %s" .data.kind .data.location)}}
+  {{- template "header" (dict "o" (toUpper .data.operation) "l" $l "c" .channel "t" .time "u" .data.user.name)}}
+{{- end}}
+
 {{- define "k8s-namespace"}}{{- end}}
 {{- define "k8s-node"}}{{- end}}
 {{- define "k8s-replicaset"}}{{- end}}
@@ -35,24 +56,29 @@
     {{- end}}   
   {{- end}}
 {{- end}}
+
 {{- define "alertmanager-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
   {{- printf "*%s*: %s\n*%s*: %s" (toUpper .data.status) .data.labels.alertname .channel $t}}
 {{- end}}
+
 {{- define "alertmanager-body"}}
   {{- if eq .status "firing"}}{{- printf "\n*StartsAt*: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
   {{- if eq .status "resolved"}}{{- printf "\n*endsAt*: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
 {{- end}}
+
 {{- define "gitlab-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
   {{- if .data.project}}{{- printf "*%s*: %s / %s@%s\n*%s*: %s\nby _%s_" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
   {{- else}}{{- printf "*%s*: %s@%s\n*%s*: %s\nby _%s_" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
 {{- end}}
+
 {{- define "gitlab-commit"}}
   {{- if .commit.author}}{{- printf "\n*Commit author* => %s" .commit.author.name}}{{else}}{{- printf "\n*Commit author* => %s" .commit.author_name}}{{end}}
   {{- printf "\n*Commit message* => %s" .commit.message}}
   {{- if .commit.url}}{{- printf "\n%s" .commit.url}}{{else}}{{- printf "\n%s/-/commit/%s" .repository.homepage .commit.sha}}{{end}}
 {{- end}}
+
 {{- define "gitlab-stages"}}
   {{- $match := .match}}
   {{- range .stages}}
@@ -61,6 +87,7 @@
     {{- end}}
   {{- end}}
 {{- end}}
+
 {{- define "gitlab-pipeline"}}
   {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
   {{- range .data.builds}}
@@ -73,6 +100,7 @@
     {{- printf "\n%s/-/pipelines/%.0f" .data.project.web_url .data.object_attributes.id}}
   {{- end}}
 {{- end}}
+
 {{- define "gitlab-build"}}
   {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}
   {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}
@@ -82,22 +110,27 @@
     {{- printf "\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
   {{- end}}
 {{- end}}
+
 {{- define "datadog"}}
   {{- if not (.data.via)}}
     {{- jsonata .data "datadog2slack.jsonata"}}
   {{- end}}
 {{- end}}
+
 {{- define "site24x7"}}
   {{ toJSON .data}}
 {{- end}}
+
 {{- define "cloudflare"}}
   {{ toJSON .data}}
 {{- end}}
+
 {{- define "google"}}
   {{- if .data.incident}}
     {{ toJSON .data}}
   {{- end}}
 {{- end}}
+
 {{- define "aws"}}
   {{- if .data.detail}}
     {{- if ne .data.detail.eventName "BatchGetImage"}}
@@ -105,6 +138,81 @@
     {{- end}}
   {{- end}}
 {{- end}}
+
+{{- define "aws-ec2"}}
+  {{- $instanceId := .data.detail.requestParameters.instanceId}}
+  {{- if .data.detail.requestParameters.tagSet.items}}
+    {{- if ne (len .data.detail.requestParameters.tagSet.items) 0}}
+      {{- $m := index .data.detail.requestParameters.tagSet.items 0}}
+      {{- $instanceId = get $m "value"}}
+    {{- end}}
+  {{- end}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source $instanceId)}}
+  {{- $u := index (split ":" .data.detail.userIdentity.principalId) 0}}
+  {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" $u)}}
+  {{- template "object" (list .data.detail.requestParameters "(networkInterfaceId)")}}
+  {{- template "object" (list .data.detail.responseElements "(device|volumeId)")}}
+  {{- template "object" (list .data.detail.userIdentity "(accessKeyId|arn)")}}
+  {{- template "object" (list .data.detail "(userAgent)")}}
+{{- end}}
+
+{{- define "aws-ecs"}}
+  {{- $cluster := index (split "/" .data.detail.clusterArn) 1}}
+  {{- $l := (printf "%s / %s / %s / %s" .data.region .data.source $cluster .data.detail.group)}}
+  {{- template "header" (dict "o" .data.detail.lastStatus "l" $l "c" .channel "t" .time "u" .data.detail.startedBy)}}
+  {{- range .data.detail.containers}}
+    {{- printf "\n*%s* => %s" .name .image}}
+  {{- end}}
+  {{- template "object" (list .data.detail.userIdentity "(arn)")}}
+  {{- template "object" (list .data.detail "(stoppedReason|taskArn|userAgent)")}}
+{{- end}}
+
+{{- define "aws-rds"}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source .data.detail.SourceIdentifier)}}
+  {{- template "header" (dict "o" (index .data "detail-type") "l" $l "c" .channel "t" .time)}}
+  {{- template "object" (list .data.detail.userIdentity "(arn)")}}
+  {{- template "object" (list .data.detail "(EventID|Message|userAgent)")}}
+{{- end}}
+
+{{- define "aws-elasticloadbalancing"}}
+  {{- $target := "unknown"}}
+  {{- if .data.detail.requestParameters.targetGroupArn}}{{$target = index (split "/" .data.detail.requestParameters.targetGroupArn) 1}}{{end}}
+  {{- if .data.detail.requestParameters.loadBalancerName}}{{$target = .data.detail.requestParameters.loadBalancerName}}{{end}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source $target)}}
+  {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" .data.detail.userIdentity.accessKeyId)}}
+  {{- template "object" (list .data.detail.userIdentity "(arn)")}}
+  {{- template "object" (list .data.detail "(userAgent)")}}
+{{- end}}
+
+{{- define "aws-route53"}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source .data.detail.requestParameters.hostedZoneId)}}
+  {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" .data.detail.userIdentity.accessKeyId)}}
+  {{- range .data.detail.requestParameters.changeBatch.changes}}
+    {{- printf "\n*%s* => %s" .action .resourceRecordSet.name}}
+  {{- end}}
+  {{- template "object" (list .data.detail.userIdentity "(arn)")}}
+  {{- template "object" (list .data.detail "(userAgent)")}}
+{{- end}}
+
+{{- define "aws-autoscaling"}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source .data.detail.AutoScalingGroupName)}}
+  {{- template "header" (dict "o" (index .data "detail-type") "l" $l "c" .channel "t" .time)}}
+  {{- template "object" (list .data.detail.userIdentity "(arn)")}}
+  {{- template "object" (list .data.detail "(EC2InstnaceId|Cause|userAgent)")}}
+{{- end}}
+
+{{- define "aws-acm"}}
+  {{- $name := "unknown"}}
+  {{- if .data.detail.requestParameters.certificateArn}}{{$name = index (split "/" .data.detail.requestParameters.certificateArn) 1}}{{end}}
+  {{- if .data.detail.CommonName}}{{$name = .data.detail.CommonName}}{{end}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source $name)}}
+  {{- $o := (index .data "detail-type")}}
+  {{- if .data.detail.eventName}}{{$o = .data.detail.eventName}}{{end}}
+  {{- template "header" (dict "o" $o "l" $l "c" .channel "t" .time "u" .data.detail.userIdentity.accessKeyId)}}
+  {{- template "object" (list .data.detail.userIdentity "(arn)")}}
+  {{- template "object" (list .data.detail "(DaysToExpiry|userAgent)")}}
+{{- end}}
+
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
@@ -137,6 +245,25 @@
   {{- if eq .type "Site24x7Event"}}{{- if .data}}{{template "site24x7" .}}{{end}}{{- end}}
   {{- if eq .type "CloudflareEvent"}}{{- if .data}}{{template "cloudflare" .}}{{end}}{{- end}}
   {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
-  {{- if eq .type "AWSEvent"}}{{- if .data}}{{template "aws" .}}{{end}}{{- end}}
+  {{- if eq .type "AWSEvent"}}
+    {{- if .data.detail}}
+      {{- if eq .data.source "aws.acm-pca"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.cloudfront"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.directconnect"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.s3"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.eks"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.msk"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.elasticache"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.dynamodb"}}{{toJSON .data}}{{end}}
+
+      {{- if eq .data.source "aws.ec2"}}{{template "aws-ec2" .}}{{end}}
+      {{- if eq .data.source "aws.ecs"}}{{template "aws-ecs" .}}{{end}}
+      {{- if eq .data.source "aws.rds"}}{{template "aws-rds" .}}{{end}}
+      {{- if eq .data.source "aws.elasticloadbalancing"}}{{template "aws-elasticloadbalancing" .}}{{end}}
+      {{- if eq .data.source "aws.route53"}}{{template "aws-route53" .}}{{end}}
+      {{- if eq .data.source "aws.autoscaling"}}{{template "aws-autoscaling" .}}{{end}}
+      {{- if eq .data.source "aws.acm"}}{{template "aws-acm" .}}{{end}}
+    {{- end}}
+  {{- end}}
 {{- end}}
 {{- define "slack-message"}}{{template "text" .}}{{- end}}

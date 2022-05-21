@@ -1,0 +1,100 @@
+{
+  "account": "157576696349",
+  "detail": {
+    "apiVersion": "2012-06-01",
+    "awsRegion": "eu-central-1",
+    "eventCategory": "Management",
+    "eventID": "f2668e3a-cfb5-47ae-80fc-eaae031ad1b2",
+    "eventName": "RegisterInstancesWithLoadBalancer",
+    "eventSource": "elasticloadbalancing.amazonaws.com",
+    "eventTime": "2022-05-21T13:00:04Z",
+    "eventType": "AwsApiCall",
+    "eventVersion": "1.08",
+    "managementEvent": true,
+    "readOnly": false,
+    "recipientAccountId": "157576696349",
+    "requestID": "1789bd5e-ef2b-424e-b231-6068fb693f1a",
+    "requestParameters": {
+      "instances": [
+        {
+          "instanceId": "i-05b6827827cbae830"
+        }
+      ],
+      "loadBalancerName": "a206fc323729711eab43a06dc0a5ffa2"
+    },
+    "responseElements": {
+      "instances": [
+        {
+          "instanceId": "i-07cbf43e745c5a752"
+        },
+        {
+          "instanceId": "i-0e922e216d91f8b71"
+        },
+        {
+          "instanceId": "i-0f4fe288fc4ab750e"
+        },
+        {
+          "instanceId": "i-05b6827827cbae830"
+        },
+        {
+          "instanceId": "i-0845c0bbc075d40fc"
+        },
+        {
+          "instanceId": "i-065a496cb26a7dcb6"
+        },
+        {
+          "instanceId": "i-07a51d94288c2c60d"
+        },
+        {
+          "instanceId": "i-06596ccb3f69f6b2f"
+        },
+        {
+          "instanceId": "i-06fcf6631752a735c"
+        },
+        {
+          "instanceId": "i-0814f6075c37d0a10"
+        },
+        {
+          "instanceId": "i-0a73fa680fa5f76b2"
+        },
+        {
+          "instanceId": "i-00a8a6ebcd041e8da"
+        },
+        {
+          "instanceId": "i-0155bec052b32cfe5"
+        }
+      ]
+    },
+    "sourceIPAddress": "eks.amazonaws.com",
+    "userAgent": "eks.amazonaws.com",
+    "userIdentity": {
+      "accessKeyId": "WWWWSJMCNSIOTYLZQANY",
+      "accountId": "157576696349",
+      "arn": "arn:aws:sts::157576696349:assumed-role/eksctl-bi-cluster-ServiceRole-1UVAASNN0I53U/1653084984187285429",
+      "invokedBy": "eks.amazonaws.com",
+      "principalId": "AROASJMCNSIOYFMYI7LDP:1653084984187285429",
+      "sessionContext": {
+        "attributes": {
+          "creationDate": "2022-05-21T12:48:08Z",
+          "mfaAuthenticated": "false"
+        },
+        "sessionIssuer": {
+          "accountId": "157576696349",
+          "arn": "arn:aws:iam::157576696349:role/eksctl-bi-cluster-ServiceRole-1UVAASNN0I53U",
+          "principalId": "AROASJMCNSIOYFMYI7LDP",
+          "type": "Role",
+          "userName": "eksctl-bi-cluster-ServiceRole-1UVAASNN0I53U"
+        },
+        "webIdFederationData": {}
+      },
+      "type": "AssumedRole"
+    }
+  },
+  "detail-type": "AWS API Call via CloudTrail",
+  "id": "8491b445-b2ff-0a37-07a3-a1b978f1f6e8",
+  "region": "eu-central-1",
+  "resources": [],
+  "source": "aws.elasticloadbalancing",
+  "time": "2022-05-21T13:00:04Z",
+  "version": "0"
+}

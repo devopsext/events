@@ -1,4 +1,12 @@
 {{- define "text"}}
-  {{printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
+
+  {{- if eq .type "GitlabEvent"}}
+    {{- printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
+  {{- end}}
+
+  {{- if eq .type "AWSEvent"}}
+    {{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .type .channel .data.source .data.region .data.account}}
+  {{- end}}
+
 {{- end}}
 {{- define "grafana-attributes"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

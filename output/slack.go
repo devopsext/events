@@ -321,6 +321,21 @@ func (s *SlackOutput) Send(event *common.Event) {
 }
 
 func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
+
+	if utils.IsEmpty(title) && !utils.IsEmpty(message) {
+
+		delim := "\n"
+		lines := strings.Split(message, delim)
+		for _, line := range lines {
+			if !utils.IsEmpty(line) {
+				title = strings.ReplaceAll(line, "*", "") // no stars in title
+				arr := lines[1 : len(lines)-1]
+				message = strings.Join(arr, delim)
+				break
+			}
+		}
+	}
+
 	return vendors.SlackMessage{
 		Token:   token,
 		Channel: channel,

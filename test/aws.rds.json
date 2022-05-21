@@ -1,0 +1,19 @@
+{
+  "account": "098093904626",
+  "detail": {
+    "Date": "2022-05-19T01:08:25.750Z",
+    "EventCategories": [
+      "backup"
+    ],
+    "EventID": "RDS-EVENT-0001",
+    "Message": "Backing up DB instance",
+    "SourceArn": "arn:aws:rds:eu-west-2:098093904626:db:invaxa-prod-crm-bridge-postgres",
+    "SourceIdentifier": "invaxa-prod-crm-bridge-postgres",
+    "SourceType": "DB_INSTANCE"
+  },
+  "detail-type": "RDS DB Instance Event",
+  "region": "eu-west-2",
+  "source": "aws.rds",
+  "time": "2022-05-19T01:08:25Z",
+  "version": "0"
+}

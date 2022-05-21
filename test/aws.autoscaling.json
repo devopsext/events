@@ -1,0 +1,31 @@
+{
+  "account": "157576696349",
+  "detail": {
+    "ActivityId": "8c360395-3daa-8195-e6a7-ca357cfcdee6",
+    "AutoScalingGroupName": "ml-eks-eu_MlGPUNodes",
+    "Cause": "At 2022-05-21T06:30:28Z instance i-033fe5a336b18d2f6 was taken out of service in response to a user request, shrinking the capacity from 1 to 0.",
+    "Description": "Terminating EC2 instance: i-033fe5a336b18d2f6",
+    "Destination": "EC2",
+    "Details": {
+      "Availability Zone": "eu-central-1a",
+      "Subnet ID": "subnet-053d0c0c789e7aa18"
+    },
+    "EC2InstanceId": "i-033fe5a336b18d2f6",
+    "EndTime": "2022-05-21T06:36:52.425Z",
+    "Origin": "AutoScalingGroup",
+    "RequestId": "8c360395-3daa-8195-e6a7-ca357cfcdee6",
+    "StartTime": "2022-05-21T06:30:28.768Z",
+    "StatusCode": "InProgress",
+    "StatusMessage": ""
+  },
+  "detail-type": "EC2 Instance Terminate Successful",
+  "id": "5e47e4c8-13cb-999b-db0f-1c5044a5c8d7",
+  "region": "eu-central-1",
+  "resources": [
+    "arn:aws:autoscaling:eu-central-1:157576696349:autoScalingGroup:7cbb2751-b0f2-4e90-b4ba-e57c2fa47135:autoScalingGroupName/ml-eks-eu_MlGPUNodes",
+    "arn:aws:ec2:eu-central-1:157576696349:instance/i-033fe5a336b18d2f6"
+  ],
+  "source": "aws.autoscaling",
+  "time": "2022-05-21T06:36:52Z",
+  "version": "0"
+}

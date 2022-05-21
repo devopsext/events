@@ -1,0 +1,86 @@
+{
+  "account": "098093904626",
+  "detail": {
+    "additionalEventData": {
+      "Note": "Do not use to reconstruct hosted zone"
+    },
+    "apiVersion": "2013-04-01",
+    "awsRegion": "us-east-1",
+    "eventCategory": "Management",
+    "eventID": "368502eb-9b22-4f3d-8787-4470877211f8",
+    "eventName": "ChangeResourceRecordSets",
+    "eventSource": "route53.amazonaws.com",
+    "eventTime": "2022-05-18T13:33:29Z",
+    "eventType": "AwsApiCall",
+    "eventVersion": "1.08",
+    "managementEvent": true,
+    "readOnly": false,
+    "recipientAccountId": "098093904626",
+    "requestID": "c705dc59-a35b-4592-b83f-c57738f6aafb",
+    "requestParameters": {
+      "changeBatch": {
+        "changes": [
+          {
+            "action": "UPSERT",
+            "resourceRecordSet": {
+              "name": "apiportal.invaxasystems.net",
+              "resourceRecords": [
+                {
+                  "value": "18.170.51.73"
+                },
+                {
+                  "value": "13.41.70.178"
+                }
+              ],
+              "tTL": 60,
+              "type": "A"
+            }
+          }
+        ],
+        "comment": "Automatic DNS update"
+      },
+      "hostedZoneId": "Z0737640100OEZQN74GN4"
+    },
+    "responseElements": {
+      "changeInfo": {
+        "comment": "Automatic DNS update",
+        "id": "/change/C02974592SK3C68OT8S7F",
+        "status": "PENDING",
+        "submittedAt": "May 18, 2022 1:33:29 PM"
+      }
+    },
+    "sourceIPAddress": "18.170.78.200",
+    "tlsDetails": {
+      "cipherSuite": "ECDHE-RSA-AES128-GCM-SHA256",
+      "clientProvidedHostHeader": "route53.amazonaws.com",
+      "tlsVersion": "TLSv1.2"
+    },
+    "userAgent": "Boto3/1.18.55 Python/3.6.15 Linux/4.14.255-273-220.498.amzn2.x86_64 exec-env/AWS_Lambda_python3.6 Botocore/1.21.56",
+    "userIdentity": {
+      "accessKeyId": "WWWWSJMCNSIOTYLZQANY",
+      "accountId": "098093904626",
+      "arn": "arn:aws:sts::098093904626:assumed-role/invaxa-staging-traefik-lambda-role/invaxa-prod-TraefikDNS",
+      "principalId": "AROARNVW2GLZAXTKCPJKH:invaxa-prod-TraefikDNS",
+      "sessionContext": {
+        "attributes": {
+          "creationDate": "2022-05-18T13:33:26Z",
+          "mfaAuthenticated": "false"
+        },
+        "sessionIssuer": {
+          "accountId": "098093904626",
+          "arn": "arn:aws:iam::098093904626:role/invaxa-staging-traefik-lambda-role",
+          "principalId": "AROARNVW2GLZAXTKCPJKH",
+          "type": "Role",
+          "userName": "invaxa-staging-traefik-lambda-role"
+        },
+        "webIdFederationData": {}
+      },
+      "type": "AssumedRole"
+    }
+  },
+  "detail-type": "AWS API Call via CloudTrail",
+  "region": "us-east-1",
+  "source": "aws.route53",
+  "time": "2022-05-18T13:33:29Z",
+  "version": "0"
+}

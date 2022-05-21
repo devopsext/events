@@ -27,8 +27,8 @@ type AWSRequest struct {
 	Account    string      `json:"account"`
 	Time       time.Time   `json:"time"`
 	Region     string      `json:"region"`
-	DetailType string      `json:"detail-type"`
-	Detail     interface{} `json:"detail"`
+	DetailType string      `json:"detail-type,omitempty"`
+	Detail     interface{} `json:"detail,omitempty"`
 }
 
 type AWSResponse struct {
