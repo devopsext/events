@@ -1,6 +1,6 @@
 {{- define "render"}}{{printf (getEnv .)}}{{"\n"}}{{end}}
 {{- define "rules"}}
-  {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_DEVOPS"}}{{end}}
+  {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "GitlabEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_DEVOPS"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "DataDogEvent"}}{{template "render" "EVENTS_TELEGRAM_OUT_BOT_SRE"}}{{end}}

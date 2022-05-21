@@ -1,0 +1,62 @@
+{
+  "account": "157576696349",
+  "detail": {
+    "awsRegion": "eu-central-1",
+    "eventCategory": "Management",
+    "eventID": "8cfebd47-9ed1-4ae4-a480-822532594df6",
+    "eventName": "AttachNetworkInterface",
+    "eventSource": "ec2.amazonaws.com",
+    "eventTime": "2022-05-20T13:28:09Z",
+    "eventType": "AwsApiCall",
+    "eventVersion": "1.08",
+    "managementEvent": true,
+    "readOnly": false,
+    "recipientAccountId": "157576696349",
+    "requestID": "9e9930ea-000a-40a7-a9aa-410d9da6970a",
+    "requestParameters": {
+      "deviceIndex": 2,
+      "instanceId": "i-0a73fa680fa5f76b2",
+      "networkInterfaceId": "eni-08cbd043527f58cbe"
+    },
+    "responseElements": {
+      "attachmentId": "eni-attach-0e7a5cd8d7d080de4",
+      "requestId": "9e9930ea-000a-40a7-a9aa-410d9da6970a"
+    },
+    "sourceIPAddress": "52.28.127.184",
+    "tlsDetails": {
+      "cipherSuite": "ECDHE-RSA-AES128-GCM-SHA256",
+      "clientProvidedHostHeader": "ec2.eu-central-1.amazonaws.com",
+      "tlsVersion": "TLSv1.2"
+    },
+    "userAgent": "aws-sdk-go/1.21.7 (go1.12.17; linux; amd64)",
+    "userIdentity": {
+      "accessKeyId": "WWWWSJMCNSIOTYLZQANY",
+      "accountId": "157576696349",
+      "arn": "arn:aws:sts::157576696349:assumed-role/eksctl-bi-nodegroup-default-NodeInstanceRole/i-0a73fa680fa5f76b2",
+      "principalId": "AROASJMCNSIO3BGXXRURK:i-0a73fa680fa5f76b2",
+      "sessionContext": {
+        "attributes": {
+          "creationDate": "2022-05-20T12:55:02Z",
+          "mfaAuthenticated": "false"
+        },
+        "ec2RoleDelivery": "1.0",
+        "sessionIssuer": {
+          "accountId": "157576696349",
+          "arn": "arn:aws:iam::157576696349:role/eksctl-bi-nodegroup-default-NodeInstanceRole",
+          "principalId": "AROASJMCNSIO3BGXXRURK",
+          "type": "Role",
+          "userName": "eksctl-bi-nodegroup-default-NodeInstanceRole"
+        },
+        "webIdFederationData": {}
+      },
+      "type": "AssumedRole"
+    }
+  },
+  "detail-type": "AWS API Call via CloudTrail",
+  "id": "5e10008c-3f0d-f99b-6481-bd8bb46d2328",
+  "region": "eu-central-1",
+  "resources": [],
+  "source": "aws.ec2",
+  "time": "2022-05-20T13:28:09Z",
+  "version": "0"
+}

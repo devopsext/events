@@ -1,0 +1,52 @@
+{
+  "account": "157576696349",
+  "detail": {
+    "awsRegion": "us-east-1",
+    "eventCategory": "Management",
+    "eventID": "a2db2694-5632-4300-8dca-0e9101b1c026",
+    "eventName": "DeleteCertificate",
+    "eventSource": "acm.amazonaws.com",
+    "eventTime": "2022-05-16T16:16:46Z",
+    "eventType": "AwsApiCall",
+    "eventVersion": "1.08",
+    "managementEvent": true,
+    "readOnly": false,
+    "recipientAccountId": "157576696349",
+    "requestID": "97bc8462-7922-429b-ad9c-8bf863a61756",
+    "requestParameters": {
+      "certificateArn": "arn:aws:acm:us-east-1:157576696349:certificate/af843155-4fb9-43cb-b39b-7b6f41e454e2"
+    },
+    "responseElements": null,
+    "sessionCredentialFromConsole": "true",
+    "sourceIPAddress": "AWS Internal",
+    "userAgent": "AWS Internal",
+    "userIdentity": {
+      "accessKeyId": "WWWWSJMCNSIOTYLZQANY",
+      "accountId": "157576696349",
+      "arn": "arn:aws:sts::157576696349:assumed-role/sso/some.user",
+      "principalId": "AROASJMCNSIOTZSUL5HOJ:some.user",
+      "sessionContext": {
+        "attributes": {
+          "creationDate": "2022-05-16T15:49:39Z",
+          "mfaAuthenticated": "false"
+        },
+        "sessionIssuer": {
+          "accountId": "157576696349",
+          "arn": "arn:aws:iam::157576696349:role/sso",
+          "principalId": "AROASJMCNSIOTZSUL5HOJ",
+          "type": "Role",
+          "userName": "sso"
+        },
+        "webIdFederationData": {}
+      },
+      "type": "AssumedRole"
+    }
+  },
+  "detail-type": "AWS API Call via CloudTrail",
+  "id": "1284ecbe-85d0-1424-445c-164090951aca",
+  "region": "us-east-1",
+  "resources": [],
+  "source": "aws.acm",
+  "time": "2022-05-16T16:16:46Z",
+  "version": "0"
+}

@@ -1,0 +1,62 @@
+{
+  "account": "157576696349",
+  "detail": {
+    "awsRegion": "eu-central-1",
+    "eventCategory": "Management",
+    "eventID": "ca40438c-de7f-4114-8305-f516a30feabe",
+    "eventName": "AttachVolume",
+    "eventSource": "ec2.amazonaws.com",
+    "eventTime": "2022-05-20T12:44:32Z",
+    "eventType": "AwsApiCall",
+    "eventVersion": "1.08",
+    "managementEvent": true,
+    "readOnly": false,
+    "recipientAccountId": "157576696349",
+    "requestID": "dfd36cbe-9c74-4097-b7a0-d498c4ec74ea",
+    "requestParameters": {
+      "deleteOnTermination": false,
+      "device": "/dev/xvdcr",
+      "instanceId": "i-05b6827827cbae830",
+      "volumeId": "vol-070770e03635b13e7"
+    },
+    "responseElements": {
+      "attachTime": 1653050672014,
+      "deleteOnTermination": false,
+      "device": "/dev/xvdcr",
+      "instanceId": "i-05b6827827cbae830",
+      "requestId": "dfd36cbe-9c74-4097-b7a0-d498c4ec74ea",
+      "status": "attaching",
+      "volumeId": "vol-070770e03635b13e7"
+    },
+    "sourceIPAddress": "eks.amazonaws.com",
+    "userAgent": "eks.amazonaws.com",
+    "userIdentity": {
+      "accountId": "157576696349",
+      "arn": "arn:aws:sts::157576696349:assumed-role/eksctl-bi-cluster-ServiceRole-1UVAASNN0I53U/1652473055054864119",
+      "invokedBy": "eks.amazonaws.com",
+      "principalId": "AROASJMCNSIOYFMYI7LDP:1652473055054864119",
+      "sessionContext": {
+        "attributes": {
+          "creationDate": "2022-05-20T12:31:04Z",
+          "mfaAuthenticated": "false"
+        },
+        "sessionIssuer": {
+          "accountId": "157576696349",
+          "arn": "arn:aws:iam::157576696349:role/eksctl-bi-cluster-ServiceRole-1UVAASNN0I53U",
+          "principalId": "AROASJMCNSIOYFMYI7LDP",
+          "type": "Role",
+          "userName": "eksctl-bi-cluster-ServiceRole-1UVAASNN0I53U"
+        },
+        "webIdFederationData": {}
+      },
+      "type": "AssumedRole"
+    }
+  },
+  "detail-type": "AWS API Call via CloudTrail",
+  "id": "cb6f1474-8ac4-b2c2-3dc9-855bbc1cbbf5",
+  "region": "eu-central-1",
+  "resources": [],
+  "source": "aws.ec2",
+  "time": "2022-05-20T12:44:32Z",
+  "version": "0"
+}

@@ -1,0 +1,59 @@
+{
+    "version": "0",
+    "id": "e1ecb274-cf53-1e74-6533-ac0ce824d2eb",
+    "detail-type": "AWS API Call via CloudTrail",
+    "source": "aws.elasticloadbalancing",
+    "account": "098011104626",
+    "time": "2022-05-14T17:06:32Z",
+    "region": "eu-west-2",
+    "resources": [],
+    "detail": {
+        "eventVersion": "1.08",
+        "userIdentity": {
+            "type": "AssumedRole",
+            "principalId": "AWWARNVW2GLZNXEMOGPGJ:ecs-service-scheduler",
+            "arn": "arn:aws:sts::098011104626:assumed-role/AWSServiceRoleForECS/ecs-service-scheduler",
+            "accountId": "098011104626",
+            "accessKeyId": "AWIARNVW2GLZGPNU4WNW",
+            "sessionContext": {
+                "sessionIssuer": {
+                    "type": "Role",
+                    "principalId": "AWWARNVW2GLZNXEMOGPGJ",
+                    "arn": "arn:aws:iam::098011104626:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+                    "accountId": "098011104626",
+                    "userName": "AWSServiceRoleForECS"
+                },
+                "webIdFederationData": {},
+                "attributes": {
+                    "creationDate": "2022-05-14T17:06:32Z",
+                    "mfaAuthenticated": "false"
+                }
+            },
+            "invokedBy": "ecs.amazonaws.com"
+        },
+        "eventTime": "2022-05-14T17:06:32Z",
+        "eventSource": "elasticloadbalancing.amazonaws.com",
+        "eventName": "DeregisterTargets",
+        "awsRegion": "eu-west-2",
+        "sourceIPAddress": "ecs.amazonaws.com",
+        "userAgent": "ecs.amazonaws.com",
+        "requestParameters": {
+            "targetGroupArn": "arn:aws:elasticloadbalancing:eu-west-2:098011104626:targetgroup/kafka-exporter-prod-tg/fd84b6820271c649",
+            "targets": [
+                {
+                    "id": "i-09ae152cd23f2e331",
+                    "port": 9308
+                }
+            ]
+        },
+        "responseElements": null,
+        "requestID": "e1635181-f7ff-43c2-9367-e8a2082f20af",
+        "eventID": "baa3baec-1e71-4123-9cdc-a5e7cfa4b560",
+        "readOnly": false,
+        "eventType": "AwsApiCall",
+        "apiVersion": "2015-12-01",
+        "managementEvent": true,
+        "recipientAccountId": "098011104626",
+        "eventCategory": "Management"
+    }
+}
