@@ -236,6 +236,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 			} else {
 				chans = strings.Split(b.String(), "\n")
 			}
+		} else {
+			chans = append(chans, fmt.Sprintf("%s=%s", token, channel))
 		}
 
 		if len(chans) == 0 {
