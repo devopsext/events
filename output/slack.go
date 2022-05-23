@@ -229,7 +229,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 		token := s.options.Token
 		var chans []string
 		if s.selector != nil {
-
 			b, err := s.selector.Execute(jsonMap)
 			if err != nil {
 				s.logger.SpanDebug(span, err)
@@ -293,7 +292,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			case "DataDogEvent":
-				//m := slackMessageFromDDEvent(event)
 				var m vendors.SlackMessage
 				err = json.Unmarshal([]byte(message), &m)
 				if err != nil {
@@ -323,18 +321,21 @@ func (s *SlackOutput) Send(event *common.Event) {
 }
 
 func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
-
 	if utils.IsEmpty(title) && !utils.IsEmpty(message) {
-
 		delim := "\n"
 		lines := strings.Split(message, delim)
-		for _, line := range lines {
+		for i, line := range lines {
 			if !utils.IsEmpty(line) {
 				title = strings.ReplaceAll(line, "*", "") // no stars in title
-				arr := lines[1 : len(lines)-1]
-				message = strings.Join(arr, delim)
+				message = "no message"
+				if i < len(lines) {
+					message = strings.Join(lines[i+1:], delim)
+				}
 				break
 			}
+		}
+		if utils.IsEmpty(title) {
+			title = "no title"
 		}
 	}
 
