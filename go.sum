@@ -182,8 +182,9 @@ github.com/devopsext/sre v0.1.6/go.mod h1:BEGmnydDBfYwMQwdobvUQDrPVbD9LGmRAeRTSB
 github.com/devopsext/tools v0.2.6 h1:BAdra5Rm5TdYANxz/8L2PFQAAxv5ukRu7FfAxqITpDI=
 github.com/devopsext/tools v0.2.6/go.mod h1:GW8bP6c4/iq5xV68GfhjiIKV7qglqNivcdlywIHF2Qg=
 github.com/devopsext/utils v0.1.4/go.mod h1:eIrTpDzjsRpfaLyezshGAzTGazYxde12zMFT9TTwBp8=
-github.com/devopsext/utils v0.1.6 h1:f2LpEQjebRWMjz9SnTYNI23vMrGtDxFY3NYQwdPLQ24=
 github.com/devopsext/utils v0.1.6/go.mod h1:eIrTpDzjsRpfaLyezshGAzTGazYxde12zMFT9TTwBp8=
+github.com/devopsext/utils v0.1.7 h1:qLdBdANZtEUUybKS5FvZoV5x5jM45MY8w+HkYyKYNGI=
+github.com/devopsext/utils v0.1.7/go.mod h1:eIrTpDzjsRpfaLyezshGAzTGazYxde12zMFT9TTwBp8=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/docker/go-units v0.3.3/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/docker/go-units v0.4.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=

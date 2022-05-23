@@ -1,65 +1,111 @@
 {
-  "account": "098093904626",
+  "account": "157576696349",
   "detail": {
-    "attachments": [],
-    "attributes": [
-      {
-        "name": "ecs.cpu-architecture",
-        "value": "x86_64"
-      }
-    ],
-    "availabilityZone": "eu-west-2a",
-    "clusterArn": "arn:aws:ecs:eu-west-2:098093904626:cluster/invaxa-prod",
-    "connectivity": "CONNECTED",
-    "connectivityAt": "2022-05-19T13:28:13.056Z",
-    "containerInstanceArn": "arn:aws:ecs:eu-west-2:098093904626:container-instance/invaxa-prod/88d491f57c514148a25bcd36ab63420a",
-    "containers": [
-      {
-        "containerArn": "arn:aws:ecs:eu-west-2:098093904626:container/invaxa-prod/815e09d43e784bada99f9ecbb0407bf7/02c68b5c-60ed-4cab-813f-edc716d8c29f",
-        "cpu": "128",
-        "exitCode": 255,
-        "image": "bitnami/kafka-exporter:1.4.2",
-        "lastStatus": "STOPPED",
-        "memory": "256",
-        "memoryReservation": "128",
-        "name": "kafka-exporter",
-        "networkInterfaces": [],
-        "runtimeId": "8ef01a5b5c619159617350b506acf390df400a325dc95dd90a59ad60d001a1c9",
-        "taskArn": "arn:aws:ecs:eu-west-2:098093904626:task/invaxa-prod/815e09d43e784bada99f9ecbb0407bf7"
-      }
-    ],
-    "cpu": "128",
-    "createdAt": "2022-05-19T13:28:13.056Z",
-    "desiredStatus": "STOPPED",
-    "enableExecuteCommand": false,
-    "executionStoppedAt": "2022-05-19T13:28:16.317Z",
-    "group": "service:kafka-exporter",
-    "lastStatus": "STOPPED",
-    "launchType": "EC2",
-    "memory": "128",
-    "overrides": {
-      "containerOverrides": [
-        {
-          "name": "kafka-exporter"
-        }
-      ]
+    "awsRegion": "eu-central-1",
+    "eventCategory": "Management",
+    "eventID": "3fcd5045-c9da-441c-a72d-9ee5aeff977d",
+    "eventName": "AssignPrivateIpAddresses",
+    "eventSource": "ec2.amazonaws.com",
+    "eventTime": "2022-05-23T09:02:13Z",
+    "eventType": "AwsApiCall",
+    "eventVersion": "1.08",
+    "managementEvent": true,
+    "readOnly": false,
+    "recipientAccountId": "157576696349",
+    "requestID": "dce3bc79-b263-45a2-bb61-ff2dbba4404f",
+    "requestParameters": {
+      "ipv4Prefixes": {},
+      "networkInterfaceId": "eni-0e3c28c663ad5a4cd",
+      "privateIpAddressesSet": {},
+      "secondaryPrivateIpAddressCount": 14
     },
-    "pullStartedAt": "2022-05-19T13:28:14.364Z",
-    "pullStoppedAt": "2022-05-19T13:28:15.371Z",
-    "startedAt": "2022-05-19T13:28:15.436Z",
-    "startedBy": "ecs-svc/7707309548933170536",
-    "stopCode": "EssentialContainerExited",
-    "stoppedAt": "2022-05-19T13:28:16.323Z",
-    "stoppedReason": "Essential container in task exited",
-    "stoppingAt": "2022-05-19T13:28:16.323Z",
-    "taskArn": "arn:aws:ecs:eu-west-2:098093904626:task/invaxa-prod/815e09d43e784bada99f9ecbb0407bf7",
-    "taskDefinitionArn": "arn:aws:ecs:eu-west-2:098093904626:task-definition/kafka-exporter-prod:2",
-    "updatedAt": "2022-05-19T13:28:16.323Z",
-    "version": 3
+    "responseElements": {
+      "_return": true,
+      "assignedIpv4PrefixSet": {},
+      "assignedPrivateIpAddressesSet": {
+        "assignedPrivateIpAddressSetType": [
+          {
+            "privateIpAddress": "10.176.78.113"
+          },
+          {
+            "privateIpAddress": "10.176.78.216"
+          },
+          {
+            "privateIpAddress": "10.176.78.125"
+          },
+          {
+            "privateIpAddress": "10.176.78.30"
+          },
+          {
+            "privateIpAddress": "10.176.78.191"
+          },
+          {
+            "privateIpAddress": "10.176.78.160"
+          },
+          {
+            "privateIpAddress": "10.176.78.163"
+          },
+          {
+            "privateIpAddress": "10.176.78.4"
+          },
+          {
+            "privateIpAddress": "10.176.78.228"
+          },
+          {
+            "privateIpAddress": "10.176.78.165"
+          },
+          {
+            "privateIpAddress": "10.176.78.166"
+          },
+          {
+            "privateIpAddress": "10.176.78.73"
+          },
+          {
+            "privateIpAddress": "10.176.78.174"
+          },
+          {
+            "privateIpAddress": "10.176.78.143"
+          }
+        ]
+      },
+      "networkInterfaceId": "eni-0e3c28c663ad5a4cd",
+      "requestId": "dce3bc79-b263-45a2-bb61-ff2dbba4404f"
+    },
+    "sourceIPAddress": "52.28.127.184",
+    "tlsDetails": {
+      "cipherSuite": "ECDHE-RSA-AES128-GCM-SHA256",
+      "clientProvidedHostHeader": "ec2.eu-central-1.amazonaws.com",
+      "tlsVersion": "TLSv1.2"
+    },
+    "userAgent": "aws-sdk-go/1.21.7 (go1.12.17; linux; amd64)",
+    "userIdentity": {
+      "accessKeyId": "ASIASJMCNSIOX5UQKOOU",
+      "accountId": "157576696349",
+      "arn": "arn:aws:sts::157576696349:assumed-role/eksctl-bi-nodegroup-default-NodeInstanceRole/i-0a73fa680fa5f76b2",
+      "principalId": "AROASJMCNSIO3BGXXRURK:i-0a73fa680fa5f76b2",
+      "sessionContext": {
+        "attributes": {
+          "creationDate": "2022-05-23T03:46:37Z",
+          "mfaAuthenticated": "false"
+        },
+        "ec2RoleDelivery": "1.0",
+        "sessionIssuer": {
+          "accountId": "157576696349",
+          "arn": "arn:aws:iam::157576696349:role/eksctl-bi-nodegroup-default-NodeInstanceRole",
+          "principalId": "AROASJMCNSIO3BGXXRURK",
+          "type": "Role",
+          "userName": "eksctl-bi-nodegroup-default-NodeInstanceRole"
+        },
+        "webIdFederationData": {}
+      },
+      "type": "AssumedRole"
+    }
   },
-  "detail-type": "ECS Task State Change",
-  "region": "eu-west-2",
-  "source": "aws.ecs",
-  "time": "2022-05-21T17:08:16Z",
+  "detail-type": "AWS API Call via CloudTrail",
+  "id": "a139b498-aaf8-dd6f-5795-028ba6436e47",
+  "region": "eu-central-1",
+  "resources": [],
+  "source": "aws.ec2",
+  "time": "2022-05-23T09:02:13Z",
   "version": "0"
 }

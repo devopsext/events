@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/blues/jsonata-go"
-	"github.com/devopsext/events/common"
 	"html"
 	"io/ioutil"
 	"os"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/blues/jsonata-go"
+	"github.com/devopsext/events/common"
 
 	"github.com/Masterminds/sprig/v3"
 	sreCommon "github.com/devopsext/sre/common"
@@ -160,32 +161,20 @@ func (tpl *TextTemplate) fToString(i interface{}) (string, error) {
 	return "", nil
 }
 
-func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
-
-	var b bytes.Buffer
-	var err error
-
-	if empty, _ := tpl.fIsEmpty(tpl.layout); empty {
-
-		err = tpl.template.Execute(&b, object)
-	} else {
-		err = tpl.template.ExecuteTemplate(&b, tpl.layout, object)
-	}
-
-	if err != nil {
-
-		tpl.logger.Error(err)
-		return nil, err
-	}
-	return &b, nil
-}
-
 func (tpl *TextTemplate) fEscapeString(s string) (string, error) {
 	return html.EscapeString(s), nil
 }
 
 func (tpl *TextTemplate) fUnescapeString(s string) (string, error) {
 	return html.UnescapeString(s), nil
+}
+
+func (tpl *TextTemplate) fIfDef(i interface{}, def string) (string, error) {
+
+	if utils.IsEmpty(i) {
+		return def, nil
+	}
+	return tpl.fToString(i)
 }
 
 func (tpl *TextTemplate) fJsonata(data interface{}, query string) (string, error) {
@@ -226,6 +215,26 @@ func (tpl *TextTemplate) fJsonata(data interface{}, query string) (string, error
 	return string(b), nil
 }
 
+func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
+
+	var b bytes.Buffer
+	var err error
+
+	if empty, _ := tpl.fIsEmpty(tpl.layout); empty {
+
+		err = tpl.template.Execute(&b, object)
+	} else {
+		err = tpl.template.ExecuteTemplate(&b, tpl.layout, object)
+	}
+
+	if err != nil {
+
+		tpl.logger.Error(err)
+		return nil, err
+	}
+	return &b, nil
+}
+
 func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger sreCommon.Logger) *TextTemplate {
 
 	var tpl = TextTemplate{}
@@ -258,6 +267,7 @@ func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions,
 	funcs["escapeString"] = tpl.fEscapeString
 	funcs["unescapeString"] = tpl.fUnescapeString
 	funcs["jsonata"] = tpl.fJsonata
+	funcs["ifDef"] = tpl.fIfDef
 
 	if _, err := os.Stat(fileOrVar); err == nil {
 
