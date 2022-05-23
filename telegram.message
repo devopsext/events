@@ -141,7 +141,7 @@
       {{- $instanceId = get $m "value"}}
     {{- end}}
   {{- end}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source $instanceId)}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source (ifDef $instanceId "unknown"))}}
   {{- $u := index (split ":" .data.detail.userIdentity.principalId) 0}}
   {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" $u)}}
   {{- template "object" (list .data.detail.requestParameters "(networkInterfaceId)")}}
