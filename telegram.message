@@ -32,7 +32,7 @@
     {{- printf "\n<b>%s</b> => %s" .name .image}}
     {{- range .ports}}
       {{- printf " [%s: %.0f]" .protocol .containerPort}}
-    {{- end}}   
+    {{- end}}
   {{- end}}
 {{- end}}
 {{- define "alertmanager-header"}}
@@ -103,6 +103,13 @@
     {{- end}}
   {{- end}}
 {{- end}}
+{{- define "vcenter"}}
+  {{- if .data.subject }}
+    {{- if not (.data.subject | regexMatch "NoAccessUserEvent|SessionEvent")}}
+      {{ toJSON .data }}
+    {{- end}}
+  {{- end}}
+{{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
@@ -136,5 +143,6 @@
   {{- if eq .type "CloudflareEvent"}}{{- if .data}}{{template "cloudflare" .}}{{end}}{{- end}}
   {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
   {{- if eq .type "AWSEvent"}}{{- if .data}}{{template "aws" .}}{{end}}{{- end}}
+  {{- if eq .type "vcenterEvent"}}{{- if .data}}{{template "vcenter" .}}{{end}}{{- end}}
 {{- end}}
 {{- define "telegram-message"}}{{template "text" .}}{{- if (.via)}}{{.via.Slack.channel}}{{end}}{{- end}}

@@ -332,17 +332,20 @@ export TELEGRAM_CHAT_ID="Place Telegram chat ID"
 ```
 
 ```sh
+
+
+
+
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
-         --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
-         --telegram-message-template "{{- define \"telegram-message\"}}{{ toJSON . }}{{- end}}"
+  --telegram-out-id-token=${TELEGRAM_BOT} --telegram-out-chat-id=${TELEGRAM_CHAT_ID} \
+  --telegram-message-template "{{- define \"telegram-message\"}}{{ toJSON . }}{{- end}}"
 ```
 
 or
 
 ```sh
 ./events --http-listen :8081 --http-k8s-url /k8s --http-alertmanager-url /alertmanager \
-         --telegram-url "https://api.telegram.org/bot${TELEGRAM_BOT}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}" \
-         --telegram-message-template "telegram.message"
+  --telegram-out-id-token=${TELEGRAM_BOT} --telegram-out-chat-id=${TELEGRAM_CHAT_ID} --telegram-out-message "telegram.message"
 ```
 
 </details>

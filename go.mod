@@ -153,5 +153,4 @@ replace gopkg.in/DataDog/dd-trace-go.v1 => github.com/devopsext/dd-trace-go v1.3
 
 //replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
 //replace github.com/devopsext/events/input => ./input
-//replace github.com/devopsext/events/vcenter => ./vcenter
 //replace github.com/devopsext/tools => ../tools/

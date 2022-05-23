@@ -482,6 +482,7 @@ func Execute() {
 			processors.Add(processor.NewCloudflareProcessor(&outputs, observability))
 			processors.Add(processor.NewGoogleProcessor(&outputs, observability))
 			processors.Add(processor.NewAWSProcessor(&outputs, observability))
+			processors.Add(processor.NewVCenterProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
