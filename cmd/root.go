@@ -100,6 +100,7 @@ var vcInputOptions = input.VCInputOptions{
 	AuthBasicPass: envGet("VCENTER_IN_BASIC_PASS", "").(string),
 	RootCA:        envGet("VCENTER_IN_ROOT_CA_CRT", "vcenter_ca.crt").(string),
 	CheckpointDir: envGet("VCENTER_IN_CHECKPOINT_DIR", "checkpoint").(string),
+	DelayMS:       envGet("VCENTER_IN_DELAY_MS", 5000).(int),
 }
 
 var collectorOutputOptions = output.CollectorOutputOptions{
@@ -132,6 +133,7 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	BotSelector:     envGet("TELEGRAM_OUT_BOT_SELECTOR", "").(string),
 	AlertExpression: envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 	Forward:         envGet("TELEGRAM_OUT_FORWARD", "").(string),
+	RateLimit:       envGet("TELEGRAM_RATELIMIT", 5).(int),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
@@ -554,6 +556,7 @@ func Execute() {
 	flags.StringVar(&vcInputOptions.AuthBasicPass, "vcenter-in-auth-basic-password", vcInputOptions.AuthBasicPass, "VCenter basic auth password")
 	flags.StringVar(&vcInputOptions.RootCA, "vcenter-in-root-ca-cert", vcInputOptions.RootCA, "VCenter RootCA cert filename")
 	flags.StringVar(&vcInputOptions.CheckpointDir, "vcenter-checkpoint-dir", vcInputOptions.CheckpointDir, "VCenter checkpoint dir")
+	flags.IntVar(&vcInputOptions.DelayMS, "vcenter-in-delay-ms", vcInputOptions.DelayMS, "VCenter poll delay ms")
 
 	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-out-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
 	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-out-topic", kafkaOutputOptions.Topic, "Kafka topic")
@@ -575,6 +578,7 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
 	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 	flags.StringVar(&telegramOutputOptions.Forward, "telegram-out-forward", telegramOutputOptions.Forward, "Telegram forward regex pattern")
+	flags.IntVar(&telegramOutputOptions.RateLimit, "telegram-rate-limit", telegramOutputOptions.RateLimit, "Ratelimit for telegram")
 
 	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")
 	flags.StringVar(&slackOutputOptions.ChannelSelector, "slack-out-channel-selector", slackOutputOptions.ChannelSelector, "Slack Channel selector template")

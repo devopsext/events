@@ -1,22 +1,23 @@
 package output
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
-	"strconv"
-	"strings"
-	"sync"
-
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	vendors "github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
-
 	"github.com/prometheus/alertmanager/template"
+	"golang.org/x/time/rate"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 type TelegramOutputOptions struct {
@@ -25,20 +26,22 @@ type TelegramOutputOptions struct {
 	BotSelector     string
 	AlertExpression string
 	Forward         string
+	RateLimit       int
 }
 
 type TelegramOutput struct {
-	wg       *sync.WaitGroup
-	telegram *vendors.Telegram
-	message  *render.TextTemplate
-	selector *render.TextTemplate
-	grafana  *render.GrafanaRender
-	options  TelegramOutputOptions
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	wg          *sync.WaitGroup
+	telegram    *vendors.Telegram
+	message     *render.TextTemplate
+	selector    *render.TextTemplate
+	grafana     *render.GrafanaRender
+	options     TelegramOutputOptions
+	outputs     *common.Outputs
+	tracer      sreCommon.Tracer
+	logger      sreCommon.Logger
+	requests    sreCommon.Counter
+	errors      sreCommon.Counter
+	rateLimiter *rate.Limiter
 }
 
 func (t *TelegramOutput) Name() string {
@@ -59,6 +62,10 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToke
 
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
+
+	if err := t.rateLimiter.Wait(context.TODO()); err != nil {
+		return nil, err
+	}
 
 	b, err := t.telegram.SendCustomMessage(vendors.TelegramOptions{
 		IDToken:               IDToken,
@@ -126,7 +133,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	query, ok := alert.Labels[t.options.AlertExpression]
 	if !ok {
-		err := errors.New("No alert expression")
+		err := errors.New("No alert expression.")
 		return nil, err
 	}
 
@@ -300,6 +307,14 @@ func (t *TelegramOutput) Send(event *common.Event) {
 				}
 			default:
 				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
+				//
+				////make single retry on 429 error
+				//if err != nil && "429 Too Many Requests" == err.Error() {
+				//	time.Sleep(1 * time.Second)
+				//	println(err)
+				//	bytes, err = t.sendMessage(span.GetContext(), IDToken, chatID, message)
+				//	println(err)
+				//}
 				if err != nil {
 					t.errors.Inc(botID, chatID)
 				} else {
@@ -324,16 +339,17 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 	}
 
 	return &TelegramOutput{
-		wg:       wg,
-		telegram: vendors.NewTelegram(options.TelegramOptions),
-		message:  render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
-		selector: render.NewTextTemplate("telegram-selector", options.BotSelector, templateOptions, options, logger),
-		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
-		options:  options,
-		outputs:  outputs,
-		logger:   logger,
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
-		errors:   observability.Metrics().Counter("errors", "Count of all telegram errors", []string{"bot_id", "chat_id"}, "telegram", "output"),
+		rateLimiter: rate.NewLimiter(rate.Every(time.Duration(options.RateLimit)*time.Second), 1),
+		wg:          wg,
+		telegram:    vendors.NewTelegram(options.TelegramOptions),
+		message:     render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
+		selector:    render.NewTextTemplate("telegram-selector", options.BotSelector, templateOptions, options, logger),
+		grafana:     render.NewGrafanaRender(grafanaRenderOptions, observability),
+		options:     options,
+		outputs:     outputs,
+		logger:      logger,
+		tracer:      observability.Traces(),
+		requests:    observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
+		errors:      observability.Metrics().Counter("errors", "Count of all telegram errors", []string{"bot_id", "chat_id"}, "telegram", "output"),
 	}
 }

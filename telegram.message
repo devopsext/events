@@ -105,9 +105,11 @@
 {{- end}}
 {{- define "vcenter"}}
   {{- if .data.subject }}
-    {{- if not (.data.subject | regexMatch "NoAccessUserEvent|SessionEvent")}}
-      {{ toJSON .data }}
+    {{- if not (.data.subject | regexMatch "NoAccessUserEvent|com.vmware.vc.HardwareSensorGroupStatus|SessionEvent|com.vmware.vc.authorization.NoPermission")}}
+      {{- jsonata .data "vc2telegram.jsonata" }}
     {{- end}}
+  {{- else }}
+    {{- jsonata .data "vc2telegram.jsonata" }}
   {{- end}}
 {{- end}}
 {{- define "text"}}

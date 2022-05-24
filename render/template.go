@@ -173,7 +173,6 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 	}
 
 	if err != nil {
-
 		tpl.logger.Error(err)
 		return nil, err
 	}

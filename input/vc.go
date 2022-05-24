@@ -46,6 +46,7 @@ type VCInputOptions struct {
 	AuthBasicPass string
 	RootCA        string
 	CheckpointDir string
+	DelayMS       int
 	//	PollDelayMS   time.Duration
 }
 
@@ -460,7 +461,7 @@ func (vc *VCInput) pollEvents(collector *vcevent.HistoryCollector) error {
 	// event poll ticker
 
 	//	pollTick := time.NewTicker(vc.options.PollDelayMS * time.Millisecond)
-	pollTick := time.NewTicker(5000 * time.Millisecond)
+	pollTick := time.NewTicker(time.Duration(vc.options.DelayMS) * time.Millisecond)
 	defer pollTick.Stop()
 
 	// create checkpoint ticker only if needed

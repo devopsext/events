@@ -1,0 +1,4 @@
+{
+"Subject": subject,
+"FullFormattedMessage": $substring(data.FullFormattedMessage, 0, 200)
+}
