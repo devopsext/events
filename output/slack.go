@@ -3,12 +3,12 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/tidwall/gjson"
+	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
 	vendors "github.com/devopsext/tools/vendors"
@@ -58,10 +58,31 @@ func (s *SlackOutput) getChannel(URL string) string {
 	return u.Query().Get("channels")
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage) ([]byte, error) {
+func waitDDImage(url string, timeout int) bool {
+	if timeout <= 0 {
+		timeout = 3
+	}
+	for i := 0; i < timeout; i++ {
+		resp, err := http.Get(url)
+		if err == nil && resp.StatusCode == 200 && resp.ContentLength > 179 {
+			return true
+		}
+		time.Sleep(time.Second)
+	}
+	return false
+}
 
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage) ([]byte, error) {
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
+
+	// check if dd return 1x1 image
+	if !utils.IsEmpty(m.ImageURL) && strings.Contains(m.ImageURL, "datadoghq") {
+		if !waitDDImage(m.ImageURL, 3) {
+			s.logger.SpanDebug(span, "Can't get image from datadoghq: %s", m.ImageURL)
+			m.ImageURL = "https://via.placeholder.com/452x185.png?text=No%20chart%20image"
+		}
+	}
 
 	b, err := s.slack.SendCustomMessage(m)
 	if err != nil {
@@ -345,20 +366,6 @@ func prepareSlackMessage(token string, channel string, title string, message str
 		Message: message,
 		Title:   title,
 	}
-}
-
-func slackMessageFromDDEvent(e *common.Event) vendors.SlackMessage {
-	var m vendors.SlackMessage
-	jsonBytes, err := e.JsonBytes()
-	if err != nil {
-		return m
-	}
-
-	m.Title = gjson.GetBytes(jsonBytes, "data.event.title").String()
-	m.Message = gjson.GetBytes(jsonBytes, "data.text_only_msg").String()
-	m.ImageURL = gjson.GetBytes(jsonBytes, "data.snapshot").String()
-
-	return m
 }
 
 func NewSlackOutput(wg *sync.WaitGroup,
