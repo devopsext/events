@@ -18,7 +18,7 @@ import (
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
 	"github.com/devopsext/tools/vendors"
-	utils "github.com/devopsext/utils"
+	"github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -121,6 +121,7 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	BotSelector:     envGet("TELEGRAM_OUT_BOT_SELECTOR", "").(string),
 	AlertExpression: envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 	Forward:         envGet("TELEGRAM_OUT_FORWARD", "").(string),
+	RateLimit:       envGet("TELEGRAM_RATELIMIT", 15).(int),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
@@ -553,6 +554,7 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
 	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 	flags.StringVar(&telegramOutputOptions.Forward, "telegram-out-forward", telegramOutputOptions.Forward, "Telegram forward regex pattern")
+	flags.IntVar(&telegramOutputOptions.RateLimit, "telegram-rate-limit", telegramOutputOptions.RateLimit, "Ratelimit for telegram, per minute")
 
 	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")
 	flags.StringVar(&slackOutputOptions.ChannelSelector, "slack-out-channel-selector", slackOutputOptions.ChannelSelector, "Slack Channel selector template")
