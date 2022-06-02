@@ -1,5 +1,5 @@
 {
     "Title": event.title,
-    "Message": "*" & $fromMillis(date) & "*: " &alert.status,
+    "Message": "*" & $fromMillis(date) & "*: " &alert.status & " <" & link & "|Datadog Monitor Link>",
     "ImageURL": snapshot
 }
