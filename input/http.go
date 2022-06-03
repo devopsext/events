@@ -20,6 +20,7 @@ import (
 type HttpInputOptions struct {
 	HealthcheckURL  string
 	K8sURL          string
+	WinEventURL     string
 	RancherURL      string
 	AlertmanagerURL string
 	GitlabURL       string
