@@ -463,6 +463,7 @@ func Execute() {
 
 			processors := common.NewProcessors()
 			processors.Add(processor.NewK8sProcessor(&outputs, observability))
+			processors.Add(processor.NewWinEventProcessor(&outputs, observability))
 			processors.Add(processor.NewGitlabProcessor(&outputs, observability))
 			processors.Add(processor.NewAlertmanagerProcessor(&outputs, observability))
 			processors.Add(processor.NewCustomJsonProcessor(&outputs, observability))

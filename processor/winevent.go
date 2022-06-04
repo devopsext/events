@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,14 @@ import (
 )
 
 type WinEventRequest struct {
+	Message      string      `json:"Message"`
+	ProcessId    string      `json:"ProcessId"`
+	ThreadId     string      `json:"ThreadId"`
+	Time         string      `json:"TimeCreated"`
+	Host         string      `json:"MachineName"`
+	MessageLevel string      `json:"LevelDisplayName"`
+	EventId      int         `json:"Id"`
+	Properties   interface{} `json:"Properties,omitempty"`
 }
 
 type WinEventResponse struct {
@@ -29,7 +39,7 @@ type WinEventProcessor struct {
 }
 
 func WinEventProcessorType() string {
-	return "K8s"
+	return "WinEvent"
 }
 
 func (p *WinEventProcessor) EventType() string {
@@ -98,8 +108,13 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
-
-	t := time.UnixMilli(WinEvent.LastUpdated)
+	re := regexp.MustCompile(`(\d+)`)
+	match := re.FindStringSubmatch("/Date(1653782726738)/")[1]
+	intTime, err := strconv.Atoi(match)
+	if err == nil {
+		return err
+	}
+	t := time.UnixMilli(int64(intTime))
 	p.send(span, channel, WinEvent, &t)
 
 	response := &WinEventResponse{
