@@ -17,8 +17,8 @@ import (
 
 type WinEventRequest struct {
 	Message      string      `json:"Message"`
-	ProcessId    string      `json:"ProcessId"`
-	ThreadId     string      `json:"ThreadId"`
+	ProcessId    int         `json:"ProcessId"`
+	ThreadId     int         `json:"ThreadId"`
 	Time         string      `json:"TimeCreated"`
 	Host         string      `json:"MachineName"`
 	MessageLevel string      `json:"LevelDisplayName"`
