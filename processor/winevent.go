@@ -115,6 +115,7 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		return err
 	}
 	t := time.UnixMilli(int64(intTime))
+	p.logger.Debug("WinEvent host is: %s", WinEvent.Host)
 	p.send(span, channel, WinEvent, &t)
 
 	response := &WinEventResponse{
