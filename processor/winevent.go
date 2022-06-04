@@ -108,7 +108,7 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		return err
 	}
 	re := regexp.MustCompile(`(\d+)`)
-	match := re.FindStringSubmatch("/Date(1653782726738)/")[1]
+	match := re.FindStringSubmatch(WinEvent.Time)[1]
 	intTime, err := strconv.Atoi(match)
 	if err != nil {
 		p.logger.Error("Can't parse time from event payload")
