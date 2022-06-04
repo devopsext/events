@@ -98,7 +98,6 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
-
 	p.logger.SpanDebug(span, "Body => %s", body)
 
 	var WinEvent WinEventRequest
@@ -111,11 +110,11 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	re := regexp.MustCompile(`(\d+)`)
 	match := re.FindStringSubmatch("/Date(1653782726738)/")[1]
 	intTime, err := strconv.Atoi(match)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 	t := time.UnixMilli(int64(intTime))
-	p.logger.Debug("WinEvent host is: %s", WinEvent.Host)
+	// p.logger.Debug("WinEvent host is: %s", WinEvent.Host) # DEBUG
 	p.send(span, channel, WinEvent, &t)
 
 	response := &WinEventResponse{
