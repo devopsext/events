@@ -21,8 +21,7 @@
 
   {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s\n%s" (upper .data.status) .data.labels.alertname}}{{- end}}
 
-  
-  {{- if eq .type "WinEventEvent"}}{{- printf "Hi" }}{{- end}}
+  {{- if eq .type "WinEventEvent"}}{{- printf "[%s]%s: %s" .data.LevelDisplayName (upper (substr 0 5 .data.MachineName)) .data.Message }}{{- end}}
 
   {{- if eq .type "GitlabEvent"}}
     {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
