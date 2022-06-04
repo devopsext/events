@@ -111,10 +111,11 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	match := re.FindStringSubmatch("/Date(1653782726738)/")[1]
 	intTime, err := strconv.Atoi(match)
 	if err != nil {
+		p.logger.Error("Can't parse time from event payload")
 		return err
 	}
 	t := time.UnixMilli(int64(intTime))
-	// p.logger.Debug("WinEvent host is: %s", WinEvent.Host) # DEBUG
+	// p.logger.Debug("Parsed time is: %s", t)
 	p.send(span, channel, WinEvent, &t)
 
 	response := &WinEventResponse{
