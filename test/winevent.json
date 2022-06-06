@@ -1,0 +1,45 @@
+{
+    "Message":  "The MetaTrader Data Center service entered the running state.",
+    "Id":  7036,
+    "Version":  0,
+    "Qualifiers":  16384,
+    "Level":  4,
+    "Task":  0,
+    "Opcode":  0,
+    "Keywords":  -9187343239835811840,
+    "RecordId":  104054,
+    "ProviderName":  "Service Control Manager",
+    "ProviderId":  "555908d1-a6d7-4695-8e1e-26931d2012f4",
+    "LogName":  "System",
+    "ProcessId":  776,
+    "ThreadId":  4928,
+    "MachineName":  "R18D02.exaddc.com",
+    "UserId":  null,
+    "TimeCreated":  "\/Date(1653782726738)\/",
+    "ActivityId":  null,
+    "RelatedActivityId":  null,
+    "ContainerLog":  "forwardedevents",
+    "MatchedQueryIds":  [
+
+                        ],
+    "Bookmark":  {
+
+                 },
+    "LevelDisplayName":  "Information",
+    "OpcodeDisplayName":  null,
+    "TaskDisplayName":  null,
+    "KeywordsDisplayNames":  [
+                                 "Classic"
+                             ],
+    "Properties":  [
+                       {
+                           "Value":  "MetaTrader Data Center"
+                       },
+                       {
+                           "Value":  "running"
+                       },
+                       {
+                           "Value":  "4D00650074006100540072006100640065007200200044006100740061002000430065006E007400650072002F0034000000"
+                       }
+                   ]
+}
