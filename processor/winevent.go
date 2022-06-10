@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,14 +14,28 @@ import (
 )
 
 type WinEventRequest struct {
-	Message      string      `json:"Message"`
-	ProcessId    int         `json:"ProcessId"`
-	ThreadId     int         `json:"ThreadId"`
-	Time         string      `json:"TimeCreated"`
-	Host         string      `json:"MachineName"`
-	MessageLevel string      `json:"LevelDisplayName"`
-	EventId      int         `json:"Id"`
-	Properties   interface{} `json:"Properties,omitempty"`
+	Events []WinEvent `json:"metrics"`
+}
+
+type WinEventFields struct {
+	ProcessName  string `json:"Data_param1"`
+	Message      string `json:"Message"`
+	MessageLevel string `json:"LevelText"`
+	Keywords     string `json:"Keywords"`
+	EventId      int    `json:"EventRecordID"`
+}
+type WinEventTags struct {
+	Provider string `json:"provider"`
+	City     string `json:"city"`
+	Country  string `json:"country,omitempty"`
+	MT       string `json:"mt"`
+	Host     string `json:"host"`
+}
+type WinEvent struct {
+	Name      string          `json:"name"`
+	Tags      *WinEventTags   `json:"tags"`
+	Fields    *WinEventFields `json:"fields"`
+	Timestamp int64           `json:"timestamp"`
 }
 
 type WinEventResponse struct {
@@ -46,12 +58,11 @@ func (p *WinEventProcessor) EventType() string {
 	return common.AsEventType(WinEventProcessorType())
 }
 
-func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
-
+func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, event interface{}, t *time.Time) {
 	e := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
-		Data:    o,
+		Data:    event,
 	}
 	if t != nil && (*t).UnixNano() > 0 {
 		e.SetTime((*t).UTC())
@@ -100,23 +111,17 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	}
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	var WinEvent WinEventRequest
-	if err := json.Unmarshal(body, &WinEvent); err != nil {
+	var WinEvents WinEventRequest
+	if err := json.Unmarshal(body, &WinEvents); err != nil {
 		p.errors.Inc(channel)
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
-	re := regexp.MustCompile(`(\d+)`)
-	match := re.FindStringSubmatch(WinEvent.Time)[1]
-	intTime, err := strconv.Atoi(match)
-	if err != nil {
-		p.logger.Error("Can't parse time from event payload")
-		return err
+	for _, event := range WinEvents.Events {
+		t := time.UnixMilli(event.Timestamp)
+		p.send(span, channel, event, &t)
 	}
-	t := time.UnixMilli(int64(intTime))
-	// p.logger.Debug("Parsed time is: %s", t)
-	p.send(span, channel, WinEvent, &t)
 
 	response := &WinEventResponse{
 		Message: "OK",
