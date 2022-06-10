@@ -3,7 +3,7 @@
   {{- if eq .type "GitlabEvent"}}
     {{- printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
   {{- end}}
-  {{- if eq .type "WinEventEvent"}}{{- printf "{\"host\":\"%s\"}" (upper (substr 0 5 .data.MachineName)) }}{{- end}}
+  {{- if eq .type "WinEventEvent"}}{{- printf "{\"host\":\"%s\",\"city\":\"%s\",\"mt\":\"%s\",\"provider\":\"%s\"}" .data.tags.host .data.tags.city .data.tags.mt .data.tags.provider }}{{- end}}
   {{- if eq .type "AWSEvent"}}
     {{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .type .channel .data.source .data.region .data.account}}
   {{- end}}
