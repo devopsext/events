@@ -13,7 +13,12 @@ import (
 	sreCommon "github.com/devopsext/sre/common"
 )
 
-type WinEventRequest struct {
+type WinEventPubsubRequest struct {
+	Time     string                   `json:"time"`
+	Channel  string                   `json:"channel"`
+	Original *WinEventOriginalRequest `json:"data"`
+}
+type WinEventOriginalRequest struct {
 	Events []WinEvent `json:"metrics"`
 }
 type WinEventTags struct {
@@ -106,14 +111,14 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	}
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	var WinEvents WinEventRequest
+	var WinEvents WinEventPubsubRequest
 	if err := json.Unmarshal(body, &WinEvents); err != nil {
 		p.errors.Inc(channel)
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
-	for _, event := range WinEvents.Events {
+	for _, event := range WinEvents.Original.Events {
 		t := time.UnixMilli(event.Timestamp)
 		p.send(span, channel, event, &t)
 	}
