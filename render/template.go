@@ -220,6 +220,8 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 	var b bytes.Buffer
 	var err error
 
+	tpl.logger.Debug("object is: %s", object)
+
 	if empty, _ := tpl.fIsEmpty(tpl.layout); empty {
 
 		err = tpl.template.Execute(&b, object)
