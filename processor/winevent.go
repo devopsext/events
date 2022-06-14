@@ -51,7 +51,7 @@ type WinEventProcessor struct {
 }
 
 func WinEventProcessorType() string {
-	return "WinEvent"
+	return "Win"
 }
 
 func (p *WinEventProcessor) EventType() string {
