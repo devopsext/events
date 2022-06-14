@@ -16,26 +16,21 @@ import (
 type WinEventRequest struct {
 	Events []WinEvent `json:"metrics"`
 }
-
-type WinEventFields struct {
-	ProcessName  string `json:"Data_param1"`
+type WinEventTags struct {
 	Message      string `json:"Message"`
 	MessageLevel string `json:"LevelText"`
 	Keywords     string `json:"Keywords"`
-	EventId      int    `json:"EventRecordID"`
-}
-type WinEventTags struct {
-	Provider string `json:"provider"`
-	City     string `json:"city"`
-	Country  string `json:"country,omitempty"`
-	MT       string `json:"mt"`
-	Host     string `json:"host"`
+	EventId      string `json:"EventRecordID"`
+	Provider     string `json:"provider"`
+	City         string `json:"city"`
+	Country      string `json:"country,omitempty"`
+	MT           string `json:"mt"`
+	Host         string `json:"host"`
 }
 type WinEvent struct {
-	Name      string          `json:"name"`
-	Tags      *WinEventTags   `json:"tags"`
-	Fields    *WinEventFields `json:"fields"`
-	Timestamp int64           `json:"timestamp"`
+	Name      string        `json:"name"`
+	Tags      *WinEventTags `json:"tags"`
+	Timestamp int64         `json:"timestamp"`
 }
 
 type WinEventResponse struct {
@@ -50,8 +45,12 @@ type WinEventProcessor struct {
 	errors   sreCommon.Counter
 }
 
+func WinEventProcessorType() string {
+	return "Win"
+}
+
 func (p *WinEventProcessor) EventType() string {
-	return "WinEvent"
+	return common.AsEventType(WinEventProcessorType())
 }
 
 func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, event interface{}, t *time.Time) {
