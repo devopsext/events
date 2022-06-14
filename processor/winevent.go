@@ -50,12 +50,8 @@ type WinEventProcessor struct {
 	errors   sreCommon.Counter
 }
 
-func WinEventProcessorType() string {
-	return "Win"
-}
-
 func (p *WinEventProcessor) EventType() string {
-	return common.AsEventType(WinEventProcessorType())
+	return "WinEvent"
 }
 
 func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, event interface{}, t *time.Time) {
