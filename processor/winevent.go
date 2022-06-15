@@ -63,19 +63,26 @@ func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.logger.Debug("Received event data is %s", e.Data)
-	// var PubSubEvents WinEventOriginalRequest
-	// if err := json.Unmarshal(e.Data, &PubSubEvents); err != nil {
-	// 	p.errors.Inc(e.Channel)
-	// 	p.logger.Error("Failed while unmarshalling: %s", err)
-	// 	return err
-	// }
-	// for _, event := range PubSubEvents.Events {
-	// 	t := time.UnixMilli(event.Timestamp)
-	// 	e.SetTime((t).UTC())
-	// 	p.requests.Inc(e.Channel)
-	// 	p.outputs.Send(e)
-	// }
+	if js, err := e.JsonBytes(); err == nil {
+		var PubSubEvents WinEventPubsubRequest
+		if err := json.Unmarshal(js, &PubSubEvents); err != nil {
+			p.errors.Inc(e.Channel)
+			p.logger.Error("Failed while unmarshalling: %s", err)
+			return err
+		}
+		p.logger.Debug("After repeatitive unmarshall we got: %s", PubSubEvents)
+		for _, event := range PubSubEvents.Original.Events {
+			newEvent := &common.Event{
+				Channel: e.Channel,
+				Type:    e.Type,
+				Data:    event,
+			}
+			t := time.UnixMilli(event.Timestamp)
+			e.SetTime((t).UTC())
+			p.requests.Inc(e.Channel)
+			p.outputs.Send(newEvent)
+		}
+	}
 	return nil
 }
 
@@ -93,6 +100,16 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 			body = data
 		}
 	}
+	// body_new := body
+	// var pubsubevent common.Event
+	// if err := json.Unmarshal(body_new, &pubsubevent); err != nil {
+	// 	p.errors.Inc(channel)
+	// 	p.logger.SpanError(span, err)
+	// 	return err
+	// } else {
+	// 	p.logger.Debug("Unmarshalled for pubsub event is %s", pubsubevent)
+	// 	defer p.HandleEvent(&pubsubevent)
+	// }
 
 	if len(body) == 0 {
 		p.errors.Inc(channel)
@@ -103,14 +120,14 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	}
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	var WinEvents WinEventPubsubRequest
+	var WinEvents WinEventOriginalRequest
 	if err := json.Unmarshal(body, &WinEvents); err != nil {
 		p.errors.Inc(channel)
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
-	for _, event := range WinEvents.Original.Events {
+	for _, event := range WinEvents.Events {
 		t := time.UnixMilli(event.Timestamp)
 		p.send(span, channel, event, &t)
 	}
