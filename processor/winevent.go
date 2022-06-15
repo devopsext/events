@@ -58,32 +58,24 @@ func (p *WinEventProcessor) EventType() string {
 	return common.AsEventType(WinEventProcessorType())
 }
 
-func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, event interface{}, t *time.Time) {
-	e := &common.Event{
-		Channel: channel,
-		Type:    p.EventType(),
-		Data:    event,
-	}
-	if t != nil && (*t).UnixNano() > 0 {
-		e.SetTime((*t).UTC())
-	} else {
-		e.SetTime(time.Now().UTC())
-	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
-	p.outputs.Send(e)
-}
-
 func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
-
 	if e == nil {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
-	p.outputs.Send(e)
+	p.logger.Debug("Received event data is %s", e.Data)
+	// var PubSubEvents WinEventOriginalRequest
+	// if err := json.Unmarshal(e.Data, &PubSubEvents); err != nil {
+	// 	p.errors.Inc(e.Channel)
+	// 	p.logger.Error("Failed while unmarshalling: %s", err)
+	// 	return err
+	// }
+	// for _, event := range PubSubEvents.Events {
+	// 	t := time.UnixMilli(event.Timestamp)
+	// 	e.SetTime((t).UTC())
+	// 	p.requests.Inc(e.Channel)
+	// 	p.outputs.Send(e)
+	// }
 	return nil
 }
 
@@ -142,6 +134,24 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		return err
 	}
 	return nil
+}
+
+func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, event interface{}, t *time.Time) {
+	e := &common.Event{
+		Channel: channel,
+		Type:    p.EventType(),
+		Data:    event,
+	}
+	if t != nil && (*t).UnixNano() > 0 {
+		e.SetTime((*t).UTC())
+	} else {
+		e.SetTime(time.Now().UTC())
+	}
+	if span != nil {
+		e.SetSpanContext(span.GetContext())
+		e.SetLogger(p.logger)
+	}
+	p.outputs.Send(e)
 }
 
 func NewWinEventProcessor(outputs *common.Outputs, observability *common.Observability) *WinEventProcessor {
