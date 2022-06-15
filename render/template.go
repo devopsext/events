@@ -220,8 +220,6 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 	var b bytes.Buffer
 	var err error
 
-	tpl.logger.SpanDebug("object is: %s", object)
-
 	if empty, _ := tpl.fIsEmpty(tpl.layout); empty {
 
 		err = tpl.template.Execute(&b, object)
@@ -238,7 +236,6 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 }
 
 func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger sreCommon.Logger) *TextTemplate {
-
 	var tpl = TextTemplate{}
 
 	var t *template.Template
