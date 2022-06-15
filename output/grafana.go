@@ -83,7 +83,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.Debug("Event is empty")
 			return
 		}
-		g.logger.Debug("Grafana msg is: %s", g.message)
+		g.logger.Debug("[Updated] Grafana msg is: %s", event.Data)
 
 		span := g.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
