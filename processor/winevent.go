@@ -100,6 +100,10 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 			body = data
 		}
 	}
+
+	// This snippet stands to immitate pubsub input
+	// to break dependency from GCP pubsub while debugging
+
 	// body_new := body
 	// var pubsubevent common.Event
 	// if err := json.Unmarshal(body_new, &pubsubevent); err != nil {
