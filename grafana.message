@@ -22,13 +22,15 @@
   {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s\n%s" (upper .data.status) .data.labels.alertname}}{{- end}}
 
   {{- if eq .type "GitlabEvent"}}
-    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+    {{- $env := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+    {{- $status := "running"}}
+    {{- $job_name := "(.*-eks-.*|.*-acs-.*|.*prod-env)"}}
     {{- if .data.builds}}
       {{- range .data.builds}}
-        {{- if and (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+        {{- if and (.runner.description | regexMatch $env) (not (empty .finished_at))}}{{$ok = true}}{{end}}
       {{- end}}
     {{- else}}
-      {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+      {{- if and (.data.runner.description | regexMatch $env) (not (empty .data.build_duration)) (.data.build_status | regexMatch $status) (.data.build_name | regexMatch $job_name)}}{{$ok = true}}{{end}}
     {{- end}}
     {{- if $ok}}
       {{- if .data.project}}{{- printf "%s\n<a href=\"%s\">%s / %s@%s</a>" (upper .data.object_kind) .data.commit.url .data.project.namespace .data.project.name .data.object_attributes.ref}}
