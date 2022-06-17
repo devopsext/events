@@ -78,7 +78,7 @@ func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
 				Data:    event,
 			}
 			t := time.UnixMilli(event.Timestamp)
-			e.SetTime((t).UTC())
+			newEvent.SetTime((t).UTC())
 			p.requests.Inc(e.Channel)
 			p.outputs.Send(newEvent)
 		}
@@ -104,16 +104,16 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	// This snippet stands to immitate pubsub input
 	// to break dependency from GCP pubsub while debugging
 
-	// body_new := body
-	// var pubsubevent common.Event
-	// if err := json.Unmarshal(body_new, &pubsubevent); err != nil {
-	// 	p.errors.Inc(channel)
-	// 	p.logger.SpanError(span, err)
-	// 	return err
-	// } else {
-	// 	p.logger.Debug("Unmarshalled for pubsub event is %s", pubsubevent)
-	// 	defer p.HandleEvent(&pubsubevent)
-	// }
+	body_new := body
+	var pubsubevent common.Event
+	if err := json.Unmarshal(body_new, &pubsubevent); err != nil {
+		p.errors.Inc(channel)
+		p.logger.SpanError(span, err)
+		return err
+	} else {
+		p.logger.Debug("Unmarshalled for pubsub event is %s", pubsubevent)
+		defer p.HandleEvent(&pubsubevent)
+	}
 
 	if len(body) == 0 {
 		p.errors.Inc(channel)
