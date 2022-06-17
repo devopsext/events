@@ -1,10 +1,8 @@
-{{- define "render"}}{{printf (getEnv .)}}{{"\n"}}{{end}}
 {{- define "rules"}}
-  {{- if .via}}
-    {{- if hasKey .via "Slack"}}
-      {{- if eq .type "DataDogEvent"}}
-        {{- template "render" "EVENTS_GITLAB_OUT_PROJECT_ANOMALY"}}
-      {{- end}}
+  {{- if hasKey .via "Slack"}}
+    {{- if eq .type "DataDogEvent"}}
+      {{- if (.data.tags | regexMatch ".*sre-anomaly:(quality).*")}}{{getEnv "EVENTS_GITLAB_OUT_ANOMALY_SRE"}}{{end}}
+      {{- if (.data.tags | regexMatch ".*sre-anomaly:(met).*")}}{{getEnv "EVENTS_GITLAB_OUT_ANOMALY_PP"}}{{end}}
     {{- end}}
   {{- end}}
 {{- end}}
