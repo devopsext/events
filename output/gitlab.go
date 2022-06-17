@@ -84,6 +84,7 @@ func (g *GitlabOutput) getProject(s string) string {
 	return ""
 }
 
+// projects = TOKEN=PROJECT_ID@REF
 func (g *GitlabOutput) Send(event *common.Event) {
 
 	g.wg.Add(1)

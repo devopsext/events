@@ -1,9 +1,7 @@
 {{- define "text"}}
-  {{- if .via}}
-    {{- if hasKey .via "Slack"}}
-      {{- if eq .type "DataDogEvent"}}
-        {{- jsonata . "datadog2gitlab.jsonata"}}
-      {{- end}}
+  {{- if hasKey .via "Slack"}}
+    {{- if eq .type "DataDogEvent"}}
+      {{- jsonata . "datadog2gitlab.jsonata"}}
     {{- end}}
   {{- end}}
 {{- end}}

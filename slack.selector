@@ -1,12 +1,11 @@
-{{- define "render"}}{{printf (getEnv .)}}{{"\n"}}{{end}}
 {{- define "rules"}}
-  {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "GitlabEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "AlertmanagerEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "DataDogEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "Site24x7Event"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "CloudflareEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "GoogleEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "AWSEvent"}}{{template "render" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "K8sEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "GitlabEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "DataDogEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "Site24x7Event"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "CloudflareEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "GoogleEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "AWSEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
 {{- end}}
 {{- define "slack-selector"}}{{template "rules" .}}{{end}}
