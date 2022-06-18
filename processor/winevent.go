@@ -78,7 +78,7 @@ func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
 				Data:    event,
 			}
 			t := time.UnixMilli(event.Timestamp)
-			newEvent.SetTime((t).UTC())
+			newEvent.SetTime(t)
 			p.requests.Inc(e.Channel)
 			p.outputs.Send(newEvent)
 		}
