@@ -78,7 +78,7 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors
 
 	// check if dd return 1x1 image
 	if !utils.IsEmpty(m.ImageURL) && strings.Contains(m.ImageURL, "datadoghq") {
-		if !waitDDImage(m.ImageURL, 3) {
+		if !waitDDImage(m.ImageURL, 10) {
 			s.logger.SpanDebug(span, "Can't get image from datadoghq: %s", m.ImageURL)
 			m.ImageURL = "https://via.placeholder.com/452x185.png?text=No%20chart%20image"
 		}

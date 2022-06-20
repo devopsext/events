@@ -2,7 +2,10 @@
   {{- if eq .type "K8sEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "GitlabEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "DataDogEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "DataDogEvent"}}
+    {{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}
+    {{getEnv "EVENTS_SLACK_OUT_BOT_TEST"}}
+  {{- end}}
   {{- if eq .type "Site24x7Event"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "CloudflareEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "GoogleEvent"}}{{getEnv "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
