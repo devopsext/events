@@ -236,6 +236,7 @@ func (tpl *TextTemplate) Execute(object interface{}) (*bytes.Buffer, error) {
 }
 
 func NewTextTemplate(name string, fileOrVar string, options TextTemplateOptions, vars interface{}, logger sreCommon.Logger) *TextTemplate {
+
 	var tpl = TextTemplate{}
 
 	var t *template.Template
