@@ -25,7 +25,7 @@ type WinEventTags struct {
 	Message      string `json:"Message"`
 	MessageLevel string `json:"LevelText"`
 	Keywords     string `json:"Keywords"`
-	EventId      string `json:"EventRecordID"`
+	EventID      string `json:"EventRecordID"`
 	Provider     string `json:"provider"`
 	City         string `json:"city"`
 	Country      string `json:"country,omitempty"`
@@ -101,20 +101,6 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	// This snippet stands to immitate pubsub input
-	// to break dependency from GCP pubsub while local developing
-
-	// body_new := body
-	// var pubsubevent common.Event
-	// if err := json.Unmarshal(body_new, &pubsubevent); err != nil {
-	// 	p.errors.Inc(channel)
-	// 	p.logger.SpanError(span, err)
-	// 	return err
-	// } else {
-	// 	p.logger.Debug("Unmarshalled for pubsub event is %s", pubsubevent)
-	// 	defer p.HandleEvent(&pubsubevent)
-	// }
-
 	if len(body) == 0 {
 		p.errors.Inc(channel)
 		err := errors.New("empty body")
@@ -163,8 +149,8 @@ func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, even
 		Type:    p.EventType(),
 		Data:    event,
 	}
-	if t != nil && (*t).UnixNano() > 0 {
-		e.SetTime((*t).UTC())
+	if t != nil && t.UnixNano() > 0 {
+		e.SetTime(t.UTC())
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
