@@ -124,7 +124,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.SpanError(span, err)
 		}
 
-		err = g.grafanaEventer.At(message, attributes, event.Time)
+		err = g.grafanaEventer.Interval(message, attributes, event.Time, event.Time)
 		if err != nil {
 			g.errors.Inc()
 		}
