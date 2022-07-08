@@ -248,10 +248,6 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		vce.EntityType, _ = jsonparser.GetString(jsonByte, "data", "Source", "Entity", "Type")
 		vce.AlarmName, _ = jsonparser.GetString(jsonByte, "data", "Alarm", "Name")
 		return nil
-		//
-		////case "event name":
-		//case "":
-		//	return nil
 	}
 
 	// skip events and return nil
@@ -323,7 +319,6 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 
 func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 
-	//	p.requests.Inc(e.Channel)
 	if e == nil {
 		p.errors.Inc("vcenter: Event is not defined")
 		p.logger.Debug("Event is not defined")

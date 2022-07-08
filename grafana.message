@@ -10,16 +10,6 @@
     {{- end}}
   {{- end}}
 {{- end}}
-{{- define "vcenter"}}
-  {{- if .data.Subject}}
-  {{- if (.data.Subject | regexMatch "(com.vmware.vc.sdrs.*|Vm.*)")}}
-  {{- if not (.data.Subject | regexMatch "VmAcquiredTicketEvent")}}
-    {{- printf "%s\n" .data.VmName }}
-    {{- printf "%s -> %s\n" .data.OrigESXiHostName  .data.DestESXiHostName  }}
-  {{- end}}
-  {{- end}}
-  {{- end}}
-{{- end}}
 {{- define "text"}}
 
   {{- if eq .type "K8sEvent"}}
@@ -53,13 +43,15 @@
     {{- template "object" (list .data.detail "(CommonName|DaysToExpiry|eventName|EC2InstnaceId|Cause|stoppedReason|taskArn|userAgent)")}}
     {{- template "object" (list .data "(detail-type)")}}
   {{- end}}
+  {{- if eq .type "vcenterEvent"}}
+    {{- if .data.Subject}}
+    {{- if (.data.Subject | regexMatch "(com.vmware.vc.sdrs.*|Vm.*)")}}
+    {{- if not (.data.Subject | regexMatch "VmAcquiredTicketEvent")}}
+      {{- printf "%s\n" .data.VmName }}
+      {{- printf "%s -> %s\n" .data.OrigESXiHostName  .data.DestESXiHostName  }}
+    {{- end}}
+    {{- end}}
+    {{- end}}
+  {{- end}}
 {{- end}}
-{{- define "grafana-message"}}
-  {{- if .data}}
-    {{- if eq .type "vcenterEvent"}}
-      {{template "vcenter" .}}
-    {{- else }}
-      {{template "text" .}}
-    {{- end }}
-  {{end}}
-{{- end}}
+{{- define "grafana-message"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}
