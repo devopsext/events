@@ -20,7 +20,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	sreCommon "github.com/devopsext/sre/common"
-	utils "github.com/devopsext/utils"
+	"github.com/devopsext/utils"
 )
 
 type TextTemplateOptions struct {

@@ -198,7 +198,7 @@ func (h *HttpInput) setProcessor(m map[string]common.HttpProcessor, url string, 
 	}
 }
 
-func (h *HttpInput) getProcessors(processors *common.Processors, outputs *common.Outputs) map[string]common.HttpProcessor {
+func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[string]common.HttpProcessor {
 
 	m := make(map[string]common.HttpProcessor)
 	h.setProcessor(m, h.options.K8sURL, processor.K8sProcessorType())
