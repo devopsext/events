@@ -1,0 +1,7 @@
+{
+"Subject": Subject,
+"VmName": VmName,
+"CreatedTime": CreatedTime,
+"DestESXiHostName": DestESXiHostName,
+"FullFormattedMessage": $substring(Message, 0, 500)
+}

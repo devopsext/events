@@ -1,9 +1,12 @@
 package output
 
 import (
+	"context"
 	"encoding/json"
+	"golang.org/x/time/rate"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/render"
@@ -27,6 +30,7 @@ type GrafanaOutput struct {
 	requests       sreCommon.Counter
 	errors         sreCommon.Counter
 	grafanaEventer *sreProvider.GrafanaEventer
+	rateLimiter    *rate.Limiter
 }
 
 func (g *GrafanaOutput) Name() string {
@@ -109,7 +113,9 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.SpanDebug(span, "Grafana message is empty")
 			return
 		}
-
+		if err := g.rateLimiter.Wait(context.TODO()); err != nil {
+			return
+		}
 		g.requests.Inc()
 		g.logger.SpanDebug(span, "Grafana message => %s", message)
 
@@ -118,7 +124,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.SpanError(span, err)
 		}
 
-		err = g.grafanaEventer.At(message, attributes, event.Time)
+		err = g.grafanaEventer.Interval(message, attributes, event.Time, event.Time)
 		if err != nil {
 			g.errors.Inc()
 		}
@@ -138,6 +144,7 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 	}
 
 	return &GrafanaOutput{
+		rateLimiter:    rate.NewLimiter(rate.Every(time.Minute/time.Duration(30)), 1),
 		wg:             wg,
 		message:        render.NewTextTemplate("grafana-message", options.Message, templateOptions, options, logger),
 		attributes:     render.NewTextTemplate("grafana-attributes", options.AttributesSelector, templateOptions, options, logger),

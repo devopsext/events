@@ -22,7 +22,7 @@ func (ots *Outputs) Add(o Output) {
 	ots.list = append(ots.list, o)
 }
 
-func (ots *Outputs) send(e *Event, exclude []Output, pattern string) {
+func (ots *Outputs) send(e *Event, _ []Output, pattern string) {
 
 	if e == nil {
 		if ots.logger != nil {
@@ -38,7 +38,7 @@ func (ots *Outputs) send(e *Event, exclude []Output, pattern string) {
 		return
 	}
 
-	json, err := json.Marshal(e)
+	jsonString, err := json.Marshal(e)
 	if err != nil {
 		if ots.logger != nil {
 			ots.logger.Error(err)
@@ -47,7 +47,7 @@ func (ots *Outputs) send(e *Event, exclude []Output, pattern string) {
 	}
 
 	if ots.logger != nil {
-		ots.logger.Debug("Original event => %s", string(json))
+		ots.logger.Debug("Original event => %s", string(jsonString))
 	}
 
 	for _, o := range ots.list {
