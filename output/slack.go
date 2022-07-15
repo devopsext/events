@@ -84,6 +84,8 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors
 		}
 	}
 
+	s.logger.Debug("%+v", m)
+
 	b, err := s.slack.SendCustomMessage(m)
 	if err != nil {
 		s.logger.SpanError(span, err)
