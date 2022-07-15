@@ -37,11 +37,6 @@ func (c *CollectorOutput) Send(event *common.Event) {
 	go func() {
 		defer c.wg.Done()
 
-		if c.connection == nil || c.message == nil {
-			c.logger.Debug("No connection or message")
-			return
-		}
-
 		if event == nil {
 			c.logger.Debug("Event is empty")
 			return
@@ -107,19 +102,25 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
 	logger := observability.Logs()
 	connection := makeCollectorOutputConnection(options.Address, logger)
 	if connection == nil {
+		logger.Error("no connection")
 		return nil
 	}
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "collector-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
-		message:    toolsRender.NewTextTemplate(messageOpts),
+		message:    message,
 		connection: connection,
 		tracer:     observability.Traces(),
 		logger:     logger,

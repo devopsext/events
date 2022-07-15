@@ -11,14 +11,14 @@
     "title": "[P1] [Recovered on ] [TEST] Test"
   },
   "alert": {
-    "id": "4883885",
+    "id": "5561901",
     "metric": "sre.quality",
     "priority": "P1",
     "query": "avg(last_5m):avg:sre.quality{*} < 75",
     "scope": "",
     "status": "sre.quality over *** was >= 75.0 on average during the last 5m**.",
     "title": "[TEST] Test",
-    "transition": "Triggered",
+    "transition": "Recovered",
     "type": "success"
   },
   "incident": {

@@ -77,11 +77,6 @@ func (d *DataDogOutput) Send(event *common.Event) {
 	go func() {
 		defer d.wg.Done()
 
-		if d.message == nil {
-			d.logger.Debug("No message")
-			return
-		}
-
 		if event == nil {
 			d.logger.Debug("Event is empty")
 			return
@@ -143,20 +138,29 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "datadog-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	attributesOpts := toolsRender.TemplateOptions{
 		Name:       "datadog-attributes",
-		Content:    options.AttributesSelector,
+		Content:    common.Content(options.AttributesSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	attributes, err := toolsRender.NewTextTemplate(attributesOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &DataDogOutput{
 		wg:             wg,
-		message:        toolsRender.NewTextTemplate(messageOpts),
-		attributes:     toolsRender.NewTextTemplate(attributesOpts),
+		message:        message,
+		attributes:     attributes,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),

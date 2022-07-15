@@ -44,11 +44,6 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 	go func() {
 		defer ps.wg.Done()
 
-		if ps.client == nil || ps.message == nil {
-			ps.logger.Debug("No client or message")
-			return
-		}
-
 		if event == nil {
 			ps.logger.Debug("Event is empty")
 			return
@@ -144,22 +139,31 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "pubsub-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	selectorOpts := toolsRender.TemplateOptions{
 		Name:       "pubsub-selector",
-		Content:    options.TopicSelector,
+		Content:    common.Content(options.TopicSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &PubSubOutput{
 		wg:       wg,
 		client:   client,
 		ctx:      ctx,
-		message:  toolsRender.NewTextTemplate(messageOpts),
-		selector: toolsRender.NewTextTemplate(selectorOpts),
+		message:  message,
+		selector: selector,
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),

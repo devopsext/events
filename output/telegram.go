@@ -231,11 +231,6 @@ func (t *TelegramOutput) Send(event *common.Event) {
 	go func() {
 		defer t.wg.Done()
 
-		if t.telegram == nil || t.message == nil {
-			t.logger.Debug("No telegram client or message")
-			return
-		}
-
 		if event == nil {
 			t.logger.Debug("Event is empty")
 			return
@@ -340,24 +335,39 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	telegram, err := vendors.NewTelegram(options.TelegramOptions)
+	if err != nil {
+		logger.Error(err)
+		return nil
+	}
+
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "telegram-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	selectorOpts := toolsRender.TemplateOptions{
 		Name:       "telegram-selector",
-		Content:    options.BotSelector,
+		Content:    common.Content(options.BotSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &TelegramOutput{
 		rateLimiter: rate.NewLimiter(rate.Every(time.Minute/time.Duration(options.RateLimit)), 1),
 		wg:          wg,
-		telegram:    vendors.NewTelegram(options.TelegramOptions),
-		message:     toolsRender.NewTextTemplate(messageOpts),
-		selector:    toolsRender.NewTextTemplate(selectorOpts),
+		telegram:    telegram,
+		message:     message,
+		selector:    selector,
 		grafana:     render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:     options,
 		outputs:     outputs,

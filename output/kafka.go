@@ -48,11 +48,6 @@ func (k *KafkaOutput) Send(event *common.Event) {
 	go func() {
 		defer k.wg.Done()
 
-		if k.producer == nil || k.message == nil {
-			k.logger.Debug("No producer or message")
-			return
-		}
-
 		if event == nil {
 			k.logger.Debug("Event is empty")
 			return
@@ -133,19 +128,25 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 	logger := observability.Logs()
 	producer := makeKafkaProducer(wg, options.Brokers, options.Topic, config, logger)
 	if producer == nil {
+		logger.Error("no producer")
 		return nil
 	}
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "kafka-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	return &KafkaOutput{
 		wg:       wg,
 		producer: producer,
-		message:  toolsRender.NewTextTemplate(messageOpts),
+		message:  message,
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),

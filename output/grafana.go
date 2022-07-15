@@ -79,11 +79,6 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 	go func() {
 		defer g.wg.Done()
 
-		if g.message == nil {
-			g.logger.Debug("No message")
-			return
-		}
-
 		if event == nil {
 			g.logger.Debug("Event is empty")
 			return
@@ -146,21 +141,30 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "grafana-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	selectorOpts := toolsRender.TemplateOptions{
 		Name:       "grafana-attributes",
-		Content:    options.AttributesSelector,
+		Content:    common.Content(options.AttributesSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	attributes, err := toolsRender.NewTextTemplate(selectorOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &GrafanaOutput{
 		rateLimiter:    rate.NewLimiter(rate.Every(time.Minute/time.Duration(30)), 1),
 		wg:             wg,
-		message:        toolsRender.NewTextTemplate(messageOpts),
-		attributes:     toolsRender.NewTextTemplate(selectorOpts),
+		message:        message,
+		attributes:     attributes,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),

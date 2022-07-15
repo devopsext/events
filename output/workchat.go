@@ -276,11 +276,6 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 	go func() {
 		defer w.wg.Done()
 
-		if w.client == nil || w.message == nil {
-			w.logger.Debug("No client or message")
-			return
-		}
-
 		if event == nil {
 			w.logger.Debug("Event is empty")
 			return
@@ -372,21 +367,30 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "workchat-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	selectorOpts := toolsRender.TemplateOptions{
 		Name:       "workchat-selector",
-		Content:    options.URLSelector,
+		Content:    common.Content(options.URLSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &WorkchatOutput{
 		wg:       wg,
 		client:   utils.NewHttpInsecureClient(options.Timeout),
-		message:  toolsRender.NewTextTemplate(messageOpts),
-		selector: toolsRender.NewTextTemplate(selectorOpts),
+		message:  message,
+		selector: selector,
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		tracer:   observability.Traces(),
