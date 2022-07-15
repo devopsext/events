@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 )
 
@@ -20,7 +20,7 @@ type CollectorOutput struct {
 	wg         *sync.WaitGroup
 	options    CollectorOutputOptions
 	connection *net.UDPConn
-	message    *render.TextTemplate
+	message    *toolsRender.TextTemplate
 	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
 	requests   sreCommon.Counter
@@ -50,22 +50,22 @@ func (c *CollectorOutput) Send(event *common.Event) {
 		span := c.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
-		b, err := c.message.Execute(event)
+		b, err := c.message.RenderObject(event)
 		if err != nil {
 			c.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			c.logger.SpanDebug(span, "Collector message is empty")
+			c.logger.Debug(span, "Collector message is empty")
 			return
 		}
 
 		c.requests.Inc(c.options.Address)
 		c.logger.SpanDebug(span, "Collector message => %s", message)
 
-		_, err = c.connection.Write(b.Bytes())
+		_, err = c.connection.Write(b)
 		if err != nil {
 			c.errors.Inc(c.options.Address)
 			c.logger.SpanError(span, err)
@@ -102,7 +102,7 @@ func makeCollectorOutputConnection(address string, logger sreCommon.Logger) *net
 }
 
 func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
-	templateOptions render.TextTemplateOptions, observability *common.Observability) *CollectorOutput {
+	templateOptions toolsRender.TemplateOptions, observability *common.Observability) *CollectorOutput {
 
 	logger := observability.Logs()
 	connection := makeCollectorOutputConnection(options.Address, logger)
@@ -110,10 +110,16 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "collector-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &CollectorOutput{
 		wg:         wg,
 		options:    options,
-		message:    render.NewTextTemplate("collector-message", options.Message, templateOptions, options, logger),
+		message:    toolsRender.NewTextTemplate(messageOpts),
 		connection: connection,
 		tracer:     observability.Traces(),
 		logger:     logger,

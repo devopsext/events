@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 )
 
@@ -19,8 +19,8 @@ type NewRelicOutputOptions struct {
 
 type NewRelicOutput struct {
 	wg              *sync.WaitGroup
-	message         *render.TextTemplate
-	attributes      *render.TextTemplate
+	message         *toolsRender.TextTemplate
+	attributes      *toolsRender.TextTemplate
 	options         NewRelicOutputOptions
 	tracer          sreCommon.Tracer
 	logger          sreCommon.Logger
@@ -40,12 +40,12 @@ func (n *NewRelicOutput) getAttributes(o interface{}, span sreCommon.TracerSpan)
 		return attrs, nil
 	}
 
-	a, err := n.attributes.Execute(o)
+	a, err := n.attributes.RenderObject(o)
 	if err != nil {
 		return attrs, err
 	}
 
-	m := a.String()
+	m := string(a)
 	if utils.IsEmpty(m) {
 		return attrs, nil
 	}
@@ -97,13 +97,13 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := r.message.Execute(jsonObject)
+		b, err := r.message.RenderObject(jsonObject)
 		if err != nil {
 			r.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			r.logger.SpanDebug(span, "NewRelic message is empty")
 			return
@@ -126,7 +126,7 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 
 func NewNewRelicOutput(wg *sync.WaitGroup,
 	options NewRelicOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	observability *common.Observability,
 	newrelicEventer *sreProvider.NewRelicEventer) *NewRelicOutput {
 
@@ -136,10 +136,22 @@ func NewNewRelicOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "newrelic-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	attributesOpts := toolsRender.TemplateOptions{
+		Name:       "newrelic-attributes",
+		Content:    options.AttributesSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &NewRelicOutput{
 		wg:              wg,
-		message:         render.NewTextTemplate("newrelic-message", options.Message, templateOptions, options, logger),
-		attributes:      render.NewTextTemplate("newrelic-attributes", options.AttributesSelector, templateOptions, options, logger),
+		message:         toolsRender.NewTextTemplate(messageOpts),
+		attributes:      toolsRender.NewTextTemplate(attributesOpts),
 		options:         options,
 		logger:          logger,
 		tracer:          observability.Traces(),

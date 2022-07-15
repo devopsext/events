@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/VictoriaMetrics/metricsql"
-	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
-	sreCommon "github.com/devopsext/sre/common"
-	"github.com/devopsext/tools/vendors"
-	"github.com/devopsext/utils"
-	"github.com/prometheus/alertmanager/template"
-	"golang.org/x/time/rate"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/metricsql"
+	"github.com/devopsext/events/common"
+	"github.com/devopsext/events/render"
+	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
+	"github.com/devopsext/tools/vendors"
+	"github.com/devopsext/utils"
+	"github.com/prometheus/alertmanager/template"
+	"golang.org/x/time/rate"
 )
 
 type TelegramOutputOptions struct {
@@ -32,8 +34,8 @@ type TelegramOutputOptions struct {
 type TelegramOutput struct {
 	wg          *sync.WaitGroup
 	telegram    *vendors.Telegram
-	message     *render.TextTemplate
-	selector    *render.TextTemplate
+	message     *toolsRender.TextTemplate
+	selector    *toolsRender.TextTemplate
 	grafana     *render.GrafanaRender
 	options     TelegramOutputOptions
 	outputs     *common.Outputs
@@ -67,7 +69,7 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToke
 		return nil, err
 	}
 
-	b, err := t.telegram.SendCustomMessage(vendors.TelegramOptions{
+	telegramOpts := vendors.TelegramOptions{
 		IDToken:               IDToken,
 		ChatID:                chatID,
 		Timeout:               t.options.Timeout,
@@ -75,10 +77,13 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToke
 		ParseMode:             t.options.ParseMode,
 		DisableNotification:   t.options.DisableNotification,
 		DisableWebPagePreview: true,
-		MessageOptions: &vendors.TelegramMessageOptions{
-			Text: message,
-		},
-	})
+	}
+
+	messageOpts := vendors.TelegramMessageOptions{
+		Text: message,
+	}
+
+	b, err := t.telegram.CustomSendMessage(telegramOpts, messageOpts)
 
 	if err != nil {
 		t.logger.SpanError(span, err)
@@ -101,7 +106,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, IDToken,
 	span := t.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	return t.telegram.SendCustomPhoto(vendors.TelegramOptions{
+	telegramOpts := vendors.TelegramOptions{
 		IDToken:               IDToken,
 		ChatID:                chatID,
 		Timeout:               t.options.Timeout,
@@ -109,12 +114,15 @@ func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, IDToken,
 		ParseMode:             t.options.ParseMode,
 		DisableNotification:   t.options.DisableNotification,
 		DisableWebPagePreview: true,
-		PhotoOptions: &vendors.TelegramPhotoOptions{
-			Caption: message,
-			Name:    fileName,
-			Content: string(photo),
-		},
-	})
+	}
+
+	photoOpts := vendors.TelegramPhotoOptions{
+		Caption: message,
+		Name:    fileName,
+		Content: string(photo),
+	}
+
+	return t.telegram.CustomSendPhoto(telegramOpts, photoOpts)
 }
 
 func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string, alert template.Alert) ([]byte, error) {
@@ -134,7 +142,7 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	query, ok := alert.Labels[t.options.AlertExpression]
 	if !ok {
-		err := errors.New("No alert expression")
+		err := errors.New("no alert expression")
 		return nil, err
 	}
 
@@ -253,11 +261,11 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		}
 
 		if t.selector != nil {
-			b, err := t.selector.Execute(jsonObject)
+			b, err := t.selector.RenderObject(jsonObject)
 			if err != nil {
 				t.logger.SpanDebug(span, err)
 			} else {
-				IDTokenChatIDs = strings.TrimSpace(b.String())
+				IDTokenChatIDs = strings.TrimSpace(string(b))
 			}
 		}
 
@@ -266,13 +274,13 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := t.message.Execute(jsonObject)
+		b, err := t.message.RenderObject(jsonObject)
 		if err != nil {
 			t.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			t.logger.SpanDebug(span, "Telegram message is empty")
 			return
@@ -321,7 +329,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 func NewTelegramOutput(wg *sync.WaitGroup,
 	options TelegramOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
 	observability *common.Observability,
 	outputs *common.Outputs) *TelegramOutput {
@@ -332,12 +340,24 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "telegram-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	selectorOpts := toolsRender.TemplateOptions{
+		Name:       "telegram-selector",
+		Content:    options.BotSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &TelegramOutput{
 		rateLimiter: rate.NewLimiter(rate.Every(time.Minute/time.Duration(options.RateLimit)), 1),
 		wg:          wg,
 		telegram:    vendors.NewTelegram(options.TelegramOptions),
-		message:     render.NewTextTemplate("telegram-message", options.Message, templateOptions, options, logger),
-		selector:    render.NewTextTemplate("telegram-selector", options.BotSelector, templateOptions, options, logger),
+		message:     toolsRender.NewTextTemplate(messageOpts),
+		selector:    toolsRender.NewTextTemplate(selectorOpts),
 		grafana:     render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:     options,
 		outputs:     outputs,

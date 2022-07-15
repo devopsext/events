@@ -17,6 +17,7 @@ import (
 	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 	"github.com/spf13/cobra"
@@ -47,7 +48,7 @@ var rootOptions = RootOptions{
 	Events:  strings.Split(envGet("EVENTS", "").(string), ","),
 }
 
-var textTemplateOptions = render.TextTemplateOptions{
+var textTemplateOptions = toolsRender.TemplateOptions{
 	TimeFormat: envGet("TEMPLATE_TIME_FORMAT", "2006-01-02T15:04:05.999Z").(string),
 }
 
