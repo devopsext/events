@@ -90,11 +90,6 @@ func (g *GitlabOutput) Send(event *common.Event) {
 	go func() {
 		defer g.wg.Done()
 
-		if g.client == nil || g.projects == nil {
-			g.logger.Debug("No client or projects")
-			return
-		}
-
 		if event == nil {
 			g.logger.Debug("Event is empty")
 			return
@@ -199,21 +194,30 @@ func NewGitlabOutput(wg *sync.WaitGroup,
 
 	projectsOpts := toolsRender.TemplateOptions{
 		Name:       "gitlab-projects",
-		Content:    options.Projects,
+		Content:    common.Content(options.Projects),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	projects, err := toolsRender.NewTextTemplate(projectsOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	variablesOpts := toolsRender.TemplateOptions{
 		Name:       "gitlab-variables",
-		Content:    options.Variables,
+		Content:    common.Content(options.Variables),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	variables, err := toolsRender.NewTextTemplate(variablesOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &GitlabOutput{
 		wg:        wg,
 		client:    client,
-		projects:  toolsRender.NewTextTemplate(projectsOpts),
-		variables: toolsRender.NewTextTemplate(variablesOpts),
+		projects:  projects,
+		variables: variables,
 		options:   options,
 		logger:    logger,
 		tracer:    observability.Traces(),

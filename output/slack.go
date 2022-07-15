@@ -225,11 +225,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 	go func() {
 		defer s.wg.Done()
 
-		if s == nil || s.message == nil {
-			s.logger.Debug("No slack client or message")
-			return
-		}
-
 		if event == nil {
 			s.logger.Debug("Event is empty")
 			return
@@ -384,25 +379,40 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	slack, err := vendors.NewSlack(vendors.SlackOptions{
+		Timeout: options.Timeout,
+	})
+	if err != nil {
+		logger.Error(err)
+		return nil
+	}
+
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "slack-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	selectorOpts := toolsRender.TemplateOptions{
 		Name:       "slack-selector",
-		Content:    options.ChannelSelector,
+		Content:    common.Content(options.ChannelSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &SlackOutput{
-		wg: wg,
-		slack: vendors.NewSlack(vendors.SlackOptions{
-			Timeout: options.Timeout,
-		}),
-		message:  toolsRender.NewTextTemplate(messageOpts),
-		selector: toolsRender.NewTextTemplate(selectorOpts),
+		wg:       wg,
+		slack:    slack,
+		message:  message,
+		selector: selector,
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		outputs:  outputs,

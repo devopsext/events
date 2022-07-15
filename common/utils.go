@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/devopsext/utils"
 )
 
 func AsEventType(s string) string {
@@ -16,4 +18,13 @@ func JsonMarshal(t interface{}) ([]byte, error) {
 	encoder.SetEscapeHTML(false)
 	err := encoder.Encode(t)
 	return buffer.Bytes(), err
+}
+
+func Content(s string) string {
+
+	b, err := utils.Content(s)
+	if err != nil {
+		return s
+	}
+	return string(b)
 }

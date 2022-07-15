@@ -7,7 +7,7 @@
 
 #curl -sk -X POST -H "Content-type: application/json" -d @alertmanager.json "http://localhost:8081/alertmanager"
 
-curl -sk -X POST -H "Content-type: application/json" -d @datadog.json "http://localhost:8081/datadog"
+curl -sk -X POST -H "Content-type: application/json" -d @datadog-recovered.json "http://localhost:8081/datadog"
 
 #curl -sk -X POST -H "Content-type: application/json" -d @site24x7.json "http://localhost:8081/site24x7"
 

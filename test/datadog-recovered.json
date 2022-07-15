@@ -1,0 +1,41 @@
+{
+  "id": "6430249883109262377",
+  "date": 1647535626000,
+  "last_updated": 1647535626000,
+  "link": "https://app.datadoghq.eu/event/event?id=6430249883109262377",
+  "priority": "normal",
+  "snapshot": "https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-03-17/06c559becf60b1b86d7240564fb81765856101f83.png",
+  "event": {
+    "type": "query_alert_monitor",
+    "msg": "%%%\n@webhook-events\n\nHI\n\nTest notification triggered by some.user@email.com.\n\n[![Metric Graph](https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-03-17/06c559becf60b1b86d7240564fb81765856101f8.png)](https://app.datadoghq.eu/monitors/4883885?to_ts=1647535925000&from_ts=1647534725000)\n\n**sre.quality** over ***** was **>= 75.0** on average during the **last 5m**.\n\nThe monitor was last triggered at Thu Mar 17 2022 16:47:05 UTC.\n\n- - -\n\n[[Monitor Status](https://app.datadoghq.eu/monitors/4883885?to_ts=1647535925000&from_ts=1647534725000)] \u00b7 [[Edit Monitor](https://app.datadoghq.eu/monitors#4883885/edit)]\n%%%",
+    "title": "[P1] [Recovered on ] [TEST] Test"
+  },
+  "alert": {
+    "id": "5561901",
+    "metric": "sre.quality",
+    "priority": "P1",
+    "query": "avg(last_5m):avg:sre.quality{*} < 75",
+    "scope": "",
+    "status": "sre.quality over *** was >= 75.0 on average during the last 5m**.",
+    "title": "[TEST] Test",
+    "transition": "Recovered",
+    "type": "success"
+  },
+  "incident": {
+    "title": "null"
+  },
+  "metric": {
+    "namespace": "sre"
+  },
+  "security": {
+    "rule_name": "null"
+  },
+  "org": {
+    "id": "1000060640",
+    "name": "Exness"
+  },
+  "tags": "monitor,sre-anomaly:quality,some-othertag",
+  "text_only_msg": "\n@webhook-events\n\nHI\n\nTest notification triggered by some.user@email.com.\n\nsre.quality over * was >= 75.0 on average during the last 5m.\n\nMetric value: 0.0\n\nMetric Graph: https://app.datadoghq.eu/monitors/4883885?to_ts=1647535925000&from_ts=1647534725000 \u00b7 Monitor Status: https://app.datadoghq.eu/monitors/4883885? \u00b7 Edit Monitor: https://app.datadoghq.eu/monitors#4883885/edit \u00b7 Event URL: https://app.datadoghq.eu/event/event?id=6430249883109262377",
+  "user": "null",
+  "username": ""
+}

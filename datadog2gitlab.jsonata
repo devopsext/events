@@ -1,6 +1,7 @@
 (
   {
     'DATADOG_TRANSITION': data.alert.transition,
+    'DATADOG_ID': data.alert.id,
     'DATADOG_TAGS': data.tags,
     'SLACK_CHANNEL': via.Slack.channel,
     'SLACK_THREAD': via.Slack.ts,

@@ -73,11 +73,6 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 	go func() {
 		defer r.wg.Done()
 
-		if r.message == nil {
-			r.logger.Debug("No message")
-			return
-		}
-
 		if event == nil {
 			r.logger.Debug("Event is empty")
 			return
@@ -138,20 +133,29 @@ func NewNewRelicOutput(wg *sync.WaitGroup,
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "newrelic-message",
-		Content:    options.Message,
+		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	message, err := toolsRender.NewTextTemplate(messageOpts)
+	if err != nil {
+		logger.Error(err)
+		return nil
 	}
 
 	attributesOpts := toolsRender.TemplateOptions{
 		Name:       "newrelic-attributes",
-		Content:    options.AttributesSelector,
+		Content:    common.Content(options.AttributesSelector),
 		TimeFormat: templateOptions.TimeFormat,
+	}
+	attributes, err := toolsRender.NewTextTemplate(attributesOpts)
+	if err != nil {
+		logger.Error(err)
 	}
 
 	return &NewRelicOutput{
 		wg:              wg,
-		message:         toolsRender.NewTextTemplate(messageOpts),
-		attributes:      toolsRender.NewTextTemplate(attributesOpts),
+		message:         message,
+		attributes:      attributes,
 		options:         options,
 		logger:          logger,
 		tracer:          observability.Traces(),
