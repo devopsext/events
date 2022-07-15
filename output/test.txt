@@ -1,0 +1,5 @@
+{
+  "ImageURL": "https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-06-22/2e2170398ade42c5e682b3ce2a49e0a766aa8430.png",
+  "Message": "*2022-06-22T09:35:08.000Z*: sre.quality over *** was < 70.0 on average during the last 5m**. <https://app.datadoghq.eu/event/event?id=6570421550206218179|Datadog monitor>",
+  "Title": "[P1] [Triggered on {product:pw}] [TEST] Average SRE quality < 70%"
+}
