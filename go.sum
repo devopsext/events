@@ -185,10 +185,9 @@ github.com/devopsext/dd-trace-go v1.31.2 h1:JRueUyJ+t/zQc0Jd2dlbe+40r2k9q2wdMQQc
 github.com/devopsext/dd-trace-go v1.31.2/go.mod h1:wRKMf/tRASHwH/UOfPQ3IQmVFhTz2/1a1/mpXoIjF54=
 github.com/devopsext/sre v0.1.6 h1:3iT0zkxMeCpZoiOf//Vy5SVHGoThon7Fn3YsQxlldAs=
 github.com/devopsext/sre v0.1.6/go.mod h1:BEGmnydDBfYwMQwdobvUQDrPVbD9LGmRAeRTSBJ7lio=
-github.com/devopsext/tools v0.3.2 h1:Mi1DE5shjdfHtHLgxR+ZjwrktbrIz3MvWM8XCFOQBWU=
-github.com/devopsext/tools v0.3.2/go.mod h1:GW8bP6c4/iq5xV68GfhjiIKV7qglqNivcdlywIHF2Qg=
+github.com/devopsext/tools v0.4.7 h1:MZBV6B8qneYu9n5vA2JDBjLRtwo+rqG2De7mZb5/5cc=
+github.com/devopsext/tools v0.4.7/go.mod h1:EleqV42i0OKV6C40SCLBpSrdJNZx4LN3GEWWIt+gXj0=
 github.com/devopsext/utils v0.1.4/go.mod h1:eIrTpDzjsRpfaLyezshGAzTGazYxde12zMFT9TTwBp8=
-github.com/devopsext/utils v0.1.6/go.mod h1:eIrTpDzjsRpfaLyezshGAzTGazYxde12zMFT9TTwBp8=
 github.com/devopsext/utils v0.1.7 h1:qLdBdANZtEUUybKS5FvZoV5x5jM45MY8w+HkYyKYNGI=
 github.com/devopsext/utils v0.1.7/go.mod h1:eIrTpDzjsRpfaLyezshGAzTGazYxde12zMFT9TTwBp8=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
@@ -800,7 +799,13 @@ github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+github.com/tidwall/gjson v1.14.1 h1:iymTbGkQBhveq21bEvAQ81I0LEBork8BFe1CUZXdyuo=
+github.com/tidwall/gjson v1.14.1/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
+github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
+github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
+github.com/tidwall/pretty v1.2.0 h1:RWIZEg2iJ8/g6fDDYzMpobmaoGh5OLl4AXtGUGPcqCs=
+github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=
 github.com/tinylib/msgp v1.1.2 h1:gWmO7n0Ys2RBEb7GPYB9Ujq8Mk5p2U08lRnmMcGy6BQ=
 github.com/tinylib/msgp v1.1.2/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDWklFE=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=

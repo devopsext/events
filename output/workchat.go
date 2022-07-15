@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
 
 	"github.com/VictoriaMetrics/metricsql"
 	"github.com/devopsext/events/common"
@@ -36,8 +37,8 @@ type WorkchatOutputOptions struct {
 type WorkchatOutput struct {
 	wg       *sync.WaitGroup
 	client   *http.Client
-	message  *render.TextTemplate
-	selector *render.TextTemplate
+	message  *toolsRender.TextTemplate
+	selector *toolsRender.TextTemplate
 	grafana  *render.GrafanaRender
 	options  WorkchatOutputOptions
 	tracer   sreCommon.Tracer
@@ -222,7 +223,7 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	query, ok := alert.Labels[w.options.AlertExpression]
 	if !ok {
-		err := errors.New("No alert expression")
+		err := errors.New("no alert expression")
 		return err
 	}
 
@@ -302,11 +303,11 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 		URLs := w.options.URL
 		if w.selector != nil {
 
-			b, err := w.selector.Execute(jsonObject)
+			b, err := w.selector.RenderObject(jsonObject)
 			if err != nil {
 				w.logger.SpanDebug(span, err)
 			} else {
-				URLs = b.String()
+				URLs = string(b)
 			}
 		}
 
@@ -315,13 +316,13 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := w.message.Execute(jsonObject)
+		b, err := w.message.RenderObject(jsonObject)
 		if err != nil {
 			w.logger.SpanError(span, err)
 			return
 		}
 
-		message := b.String()
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			w.logger.SpanDebug(span, "Workchat message is empty")
 			return
@@ -359,7 +360,7 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 func NewWorkchatOutput(wg *sync.WaitGroup,
 	options WorkchatOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
 	observability *common.Observability) *WorkchatOutput {
 
@@ -369,11 +370,23 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "workchat-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	selectorOpts := toolsRender.TemplateOptions{
+		Name:       "workchat-selector",
+		Content:    options.URLSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &WorkchatOutput{
 		wg:       wg,
 		client:   utils.NewHttpInsecureClient(options.Timeout),
-		message:  render.NewTextTemplate("workchat-message", options.Message, templateOptions, options, logger),
-		selector: render.NewTextTemplate("workchat-selector", options.URLSelector, templateOptions, options, logger),
+		message:  toolsRender.NewTextTemplate(messageOpts),
+		selector: toolsRender.NewTextTemplate(selectorOpts),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		tracer:   observability.Traces(),

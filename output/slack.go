@@ -11,6 +11,7 @@ import (
 	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 
@@ -33,8 +34,8 @@ type SlackOutputOptions struct {
 type SlackOutput struct {
 	wg       *sync.WaitGroup
 	slack    *vendors.Slack
-	message  *render.TextTemplate
-	selector *render.TextTemplate
+	message  *toolsRender.TextTemplate
+	selector *toolsRender.TextTemplate
 	grafana  *render.GrafanaRender
 	options  SlackOutputOptions
 	outputs  *common.Outputs
@@ -49,14 +50,14 @@ func (s *SlackOutput) Name() string {
 }
 
 // assume that url is => https://slack.com/api/files.upload?token=%s&channels=%s
-func (s *SlackOutput) getChannel(URL string) string {
+/*func (s *SlackOutput) getChannel(URL string) string {
 
 	u, err := url.Parse(URL)
 	if err != nil {
 		return ""
 	}
 	return u.Query().Get("channels")
-}
+}*/
 
 func waitDDImage(url string, timeout int) bool {
 	if timeout <= 0 {
@@ -252,11 +253,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 		token := s.options.Token
 		var chans []string
 		if s.selector != nil {
-			b, err := s.selector.Execute(jsonMap)
+			b, err := s.selector.RenderObject(jsonMap)
 			if err != nil {
 				s.logger.SpanDebug(span, err)
 			} else {
-				chans = strings.Split(b.String(), "\n")
+				chans = strings.Split(string(b), "\n")
 			}
 		} else {
 			chans = append(chans, fmt.Sprintf("%s=%s", token, channel))
@@ -267,13 +268,13 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := s.message.Execute(jsonMap)
+		b, err := s.message.RenderObject(jsonMap)
 		if err != nil {
 			s.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			s.logger.SpanDebug(span, "Slack message is empty")
 			return
@@ -372,7 +373,7 @@ func prepareSlackMessage(token string, channel string, title string, message str
 
 func NewSlackOutput(wg *sync.WaitGroup,
 	options SlackOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	grafanaRenderOptions render.GrafanaRenderOptions,
 	observability *common.Observability,
 	outputs *common.Outputs) *SlackOutput {
@@ -383,13 +384,25 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "slack-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	selectorOpts := toolsRender.TemplateOptions{
+		Name:       "slack-selector",
+		Content:    options.ChannelSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &SlackOutput{
 		wg: wg,
 		slack: vendors.NewSlack(vendors.SlackOptions{
 			Timeout: options.Timeout,
 		}),
-		message:  render.NewTextTemplate("slack-message", options.Message, templateOptions, options, logger),
-		selector: render.NewTextTemplate("slack-selector", options.ChannelSelector, templateOptions, options, logger),
+		message:  toolsRender.NewTextTemplate(messageOpts),
+		selector: toolsRender.NewTextTemplate(selectorOpts),
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
 		outputs:  outputs,

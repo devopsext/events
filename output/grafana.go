@@ -3,15 +3,16 @@ package output
 import (
 	"context"
 	"encoding/json"
-	"golang.org/x/time/rate"
 	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 )
 
@@ -22,8 +23,8 @@ type GrafanaOutputOptions struct {
 
 type GrafanaOutput struct {
 	wg             *sync.WaitGroup
-	message        *render.TextTemplate
-	attributes     *render.TextTemplate
+	message        *toolsRender.TextTemplate
+	attributes     *toolsRender.TextTemplate
 	options        GrafanaOutputOptions
 	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
@@ -44,12 +45,12 @@ func (g *GrafanaOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) 
 		return attrs, nil
 	}
 
-	a, err := g.attributes.Execute(o)
+	a, err := g.attributes.RenderObject(o)
 	if err != nil {
 		return attrs, err
 	}
 
-	m := a.String()
+	m := string(a)
 	if utils.IsEmpty(m) {
 		return attrs, nil
 	}
@@ -102,13 +103,13 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := g.message.Execute(jsonObject)
+		b, err := g.message.RenderObject(jsonObject)
 		if err != nil {
 			g.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			g.logger.SpanDebug(span, "Grafana message is empty")
 			return
@@ -133,7 +134,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 
 func NewGrafanaOutput(wg *sync.WaitGroup,
 	options GrafanaOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	observability *common.Observability,
 	grafanaEventer *sreProvider.GrafanaEventer) *GrafanaOutput {
 
@@ -143,11 +144,23 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "grafana-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	selectorOpts := toolsRender.TemplateOptions{
+		Name:       "grafana-attributes",
+		Content:    options.AttributesSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &GrafanaOutput{
 		rateLimiter:    rate.NewLimiter(rate.Every(time.Minute/time.Duration(30)), 1),
 		wg:             wg,
-		message:        render.NewTextTemplate("grafana-message", options.Message, templateOptions, options, logger),
-		attributes:     render.NewTextTemplate("grafana-attributes", options.AttributesSelector, templateOptions, options, logger),
+		message:        toolsRender.NewTextTemplate(messageOpts),
+		attributes:     toolsRender.NewTextTemplate(selectorOpts),
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),

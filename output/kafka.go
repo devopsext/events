@@ -6,10 +6,10 @@ import (
 	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 
 	"github.com/Shopify/sarama"
 )
@@ -30,7 +30,7 @@ type KafkaOutputOptions struct {
 type KafkaOutput struct {
 	wg       *sync.WaitGroup
 	producer *sarama.AsyncProducer
-	message  *render.TextTemplate
+	message  *toolsRender.TextTemplate
 	options  KafkaOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
@@ -61,13 +61,13 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		span := k.tracer.StartFollowSpan(event.GetSpanContext())
 		defer span.Finish()
 
-		b, err := k.message.Execute(event)
+		b, err := k.message.RenderObject(event)
 		if err != nil {
 			k.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			k.logger.SpanDebug(span, "Kafka message is empty")
 			return
@@ -78,7 +78,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 
 		(*k.producer).Input() <- &sarama.ProducerMessage{
 			Topic: k.options.Topic,
-			Value: sarama.ByteEncoder(b.Bytes()),
+			Value: sarama.ByteEncoder(b),
 		}
 
 		for err = range (*k.producer).Errors() {
@@ -111,7 +111,7 @@ func makeKafkaProducer(wg *sync.WaitGroup, brokers string, topic string, config 
 	return &producer
 }
 
-func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions render.TextTemplateOptions, observability *common.Observability) *KafkaOutput {
+func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOptions toolsRender.TemplateOptions, observability *common.Observability) *KafkaOutput {
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_1_1_0
@@ -136,10 +136,16 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "kafka-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &KafkaOutput{
 		wg:       wg,
 		producer: producer,
-		message:  render.NewTextTemplate("kafka-message", options.Message, templateOptions, options, logger),
+		message:  toolsRender.NewTextTemplate(messageOpts),
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),

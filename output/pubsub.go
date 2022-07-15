@@ -8,8 +8,8 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 	"google.golang.org/api/option"
 )
@@ -25,8 +25,8 @@ type PubSubOutput struct {
 	wg       *sync.WaitGroup
 	client   *pubsub.Client
 	ctx      context.Context
-	message  *render.TextTemplate
-	selector *render.TextTemplate
+	message  *toolsRender.TextTemplate
+	selector *toolsRender.TextTemplate
 	options  PubSubOutputOptions
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
@@ -70,11 +70,11 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 
 		topics := ""
 		if ps.selector != nil {
-			b, err := ps.selector.Execute(jsonObject)
+			b, err := ps.selector.RenderObject(jsonObject)
 			if err != nil {
 				ps.logger.SpanDebug(span, err)
 			} else {
-				topics = b.String()
+				topics = string(b)
 			}
 		}
 
@@ -83,13 +83,13 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := ps.message.Execute(jsonObject)
+		b, err := ps.message.RenderObject(jsonObject)
 		if err != nil {
 			ps.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			ps.logger.SpanDebug(span, "PubSub message is empty")
 			return
@@ -120,7 +120,7 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 
 func NewPubSubOutput(wg *sync.WaitGroup,
 	options PubSubOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	observability *common.Observability) *PubSubOutput {
 	logger := observability.Logs()
 	if utils.IsEmpty(options.Credentials) || utils.IsEmpty(options.ProjectID) {
@@ -142,12 +142,24 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "pubsub-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	selectorOpts := toolsRender.TemplateOptions{
+		Name:       "pubsub-selector",
+		Content:    options.TopicSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &PubSubOutput{
 		wg:       wg,
 		client:   client,
 		ctx:      ctx,
-		message:  render.NewTextTemplate("pubsub-message", options.Message, templateOptions, options, logger),
-		selector: render.NewTextTemplate("pubsub-selector", options.TopicSelector, templateOptions, options, logger),
+		message:  toolsRender.NewTextTemplate(messageOpts),
+		selector: toolsRender.NewTextTemplate(selectorOpts),
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),

@@ -2,13 +2,12 @@ package output
 
 import (
 	"encoding/json"
-	"net/url"
 	"strings"
 	"sync"
 
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 	gitlab "github.com/xanzy/go-gitlab"
 )
@@ -23,8 +22,8 @@ type GitlabOutputOptions struct {
 type GitlabOutput struct {
 	wg        *sync.WaitGroup
 	client    *gitlab.Client
-	projects  *render.TextTemplate
-	variables *render.TextTemplate
+	projects  *toolsRender.TextTemplate
+	variables *toolsRender.TextTemplate
 	options   GitlabOutputOptions
 	tracer    sreCommon.Tracer
 	logger    sreCommon.Logger
@@ -43,12 +42,12 @@ func (g *GitlabOutput) getVariables(o interface{}, span sreCommon.TracerSpan) (m
 		return attrs, nil
 	}
 
-	a, err := g.variables.Execute(o)
+	a, err := g.variables.RenderObject(o)
 	if err != nil {
 		return attrs, err
 	}
 
-	m := a.String()
+	m := string(a)
 	if utils.IsEmpty(m) {
 		return attrs, nil
 	}
@@ -71,7 +70,7 @@ func (g *GitlabOutput) getVariables(o interface{}, span sreCommon.TracerSpan) (m
 }
 
 // "https://some.host.domain/group/subgroup/project/-/pipelines/893667"
-func (g *GitlabOutput) getProject(s string) string {
+/*func (g *GitlabOutput) getProject(s string) string {
 
 	u, err := url.Parse(s)
 	if err != nil {
@@ -82,7 +81,7 @@ func (g *GitlabOutput) getProject(s string) string {
 		return arr[0]
 	}
 	return ""
-}
+}*/
 
 // projects = TOKEN=PROJECT_ID@REF
 func (g *GitlabOutput) Send(event *common.Event) {
@@ -117,11 +116,11 @@ func (g *GitlabOutput) Send(event *common.Event) {
 
 		projects := ""
 		if g.projects != nil {
-			b, err := g.projects.Execute(jsonObject)
+			b, err := g.projects.RenderObject(jsonObject)
 			if err != nil {
 				g.logger.SpanDebug(span, err)
 			} else {
-				projects = b.String()
+				projects = string(b)
 			}
 		}
 
@@ -183,7 +182,7 @@ func (g *GitlabOutput) Send(event *common.Event) {
 
 func NewGitlabOutput(wg *sync.WaitGroup,
 	options GitlabOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	observability *common.Observability) *GitlabOutput {
 
 	logger := observability.Logs()
@@ -198,11 +197,23 @@ func NewGitlabOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	projectsOpts := toolsRender.TemplateOptions{
+		Name:       "gitlab-projects",
+		Content:    options.Projects,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	variablesOpts := toolsRender.TemplateOptions{
+		Name:       "gitlab-variables",
+		Content:    options.Variables,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &GitlabOutput{
 		wg:        wg,
 		client:    client,
-		projects:  render.NewTextTemplate("gitlab-projects", options.Projects, templateOptions, options, logger),
-		variables: render.NewTextTemplate("gitlab-variables", options.Variables, templateOptions, options, logger),
+		projects:  toolsRender.NewTextTemplate(projectsOpts),
+		variables: toolsRender.NewTextTemplate(variablesOpts),
 		options:   options,
 		logger:    logger,
 		tracer:    observability.Traces(),

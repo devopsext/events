@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/devopsext/events/common"
-	"github.com/devopsext/events/render"
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
+	toolsRender "github.com/devopsext/tools/render"
 	"github.com/devopsext/utils"
 )
 
@@ -20,8 +20,8 @@ type DataDogOutputOptions struct {
 
 type DataDogOutput struct {
 	wg             *sync.WaitGroup
-	message        *render.TextTemplate
-	attributes     *render.TextTemplate
+	message        *toolsRender.TextTemplate
+	attributes     *toolsRender.TextTemplate
 	options        DataDogOutputOptions
 	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
@@ -42,13 +42,13 @@ func (d *DataDogOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) 
 		return attrs, nil
 	}
 
-	a, err := d.attributes.Execute(o)
+	a, err := d.attributes.RenderObject(o)
 	if err != nil {
 		d.logger.Debug("error execute attributes template: %s", err)
 		return attrs, err
 	}
 
-	m := a.String()
+	m := string(a)
 	if utils.IsEmpty(m) {
 		d.logger.Debug("attributes are empty")
 		return attrs, nil
@@ -101,13 +101,13 @@ func (d *DataDogOutput) Send(event *common.Event) {
 			return
 		}
 
-		b, err := d.message.Execute(jsonObject)
+		b, err := d.message.RenderObject(jsonObject)
 		if err != nil {
 			d.logger.SpanError(span, err)
 			return
 		}
 
-		message := strings.TrimSpace(b.String())
+		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			d.logger.SpanDebug(span, "DataDog message is empty")
 			return
@@ -131,7 +131,7 @@ func (d *DataDogOutput) Send(event *common.Event) {
 
 func NewDataDogOutput(wg *sync.WaitGroup,
 	options DataDogOutputOptions,
-	templateOptions render.TextTemplateOptions,
+	templateOptions toolsRender.TemplateOptions,
 	observability *common.Observability,
 	datadogEventer *sreProvider.DataDogEventer) *DataDogOutput {
 
@@ -141,10 +141,22 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
+	messageOpts := toolsRender.TemplateOptions{
+		Name:       "datadog-message",
+		Content:    options.Message,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
+	attributesOpts := toolsRender.TemplateOptions{
+		Name:       "datadog-attributes",
+		Content:    options.AttributesSelector,
+		TimeFormat: templateOptions.TimeFormat,
+	}
+
 	return &DataDogOutput{
 		wg:             wg,
-		message:        render.NewTextTemplate("datadog-message", options.Message, templateOptions, options, logger),
-		attributes:     render.NewTextTemplate("datadog-attributes", options.AttributesSelector, templateOptions, options, logger),
+		message:        toolsRender.NewTextTemplate(messageOpts),
+		attributes:     toolsRender.NewTextTemplate(attributesOpts),
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),

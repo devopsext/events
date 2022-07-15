@@ -4,11 +4,11 @@ go 1.17
 
 require (
 	cloud.google.com/go/pubsub v1.21.1
-	github.com/Masterminds/sprig/v3 v3.2.2
+	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/Shopify/sarama v1.31.1
 	github.com/VictoriaMetrics/metricsql v0.40.0
 	github.com/devopsext/sre v0.1.6
-	github.com/devopsext/tools v0.3.2
+	github.com/devopsext/tools v0.4.7
 	github.com/devopsext/utils v0.1.7
 	github.com/go-playground/webhooks/v6 v6.0.0-rc.1
 	github.com/grafana-tools/sdk v0.0.0-20210521150820-354cd37a4b4e
@@ -22,7 +22,6 @@ require (
 )
 
 require (
-	github.com/blues/jsonata-go v1.5.4
 	github.com/buger/jsonparser v1.1.1
 	github.com/cloudevents/sdk-go/v2 v2.10.1
 	github.com/embano1/waitgroup v0.1.1
@@ -46,6 +45,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/VictoriaMetrics/metrics v1.18.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blues/jsonata-go v1.5.4 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -99,6 +99,9 @@ require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/tidwall/gjson v1.14.1 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tinylib/msgp v1.1.2 // indirect
 	github.com/uber/jaeger-client-go v2.29.1+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
