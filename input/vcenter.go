@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
+
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
 
 	"sync"
 	"time"
@@ -37,7 +38,7 @@ import (
 
 type Option func(e *cloudevents.Event) error
 
-type VCInputOptions struct {
+type VCenterInputOptions struct {
 	URL           string
 	InsecureSSL   bool
 	Checkpoint    bool
@@ -50,8 +51,8 @@ type VCInputOptions struct {
 	//	PollDelayMS   time.Duration
 }
 
-type VCInput struct {
-	options      VCInputOptions
+type VCenterInput struct {
+	options      VCenterInputOptions
 	client       *govmomi.Client
 	ctx          context.Context
 	processors   *common.Processors
@@ -345,7 +346,7 @@ func newClient(ctx context.Context, u *url.URL, rootCA string, insecure bool) (*
 
 /////////
 
-func NewVCInput(options VCInputOptions, processors *common.Processors, observability *common.Observability) *VCInput {
+func NewVCenterInput(options VCenterInputOptions, processors *common.Processors, observability *common.Observability) *VCenterInput {
 
 	logger := observability.Logs()
 
@@ -375,7 +376,7 @@ func NewVCInput(options VCInputOptions, processors *common.Processors, observabi
 	ceAttributes[ceVSphereAPIKey] = client.ServiceContent.About.ApiVersion
 
 	meter := observability.Metrics()
-	return &VCInput{
+	return &VCenterInput{
 		options:      options,
 		client:       client,
 		ctx:          ctx,
@@ -388,7 +389,7 @@ func NewVCInput(options VCInputOptions, processors *common.Processors, observabi
 		ceAttributes: ceAttributes,
 	}
 }
-func (vc *VCInput) Start(wg *sync.WaitGroup, _ *common.Outputs) {
+func (vc *VCenterInput) Start(wg *sync.WaitGroup, _ *common.Outputs) {
 	var (
 		begin *time.Time
 		cp    *checkpoint
@@ -460,7 +461,7 @@ func (vc *VCInput) Start(wg *sync.WaitGroup, _ *common.Outputs) {
 	}(wg)
 }
 
-func (vc *VCInput) pollEvents(collector *vcevent.HistoryCollector) error {
+func (vc *VCenterInput) pollEvents(collector *vcevent.HistoryCollector) error {
 	// event poll ticker
 
 	//	pollTick := time.NewTicker(vc.options.PollDelayMS * time.Millisecond)
@@ -546,7 +547,7 @@ func (vc *VCInput) pollEvents(collector *vcevent.HistoryCollector) error {
 	}
 }
 
-func (vc *VCInput) processEvents(vcBaseEvents []vctypes.BaseEvent) (*vcLastEvent, error) {
+func (vc *VCenterInput) processEvents(vcBaseEvents []vctypes.BaseEvent) (*vcLastEvent, error) {
 	var (
 		errCount int
 		last     *vcLastEvent

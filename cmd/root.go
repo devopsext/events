@@ -92,7 +92,7 @@ var pubsubInputOptions = input.PubSubInputOptions{
 	Subscription: envGet("PUBSUB_IN_SUBSCRIPTION", "").(string),
 }
 
-var vcInputOptions = input.VCInputOptions{
+var vcInputOptions = input.VCenterInputOptions{
 	URL:           envGet("VCENTER_IN_URL", "").(string),
 	InsecureSSL:   envGet("VCENTER_IN_INSECURE", false).(bool),
 	Checkpoint:    envGet("VCENTER_IN_CHECKPOINT", true).(bool),
@@ -493,7 +493,7 @@ func Execute() {
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
 			inputs.Add(input.NewPubSubInput(pubsubInputOptions, processors, observability))
-			inputs.Add(input.NewVCInput(vcInputOptions, processors, observability))
+			inputs.Add(input.NewVCenterInput(vcInputOptions, processors, observability))
 
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))

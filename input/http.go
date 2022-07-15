@@ -30,12 +30,14 @@ type HttpInputOptions struct {
 	GoogleURL       string
 	AWSURL          string
 	CustomJsonURL   string
-	Listen          string
-	Tls             bool
-	Cert            string
-	Key             string
-	Chain           string
-	HeaderTraceID   string
+	VCenterURL      string
+
+	Listen        string
+	Tls           bool
+	Cert          string
+	Key           string
+	Chain         string
+	HeaderTraceID string
 }
 
 type HttpInput struct {
@@ -211,6 +213,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 	h.setProcessor(m, h.options.CloudflareURL, processor.CloudflareProcessorType())
 	h.setProcessor(m, h.options.GoogleURL, processor.GoogleProcessorType())
 	h.setProcessor(m, h.options.AWSURL, processor.AWSProcessorType())
+	h.setProcessor(m, h.options.VCenterURL, processor.VCenterProcessorType())
 	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
 	return m
 }
