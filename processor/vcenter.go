@@ -3,12 +3,13 @@ package processor
 import (
 	"errors"
 	"fmt"
-	"github.com/buger/jsonparser"
-	"github.com/devopsext/events/common"
-	sreCommon "github.com/devopsext/sre/common"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/buger/jsonparser"
+	"github.com/devopsext/events/common"
+	sreCommon "github.com/devopsext/sre/common"
 )
 
 type VCenterProcessor struct {
@@ -24,7 +25,7 @@ type VCenterResponse struct {
 }
 
 func VCenterProcessorType() string {
-	return "vcenter"
+	return "VCenter"
 }
 
 func (p *VCenterProcessor) EventType() string {
