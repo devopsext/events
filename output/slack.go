@@ -11,7 +11,7 @@ import (
 	"time"
 
 	sreCommon "github.com/devopsext/sre/common"
-	vendors "github.com/devopsext/tools/vendors"
+	"github.com/devopsext/tools/vendors"
 	"github.com/devopsext/utils"
 
 	"github.com/VictoriaMetrics/metricsql"
