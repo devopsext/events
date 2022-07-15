@@ -14,7 +14,7 @@ import (
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
-	utils "github.com/devopsext/utils"
+	"github.com/devopsext/utils"
 	"github.com/grafana-tools/sdk"
 )
 

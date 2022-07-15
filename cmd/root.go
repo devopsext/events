@@ -18,7 +18,7 @@ import (
 	sreCommon "github.com/devopsext/sre/common"
 	sreProvider "github.com/devopsext/sre/provider"
 	"github.com/devopsext/tools/vendors"
-	utils "github.com/devopsext/utils"
+	"github.com/devopsext/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -68,6 +68,7 @@ var prometheusOptions = sreProvider.PrometheusOptions{
 var httpInputOptions = input.HttpInputOptions{
 	HealthcheckURL:  envGet("HTTP_IN_HEALTHCHECK_URL", "/healthcheck").(string),
 	K8sURL:          envGet("HTTP_IN_K8S_URL", "").(string),
+	WinEventURL:     envGet("HTTP_IN_WINEVENT_URL", "").(string),
 	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
 	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
 	GitlabURL:       envGet("HTTP_IN_GITLAB_URL", "").(string),
@@ -89,6 +90,18 @@ var pubsubInputOptions = input.PubSubInputOptions{
 	Credentials:  envGet("PUBSUB_IN_CREDENTIALS", "").(string),
 	ProjectID:    envGet("PUBSUB_IN_PROJECT_ID", "").(string),
 	Subscription: envGet("PUBSUB_IN_SUBSCRIPTION", "").(string),
+}
+
+var vcInputOptions = input.VCInputOptions{
+	URL:           envGet("VCENTER_IN_URL", "").(string),
+	InsecureSSL:   envGet("VCENTER_IN_INSECURE", false).(bool),
+	Checkpoint:    envGet("VCENTER_IN_CHECKPOINT", true).(bool),
+	AuthType:      envGet("VCENTER_IN_AUTHTYPE", "basic_auth").(string),
+	AuthBasicName: envGet("VCENTER_IN_BASIC_NAME", "").(string),
+	AuthBasicPass: envGet("VCENTER_IN_BASIC_PASS", "").(string),
+	RootCA:        envGet("VCENTER_IN_ROOT_CA_CRT", "vcenter_ca.crt").(string),
+	CheckpointDir: envGet("VCENTER_IN_CHECKPOINT_DIR", "checkpoint").(string),
+	DelayMS:       envGet("VCENTER_IN_DELAY_MS", 5000).(int),
 }
 
 var collectorOutputOptions = output.CollectorOutputOptions{
@@ -121,6 +134,9 @@ var telegramOutputOptions = output.TelegramOutputOptions{
 	BotSelector:     envGet("TELEGRAM_OUT_BOT_SELECTOR", "").(string),
 	AlertExpression: envGet("TELEGRAM_OUT_ALERT_EXPRESSION", "g0.expr").(string),
 	Forward:         envGet("TELEGRAM_OUT_FORWARD", "").(string),
+	//Also note that your bot will not be able to send more than 20 messages per minute to the same group.
+	//https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this
+	RateLimit: envGet("TELEGRAM_RATELIMIT", 18).(int),
 }
 
 var slackOutputOptions = output.SlackOutputOptions{
@@ -462,6 +478,7 @@ func Execute() {
 
 			processors := common.NewProcessors()
 			processors.Add(processor.NewK8sProcessor(&outputs, observability))
+			processors.Add(processor.NewWinEventProcessor(&outputs, observability))
 			processors.Add(processor.NewGitlabProcessor(&outputs, observability))
 			processors.Add(processor.NewAlertmanagerProcessor(&outputs, observability))
 			processors.Add(processor.NewCustomJsonProcessor(&outputs, observability))
@@ -471,10 +488,12 @@ func Execute() {
 			processors.Add(processor.NewCloudflareProcessor(&outputs, observability))
 			processors.Add(processor.NewGoogleProcessor(&outputs, observability))
 			processors.Add(processor.NewAWSProcessor(&outputs, observability))
+			processors.Add(processor.NewVCenterProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
 			inputs.Add(input.NewPubSubInput(pubsubInputOptions, processors, observability))
+			inputs.Add(input.NewVCInput(vcInputOptions, processors, observability))
 
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
@@ -513,6 +532,7 @@ func Execute() {
 	flags.StringVar(&prometheusOptions.Prefix, "prometheus-prefix", prometheusOptions.Prefix, "Prometheus prefix")
 
 	flags.StringVar(&httpInputOptions.K8sURL, "http-in-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
+	flags.StringVar(&httpInputOptions.WinEventURL, "http-in-winevent-url", httpInputOptions.WinEventURL, "Http Windows Event url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-in-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
 	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-in-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
 	flags.StringVar(&httpInputOptions.GitlabURL, "http-in-gitlab-url", httpInputOptions.GitlabURL, "Http Gitlab url")
@@ -532,6 +552,16 @@ func Execute() {
 	flags.StringVar(&pubsubInputOptions.Credentials, "pubsub-in-credentials", pubsubInputOptions.Credentials, "PubSub input credentials")
 	flags.StringVar(&pubsubInputOptions.ProjectID, "pubsub-in-project-id", pubsubInputOptions.ProjectID, "PubSub input project ID")
 	flags.StringVar(&pubsubInputOptions.Subscription, "pubsub-in-subscription", pubsubInputOptions.Subscription, "PubSub input subscription")
+
+	flags.StringVar(&vcInputOptions.URL, "vcenter-in-url", vcInputOptions.URL, "VCenter SDK url")
+	flags.BoolVar(&vcInputOptions.InsecureSSL, "vcenter-in-insecure", vcInputOptions.InsecureSSL, "VCenter insecure access")
+	flags.BoolVar(&vcInputOptions.Checkpoint, "vcenter-in-checkpoint", vcInputOptions.Checkpoint, "VCenter checkpoint usage")
+	flags.StringVar(&vcInputOptions.AuthType, "vcenter-in-auth-type", vcInputOptions.AuthType, "VCenter auth type")
+	flags.StringVar(&vcInputOptions.AuthBasicName, "vcenter-in-auth-basic-username", vcInputOptions.AuthBasicName, "VCenter basic auth username")
+	flags.StringVar(&vcInputOptions.AuthBasicPass, "vcenter-in-auth-basic-password", vcInputOptions.AuthBasicPass, "VCenter basic auth password")
+	flags.StringVar(&vcInputOptions.RootCA, "vcenter-in-root-ca-cert", vcInputOptions.RootCA, "VCenter RootCA cert filename")
+	flags.StringVar(&vcInputOptions.CheckpointDir, "vcenter-checkpoint-dir", vcInputOptions.CheckpointDir, "VCenter checkpoint dir")
+	flags.IntVar(&vcInputOptions.DelayMS, "vcenter-in-delay-ms", vcInputOptions.DelayMS, "VCenter poll delay ms")
 
 	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-out-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
 	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-out-topic", kafkaOutputOptions.Topic, "Kafka topic")
@@ -553,6 +583,7 @@ func Execute() {
 	flags.StringVar(&telegramOutputOptions.AlertExpression, "telegram-out-alert-expression", telegramOutputOptions.AlertExpression, "Telegram alert expression")
 	flags.BoolVar(&telegramOutputOptions.DisableNotification, "telegram-out-disable-notification", telegramOutputOptions.DisableNotification, "Telegram disable notification")
 	flags.StringVar(&telegramOutputOptions.Forward, "telegram-out-forward", telegramOutputOptions.Forward, "Telegram forward regex pattern")
+	flags.IntVar(&telegramOutputOptions.RateLimit, "telegram-rate-limit", telegramOutputOptions.RateLimit, "Ratelimit for telegram, per minute")
 
 	flags.StringVar(&slackOutputOptions.Message, "slack-out-message", slackOutputOptions.Message, "Slack message template")
 	flags.StringVar(&slackOutputOptions.ChannelSelector, "slack-out-channel-selector", slackOutputOptions.ChannelSelector, "Slack Channel selector template")

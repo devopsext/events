@@ -1,0 +1,40 @@
+{
+    "metrics": [
+        {
+            "fields": {
+                "Data_param1": "MetaTrader Data Center",
+                "EventRecordID": 97068,
+                "Keywords": "Classic",
+                "LevelText": "Information",
+                "Message": "The MetaTrader Data Center service entered the stopped state."
+            },
+            "name": "win_eventlog",
+            "tags": {
+                "city": "London",
+                "country": "",
+                "host": "DC-TEST",
+                "mt": "Test1",
+                "provider": "AWS"
+            },
+            "timestamp": 1654888805
+        },
+        {
+            "fields": {
+                "Data_param1": "MetaTrader Data Center",
+                "EventRecordID": 97069,
+                "Keywords": "Classic",
+                "LevelText": "Information",
+                "Message": "The MetaTrader Data Center service entered the running state."
+            },
+            "name": "win_eventlog",
+            "tags": {
+                "city": "London",
+                "country": "",
+                "host": "DC-TEST",
+                "mt": "Test1",
+                "provider": "AWS"
+            },
+            "timestamp": 1654888808
+        }
+    ]
+}
