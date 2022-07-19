@@ -11,7 +11,7 @@
     "title": "[P1] [Recovered on ] [TEST] Test"
   },
   "alert": {
-    "id": "4883885",
+    "id": "3883885",
     "metric": "sre.quality",
     "priority": "P1",
     "query": "avg(last_5m):avg:sre.quality{*} < 75",
