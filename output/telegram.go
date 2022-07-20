@@ -311,7 +311,6 @@ func (t *TelegramOutput) Send(event *common.Event) {
 				}
 			default:
 				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
-
 				if err != nil {
 					t.errors.Inc(botID, chatID)
 				} else {
@@ -346,7 +345,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	message, err := toolsRender.NewTextTemplate(messageOpts)
+	message, err := toolsRender.NewTextTemplate(messageOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -357,7 +356,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.BotSelector),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	selector, err := toolsRender.NewTextTemplate(selectorOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}

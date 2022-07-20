@@ -114,21 +114,23 @@
 {{- define "datadog"}}
   {{- if not (.data.via)}}
     {{- $gProject := ""}}
+    {{- $slack := ""}}
     {{- if (.data.tags | regexMatch ".*sre-anomaly:(quality).*")}}{{ $gProject = env "EVENTS_GITLAB_OUT_ANOMALY_SRE"}}{{end}}
     {{- if and (ne $gProject "") (eq .data.alert.transition "Recovered")}} 
       {{- $gProjectIDRef := index (split "=" $gProject) 1}}
       {{- $gProjectID := atoi (index (split "@" $gProjectIDRef) 0)}}
-      {{- $gURL := getEnv "EVENTS_GTILAB_URL"}}
-      {{- $gToken := getEnv "EVENTS_GTILAB_TOKEN"}}
+      {{- $gURL := getEnv "EVENTS_GITLAB_URL"}}
+      {{- $gToken := getEnv "EVENTS_GITLAB_TOKEN"}}
       {{- $gQuery := printf "DATADOG_TRANSITION=Triggered,DATADOG_ID=%s,SLACK_CHANNEL,SLACK_THREAD" .data.alert.id}}
-      {{- $vars := gitlabPipelineVars $gURL $gToken $gProjectID $gQuery }}
+      {{- $vars := gitlabPipelineVars $gURL $gToken $gProjectID $gQuery 10 }}
       {{- $sChannel := jsonata $vars "$[(key='SLACK_CHANNEL')].value" }}
       {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
-      {{- $slack := dict "channel" $sChannel "thread" $sThread }}
-      {{- jsonata (dict "datadog" .data "slack" $slack) "datadog2slack.jsonata"}}
+      {{- $slack = dict "channel" $sChannel "thread" $sThread }}
     {{- else}}
-      {{- jsonata (dict "datadog" .data "slack" (dict "channel" "" "thread" "")) "datadog2slack.jsonata"}}
+      {{- $slack = dict "channel" "" "thread" "" }}
     {{- end}}
+    {{- logInfo "Datadog ID => %s" .data.alert.id}}
+    {{- jsonata (dict "datadog" .data "slack" $slack) "datadog2slack.jsonata"}}
   {{- end}}
 {{- end}}
 

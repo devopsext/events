@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -74,18 +75,26 @@ func waitDDImage(url string, timeout int) bool {
 }
 
 func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage) ([]byte, error) {
+
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
 	// check if dd return 1x1 image
 	if !utils.IsEmpty(m.ImageURL) && strings.Contains(m.ImageURL, "datadoghq") {
-		if !waitDDImage(m.ImageURL, 10) {
+		if !waitDDImage(m.ImageURL, 3) {
 			s.logger.SpanDebug(span, "Can't get image from datadoghq: %s", m.ImageURL)
 			m.ImageURL = "https://via.placeholder.com/452x185.png?text=No%20chart%20image"
 		}
 	}
 
 	s.logger.Debug("%+v", m)
+
+	msg := strings.TrimSpace(m.Message)
+	if utils.IsEmpty(msg) {
+		err := errors.New("no slack message")
+		s.logger.SpanDebug(span, err.Error())
+		return nil, err
+	}
 
 	b, err := s.slack.SendCustomMessage(m)
 	if err != nil {
@@ -392,7 +401,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	message, err := toolsRender.NewTextTemplate(messageOpts)
+	message, err := toolsRender.NewTextTemplate(messageOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -403,7 +412,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.ChannelSelector),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	selector, err := toolsRender.NewTextTemplate(selectorOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}

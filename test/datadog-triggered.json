@@ -8,10 +8,10 @@
   "event": {
     "type": "query_alert_monitor",
     "msg": "%%%\n@webhook-events\n\nHI\n\nTest notification triggered by some.user@email.com.\n\n[![Metric Graph](https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-03-17/06c559becf60b1b86d7240564fb81765856101f8.png)](https://app.datadoghq.eu/monitors/4883885?to_ts=1647535925000&from_ts=1647534725000)\n\n**sre.quality** over ***** was **>= 75.0** on average during the **last 5m**.\n\nThe monitor was last triggered at Thu Mar 17 2022 16:47:05 UTC.\n\n- - -\n\n[[Monitor Status](https://app.datadoghq.eu/monitors/4883885?to_ts=1647535925000&from_ts=1647534725000)] \u00b7 [[Edit Monitor](https://app.datadoghq.eu/monitors#4883885/edit)]\n%%%",
-    "title": "[P1] [Recovered on ] [TEST] Test"
+    "title": "[P1] [Triggered on ] [TEST] Test"
   },
   "alert": {
-    "id": "3883885",
+    "id": "3883888",
     "metric": "sre.quality",
     "priority": "P1",
     "query": "avg(last_5m):avg:sre.quality{*} < 75",

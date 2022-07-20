@@ -142,7 +142,7 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	message, err := toolsRender.NewTextTemplate(messageOpts)
+	message, err := toolsRender.NewTextTemplate(messageOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -153,7 +153,7 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.TopicSelector),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	selector, err := toolsRender.NewTextTemplate(selectorOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}
