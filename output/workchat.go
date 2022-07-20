@@ -370,7 +370,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	message, err := toolsRender.NewTextTemplate(messageOpts)
+	message, err := toolsRender.NewTextTemplate(messageOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -381,7 +381,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.URLSelector),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	selector, err := toolsRender.NewTextTemplate(selectorOpts)
+	selector, err := toolsRender.NewTextTemplate(selectorOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}

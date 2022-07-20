@@ -197,7 +197,7 @@ func NewGitlabOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Projects),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	projects, err := toolsRender.NewTextTemplate(projectsOpts)
+	projects, err := toolsRender.NewTextTemplate(projectsOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -208,7 +208,7 @@ func NewGitlabOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Variables),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	variables, err := toolsRender.NewTextTemplate(variablesOpts)
+	variables, err := toolsRender.NewTextTemplate(variablesOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}

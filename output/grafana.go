@@ -144,7 +144,7 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	message, err := toolsRender.NewTextTemplate(messageOpts)
+	message, err := toolsRender.NewTextTemplate(messageOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -155,7 +155,7 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.AttributesSelector),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	attributes, err := toolsRender.NewTextTemplate(selectorOpts)
+	attributes, err := toolsRender.NewTextTemplate(selectorOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}

@@ -141,7 +141,7 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.Message),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	message, err := toolsRender.NewTextTemplate(messageOpts)
+	message, err := toolsRender.NewTextTemplate(messageOpts, observability)
 	if err != nil {
 		logger.Error(err)
 		return nil
@@ -152,7 +152,7 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 		Content:    common.Content(options.AttributesSelector),
 		TimeFormat: templateOptions.TimeFormat,
 	}
-	attributes, err := toolsRender.NewTextTemplate(attributesOpts)
+	attributes, err := toolsRender.NewTextTemplate(attributesOpts, observability)
 	if err != nil {
 		logger.Error(err)
 	}
