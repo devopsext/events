@@ -5,7 +5,6 @@
   {{- if eq .type "GitlabEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "DataDogEvent"}}
-    {{- template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}
     {{- template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}
   {{- end}}
   {{- if eq .type "Site24x7Event"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
