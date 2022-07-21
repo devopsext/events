@@ -23,6 +23,12 @@ func (o *Observability) Warn(obj interface{}, args ...interface{}) {
 	}
 }
 
+func (o *Observability) Debug(obj interface{}, args ...interface{}) {
+	if o.logs != nil {
+		o.logs.Debug(obj, args)
+	}
+}
+
 func (o *Observability) Error(obj interface{}, args ...interface{}) {
 	if o.logs != nil {
 		o.logs.Error(obj, args)
