@@ -359,7 +359,7 @@ func NewVCenterInput(options VCenterInputOptions, processors *common.Processors,
 	}
 	parsedURL, err := soap.ParseURL(options.URL)
 	if err != nil {
-		logger.Debug(err, "error parsing vCenter URL:")
+		logger.Error(err, "error parsing vCenter URL:")
 		return nil
 	}
 	parsedURL.User = url.UserPassword(options.AuthBasicName, options.AuthBasicPass)
@@ -367,7 +367,7 @@ func NewVCenterInput(options VCenterInputOptions, processors *common.Processors,
 	ctx := context.Background()
 	client, err := newClient(ctx, parsedURL, options.RootCA, options.InsecureSSL)
 	if err != nil {
-		logger.Debug(err, "create client")
+		logger.Error(err, "create client")
 		return nil
 
 	}
