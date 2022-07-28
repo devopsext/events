@@ -57,6 +57,13 @@
   {{- end}}
 {{- end}}
 
+{{- define "k8sEEvent"}}
+  {{- printf "%s: %s\n" .type .message}}
+  {{- printf "Reason: %s\n" .reason}}
+  {{- printf "Source: %s\n" .source}}
+  {{- printf "Location: %s" .location}}
+{{- end}}
+
 {{- define "alertmanager-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
   {{- printf "*%s*: %s\n*%s*: %s" (toUpper .data.status) .data.labels.alertname .channel $t}}
@@ -223,6 +230,9 @@
 {{- end}}
 
 {{- define "text"}}
+  {{- if eq .type "K8sEEvent"}}
+    {{template "k8sEEvent" .data}}
+  {{- end}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
       {{- if .data.object}}
