@@ -69,6 +69,7 @@ var prometheusOptions = sreProvider.PrometheusOptions{
 var httpInputOptions = input.HttpInputOptions{
 	HealthcheckURL:  envGet("HTTP_IN_HEALTHCHECK_URL", "/healthcheck").(string),
 	K8sURL:          envGet("HTTP_IN_K8S_URL", "").(string),
+	K8sEventURL:     envGet("HTTP_IN_K8SEVENT_URL", "").(string),
 	WinEventURL:     envGet("HTTP_IN_WINEVENT_URL", "").(string),
 	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
 	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
@@ -479,6 +480,7 @@ func Execute() {
 
 			processors := common.NewProcessors()
 			processors.Add(processor.NewK8sProcessor(&outputs, observability))
+			processors.Add(processor.NewK8sEventProcessor(&outputs, observability))
 			processors.Add(processor.NewWinEventProcessor(&outputs, observability))
 			processors.Add(processor.NewGitlabProcessor(&outputs, observability))
 			processors.Add(processor.NewAlertmanagerProcessor(&outputs, observability))
@@ -533,6 +535,7 @@ func Execute() {
 	flags.StringVar(&prometheusOptions.Prefix, "prometheus-prefix", prometheusOptions.Prefix, "Prometheus prefix")
 
 	flags.StringVar(&httpInputOptions.K8sURL, "http-in-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
+	flags.StringVar(&httpInputOptions.K8sEventURL, "http-in-k8sevent-url", httpInputOptions.K8sEventURL, "Http K8s Enhanced Event url")
 	flags.StringVar(&httpInputOptions.WinEventURL, "http-in-winevent-url", httpInputOptions.WinEventURL, "Http Windows Event url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-in-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
 	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-in-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
