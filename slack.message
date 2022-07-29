@@ -57,7 +57,7 @@
   {{- end}}
 {{- end}}
 
-{{- define "k8sEEvent"}}
+{{- define "kube-event"}}
   {{- printf "%s: %s\n" .type .message}}
   {{- printf "Reason: %s\n" .reason}}
   {{- printf "Source: %s\n" .source}}
@@ -230,8 +230,8 @@
 {{- end}}
 
 {{- define "text"}}
-  {{- if eq .type "K8sEEvent"}}
-    {{template "k8sEEvent" .data}}
+  {{- if eq .type "KubeEvent"}}
+    {{template "kube-event" .data}}
   {{- end}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}

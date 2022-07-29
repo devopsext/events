@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-type K8sEventProcessor struct {
+type KubeProcessor struct {
 	outputs  *common.Outputs
 	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
@@ -20,7 +20,7 @@ type K8sEventProcessor struct {
 	errors   sreCommon.Counter
 }
 
-type K8sEventData struct {
+type KubeData struct {
 	Type     string      `json:"type"`
 	Source   string      `json:"source"`
 	Reason   string      `json:"reason"`
@@ -29,12 +29,11 @@ type K8sEventData struct {
 	Object   interface{} `json:"object,omitempty"`
 }
 
-func (p *K8sEventProcessor) sendEE(span sreCommon.TracerSpan, channel string, e *common.EnhancedEvent) error {
-
+func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *common.EnhancedEvent) error {
 	ce := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
-		Data: K8sEventData{
+		Data: KubeData{
 			Reason:   e.Reason,
 			Message:  e.Message,
 			Type:     e.Type,
@@ -52,9 +51,9 @@ func (p *K8sEventProcessor) sendEE(span sreCommon.TracerSpan, channel string, e 
 	return nil
 }
 
-func (p *K8sEventProcessor) processEnhancedEvent(w http.ResponseWriter, span sreCommon.TracerSpan, channel string, e *common.EnhancedEvent) error {
+func (p *KubeProcessor) processEvent(w http.ResponseWriter, span sreCommon.TracerSpan, channel string, e *common.EnhancedEvent) error {
 
-	if err := p.sendEE(span, channel, e); err != nil {
+	if err := p.send(span, channel, e); err != nil {
 
 	}
 	if _, err := w.Write([]byte("OK")); err != nil {
@@ -66,7 +65,7 @@ func (p *K8sEventProcessor) processEnhancedEvent(w http.ResponseWriter, span sre
 	return nil
 }
 
-func (p K8sEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
+func (p *KubeProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
 
@@ -92,7 +91,7 @@ func (p K8sEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 
 	var e *common.EnhancedEvent
 	if err := json.Unmarshal(body, &e); err == nil {
-		return p.processEnhancedEvent(w, span, channel, e)
+		return p.processEvent(w, span, channel, e)
 	}
 	errorString := fmt.Sprintf("Could not parse body as EnhancedEvent: %s", body)
 	p.errors.Inc(channel)
@@ -102,15 +101,15 @@ func (p K8sEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 	return err
 }
 
-func K8sEventProcessorType() string {
-	return "K8sE"
+func KubeProcessorType() string {
+	return "Kube"
 }
 
-func (p K8sEventProcessor) EventType() string {
-	return common.AsEventType(K8sEventProcessorType())
+func (p *KubeProcessor) EventType() string {
+	return common.AsEventType(KubeProcessorType())
 }
 
-func (p K8sEventProcessor) HandleEvent(e *common.Event) error {
+func (p *KubeProcessor) HandleEvent(e *common.Event) error {
 	if e == nil {
 		p.logger.Debug("Event is not defined")
 		return nil
@@ -118,13 +117,12 @@ func (p K8sEventProcessor) HandleEvent(e *common.Event) error {
 	return nil
 }
 
-func NewK8sEventProcessor(outputs *common.Outputs, observability *common.Observability) *K8sEventProcessor {
-	return &K8sEventProcessor{
-		outputs: outputs,
-		logger:  observability.Logs(),
-		tracer:  observability.Traces(),
-		//	counter: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
-		requests: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"channel"}, "k8s", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all k8s processor errors", []string{"channel"}, "k8s", "processor"),
+func NewKubeProcessor(outputs *common.Outputs, observability *common.Observability) *KubeProcessor {
+	return &KubeProcessor{
+		outputs:  outputs,
+		logger:   observability.Logs(),
+		tracer:   observability.Traces(),
+		requests: observability.Metrics().Counter("requests", "Count of all kube processor requests", []string{"channel"}, "k8s", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all kube processor errors", []string{"channel"}, "k8s", "processor"),
 	}
 }

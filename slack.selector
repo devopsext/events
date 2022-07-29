@@ -2,7 +2,7 @@
 {{- define "render"}}{{printf "%s\n" (getEnv .)}}{{end}}
 {{- define "rules"}}
   {{- if eq .type "K8sEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "K8sEEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "KubeEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "GitlabEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "DataDogEvent"}}
