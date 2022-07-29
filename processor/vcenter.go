@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -77,6 +78,8 @@ type vcenterEvent struct {
 	AlarmName          string
 	Argument1          string
 	Argument2          string
+	RAWString          string
+	ChainId            string
 }
 
 func (vce *vcenterEvent) parse(jsonByte []byte) error {
@@ -332,8 +335,17 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 		p.errors.Inc("vcenter: No Subject")
 		return err
 	}
+
+	chainId, err := jsonparser.GetInt([]byte(jsonString), "data", "ChainId")
+	if err != nil {
+		p.errors.Inc("vcenter: No ChainId")
+		return err
+	}
+
 	vce := vcenterEvent{
-		Subject: subject,
+		Subject:   subject,
+		RAWString: strings.ReplaceAll(strings.ReplaceAll(jsonString, "\"", ""), "'", ""),
+		ChainId:   strconv.FormatInt(chainId, 10),
 	}
 
 	err = vce.parse([]byte(jsonString))
@@ -346,7 +358,7 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 	curevent := &common.Event{
 		Data:    vce,
 		Channel: e.Channel,
-		Type:    "vcenterEvent",
+		Type:    "VCenterEvent",
 	}
 	curevent.SetLogger(p.logger)
 	eventTime, _ := time.Parse(time.RFC3339Nano, vce.CreatedTime)

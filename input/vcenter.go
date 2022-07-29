@@ -574,7 +574,7 @@ func (vc *VCenterInput) processEvents(vcBaseEvents []vctypes.BaseEvent) (*vcLast
 		curevent := &common.Event{
 			Data:    string(jsonBytes),
 			Channel: vc.client.URL().Hostname(),
-			Type:    "vcenterEvent",
+			Type:    "VCenterEvent",
 		}
 		curevent.SetTime(time.Now().UTC())
 		curevent.SetLogger(vc.logger)
