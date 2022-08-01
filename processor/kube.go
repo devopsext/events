@@ -7,6 +7,7 @@ import (
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	"io/ioutil"
+	"k8s.io/api/core/v1"
 	"net/http"
 	"strings"
 	"time"
@@ -29,7 +30,19 @@ type KubeData struct {
 	Object   interface{} `json:"object,omitempty"`
 }
 
-func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *common.EnhancedEvent) error {
+type EnhancedObjectReference struct {
+	v1.ObjectReference `json:",inline"`
+	Labels             map[string]string `json:"labels,omitempty"`
+	Annotations        map[string]string `json:"annotations,omitempty"`
+}
+
+// Original file https://github.com/opsgenie/kubernetes-event-exporter/blob/master/pkg/kube/event.go
+type EnhancedEvent struct {
+	v1.Event       `json:",inline"`
+	InvolvedObject EnhancedObjectReference `json:"involvedObject"`
+}
+
+func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *EnhancedEvent) error {
 	ce := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
@@ -51,7 +64,7 @@ func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *commo
 	return nil
 }
 
-func (p *KubeProcessor) processEvent(w http.ResponseWriter, span sreCommon.TracerSpan, channel string, e *common.EnhancedEvent) error {
+func (p *KubeProcessor) processEvent(w http.ResponseWriter, span sreCommon.TracerSpan, channel string, e *EnhancedEvent) error {
 
 	if err := p.send(span, channel, e); err != nil {
 
@@ -89,7 +102,7 @@ func (p *KubeProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	var e *common.EnhancedEvent
+	var e *EnhancedEvent
 	if err := json.Unmarshal(body, &e); err == nil {
 		return p.processEvent(w, span, channel, e)
 	}
@@ -115,6 +128,43 @@ func (p *KubeProcessor) HandleEvent(e *common.Event) error {
 		return nil
 	}
 	return nil
+}
+
+// DeDot replaces all dots in the labels and annotations with underscores. This is required for example in the
+// elasticsearch sink. The dynamic mapping generation interprets dots in JSON keys as as path in a onject.
+// For reference see this logstash filter: https://www.elastic.co/guide/en/logstash/current/plugins-filters-de_dot.html
+func (e EnhancedEvent) DeDot() EnhancedEvent {
+	c := e
+	c.Labels = common.DeDotMap(e.Labels)
+	c.Annotations = common.DeDotMap(e.Annotations)
+	c.InvolvedObject.Labels = common.DeDotMap(e.InvolvedObject.Labels)
+	c.InvolvedObject.Annotations = common.DeDotMap(e.InvolvedObject.Annotations)
+	return c
+}
+
+// ToJSON does not return an error because we are %99 confident it is JSON serializable.
+func (e *EnhancedEvent) ToJSON() []byte {
+	b, _ := json.Marshal(e)
+	return b
+}
+
+func (e *EnhancedEvent) GetTimestampMs() int64 {
+	timestamp := e.FirstTimestamp.Time
+	if timestamp.IsZero() {
+		timestamp = e.EventTime.Time
+	}
+
+	return timestamp.UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
+}
+
+func (e *EnhancedEvent) GetTimestampISO8601() string {
+	timestamp := e.FirstTimestamp.Time
+	if timestamp.IsZero() {
+		timestamp = e.EventTime.Time
+	}
+
+	layout := "2006-01-02T15:04:05.000Z"
+	return timestamp.Format(layout)
 }
 
 func NewKubeProcessor(outputs *common.Outputs, observability *common.Observability) *KubeProcessor {

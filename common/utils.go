@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/devopsext/utils"
 )
@@ -27,4 +28,16 @@ func Content(s string) string {
 		return s
 	}
 	return string(b)
+}
+
+func DeDotMap(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return in
+	}
+	ret := make(map[string]string, len(in))
+	for key, value := range in {
+		nKey := strings.ReplaceAll(key, ".", "_")
+		ret[nKey] = value
+	}
+	return ret
 }
