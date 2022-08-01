@@ -11,6 +11,7 @@ pubsub.credentials
 __debug_bin
 events
 .idea/
+*credential*
 checkpoint/
 vcenter_ca.crt
 test/vcenter/new
