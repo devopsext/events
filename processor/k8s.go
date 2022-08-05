@@ -12,7 +12,7 @@ import (
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
-	admv1beta1 "k8s.io/api/admission/v1beta1"
+	admv1beta1 "k8s.io/api/admission/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta "k8s.io/api/batch/v1beta1"
