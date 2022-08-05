@@ -20,6 +20,7 @@ import (
 type HttpInputOptions struct {
 	HealthcheckURL  string
 	K8sURL          string
+	KubeURL         string
 	WinEventURL     string
 	RancherURL      string
 	AlertmanagerURL string
@@ -204,6 +205,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 
 	m := make(map[string]common.HttpProcessor)
 	h.setProcessor(m, h.options.K8sURL, processor.K8sProcessorType())
+	h.setProcessor(m, h.options.KubeURL, processor.KubeProcessorType())
 	h.setProcessor(m, h.options.WinEventURL, processor.WinEventProcessorType())
 	h.setProcessor(m, h.options.AlertmanagerURL, processor.AlertmanagerProcessorType())
 	h.setProcessor(m, h.options.GitlabURL, processor.GitlabProcessorType())
