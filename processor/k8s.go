@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"net/http"
 	"strings"
 	"time"
@@ -21,7 +22,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimek8s "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 type K8sProcessor struct {
@@ -453,11 +453,12 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	admissionReview := admv1beta1.AdmissionReview{}
-	if admissionResponse != nil {
-		admissionReview.Response = admissionResponse
-		if ar.Request != nil {
-			admissionReview.Response.UID = ar.Request.UID
-		}
+	admissionReview.APIVersion = ar.APIVersion
+	admissionReview.Kind = ar.Kind
+
+	admissionReview.Response = admissionResponse
+	if ar.Request != nil {
+		admissionReview.Response.UID = ar.Request.UID
 	}
 
 	resp, err := json.Marshal(admissionReview)
