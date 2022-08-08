@@ -36,7 +36,7 @@ type EnhancedObjectReference struct {
 	Annotations        map[string]string `json:"annotations,omitempty"`
 }
 
-// Original file https://github.com/opsgenie/kubernetes-event-exporter/blob/master/pkg/kube/event.go
+// EnhancedEvent Original file https://github.com/opsgenie/kubernetes-event-exporter/blob/master/pkg/kube/event.go
 type EnhancedEvent struct {
 	v1.Event       `json:",inline"`
 	InvolvedObject EnhancedObjectReference `json:"involvedObject"`
@@ -64,10 +64,17 @@ func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *Enhan
 	return nil
 }
 
-func (p *KubeProcessor) processEvent(w http.ResponseWriter, span sreCommon.TracerSpan, channel string, e *EnhancedEvent) error {
-
+func (p *KubeProcessor) processEvent(
+	w http.ResponseWriter,
+	span sreCommon.TracerSpan,
+	channel string,
+	e *EnhancedEvent,
+) error {
 	if err := p.send(span, channel, e); err != nil {
-
+		p.errors.Inc(channel)
+		p.logger.SpanError(span, "Can't send event: %v", err)
+		http.Error(w, fmt.Sprintf("couldn't send event: %v", err), http.StatusInternalServerError)
+		return err
 	}
 	if _, err := w.Write([]byte("OK")); err != nil {
 		p.errors.Inc(channel)
@@ -131,7 +138,7 @@ func (p *KubeProcessor) HandleEvent(e *common.Event) error {
 }
 
 // DeDot replaces all dots in the labels and annotations with underscores. This is required for example in the
-// elasticsearch sink. The dynamic mapping generation interprets dots in JSON keys as as path in a onject.
+// elasticsearch sink. The dynamic mapping generation interprets dots in JSON keys as path in an object.
 // For reference see this logstash filter: https://www.elastic.co/guide/en/logstash/current/plugins-filters-de_dot.html
 func (e EnhancedEvent) DeDot() EnhancedEvent {
 	c := e
@@ -143,12 +150,12 @@ func (e EnhancedEvent) DeDot() EnhancedEvent {
 }
 
 // ToJSON does not return an error because we are %99 confident it is JSON serializable.
-func (e *EnhancedEvent) ToJSON() []byte {
+func (e EnhancedEvent) ToJSON() []byte {
 	b, _ := json.Marshal(e)
 	return b
 }
 
-func (e *EnhancedEvent) GetTimestampMs() int64 {
+func (e EnhancedEvent) GetTimestampMs() int64 {
 	timestamp := e.FirstTimestamp.Time
 	if timestamp.IsZero() {
 		timestamp = e.EventTime.Time
@@ -157,7 +164,7 @@ func (e *EnhancedEvent) GetTimestampMs() int64 {
 	return timestamp.UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
 }
 
-func (e *EnhancedEvent) GetTimestampISO8601() string {
+func (e EnhancedEvent) GetTimestampISO8601() string {
 	timestamp := e.FirstTimestamp.Time
 	if timestamp.IsZero() {
 		timestamp = e.EventTime.Time
@@ -169,10 +176,22 @@ func (e *EnhancedEvent) GetTimestampISO8601() string {
 
 func NewKubeProcessor(outputs *common.Outputs, observability *common.Observability) *KubeProcessor {
 	return &KubeProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all kube processor requests", []string{"channel"}, "k8s", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all kube processor errors", []string{"channel"}, "k8s", "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		tracer:  observability.Traces(),
+		requests: observability.Metrics().Counter(
+			"requests",
+			"Count of all kube processor requests",
+			[]string{"channel"},
+			"kube",
+			"processor",
+		),
+		errors: observability.Metrics().Counter(
+			"errors",
+			"Count of all kube processor errors",
+			[]string{"channel"},
+			"kube",
+			"processor",
+		),
 	}
 }

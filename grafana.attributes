@@ -7,6 +7,9 @@
   {{- if eq .type "AWSEvent"}}
     {{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .type .channel .data.source .data.region .data.account}}
   {{- end}}
+  {{- if eq .type "KubeEvent"}}
+    {{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .type .channel .data.reason .data.type .data.location}}
+  {{- end}}
   {{- if eq .type "vcenterEvent"}}
     {{printf "{"}}
     {{printf "\"%s\":\"\"," .type}}

@@ -19,6 +19,10 @@
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s\n%s" (upper .data.status) .data.labels.alertname}}{{- end}}
 
+  {{- if and (eq .type "KubeEvent") (ne .data.reason "DNSConfigForming")}}
+      {{- printf "%s" .data.message}}
+  {{- end}}
+
   {{- if eq .type "WinEvent"}}{{- printf "[%s]%s: %s %s" .data.tags.LevelText (upper .data.tags.host) .data.tags.EventRecordID .data.tags.Message }}{{- end}}
 
   {{- if eq .type "GitlabEvent"}}
