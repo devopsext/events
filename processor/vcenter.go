@@ -106,7 +106,9 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 
 	// common part
 	vce.CreatedTime, _ = jsonparser.GetString(jsonByte, "data", "CreatedTime")
-	vce.Message, _ = jsonparser.GetString(jsonByte, "data", "FullFormattedMessage")
+	if vce.Message, err = jsonparser.GetString(jsonByte, "data", "FullFormattedMessage"); err != nil {
+		vce.Message = ""
+	}
 	vce.FullUsername, _ = jsonparser.GetString(jsonByte, "data", "UserName")
 	if vce.VmName, err = jsonparser.GetString(jsonByte, "data", "Vm", "Name"); err != nil {
 		vce.VmName = " "
@@ -252,6 +254,15 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		vce.EntityType, _ = jsonparser.GetString(jsonByte, "data", "Source", "Entity", "Type")
 		vce.AlarmName, _ = jsonparser.GetString(jsonByte, "data", "Alarm", "Name")
 		return nil
+	// some strange code
+	case "TaskEvent":
+		if msg, err := jsonparser.GetString(jsonByte, "data", "Task"); err == nil {
+			vce.Message = vce.Message + msg
+		}
+		vce.AlarmName, _ = jsonparser.GetString(jsonByte, "data", "Info", "DescriptionId")
+		vce.DestLocation, _ = jsonparser.GetString(jsonByte, "data", "ComputeResource", "Name")
+		vce.DestESXiHostName, _ = jsonparser.GetString(jsonByte, "data", "Host", "Name")
+		return nil
 	}
 
 	// skip events and return nil
@@ -269,7 +280,6 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"HostSyncFailedEvent",
 		"ScheduledTaskCompletedEvent",
 		"ScheduledTaskStartedEvent",
-		"TaskEvent",
 		"UserLoginSessionEvent",
 		"GeneralHostWarningEvent",
 		"com.vmware.pbm.profile.associate",
