@@ -56,6 +56,7 @@ func (p *VCenterProcessor) send(span sreCommon.TracerSpan, channel string, data 
 }
 
 var ErrorEventNotImpemented = errors.New("vcenter event not implemented yet")
+var ErrorEventDefinitelySkip = errors.New("vcenter event for trash only")
 
 type vcenterEvent struct {
 	Subject            string
@@ -80,6 +81,7 @@ type vcenterEvent struct {
 	Argument2          string
 	RAWString          string
 	ChainId            string
+	DebugSubject       string
 }
 
 func (vce *vcenterEvent) parse(jsonByte []byte) error {
@@ -107,7 +109,7 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 	// common part
 	vce.CreatedTime, _ = jsonparser.GetString(jsonByte, "data", "CreatedTime")
 	if vce.Message, err = jsonparser.GetString(jsonByte, "data", "FullFormattedMessage"); err != nil {
-		vce.Message = ""
+		vce.Message = " "
 	}
 	vce.FullUsername, _ = jsonparser.GetString(jsonByte, "data", "UserName")
 	if vce.VmName, err = jsonparser.GetString(jsonByte, "data", "Vm", "Name"); err != nil {
@@ -116,6 +118,12 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 
 	// fields filling and return
 	switch vce.Subject {
+	//definitly skip
+	case "com.vmware.vc.authorization.NoPermission",
+		"UserLogoutSessionEvent",
+		"UserLoginSessionEvent":
+		return ErrorEventDefinitelySkip
+
 	//esx
 	case "esx.problem.vmfs.heartbeat.recovered",
 		"esx.audit.vmfs.sesparse.bloomfilter.disabled",
@@ -265,11 +273,10 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		return nil
 	}
 
-	// skip events and return nil
-
+	// skip events and return only Debug record
 	switch vce.Subject {
 	case "NoAccessUserEvent",
-		"UserLogoutSessionEvent",
+		"VmRenamedEvent",
 		"BadUsernameSessionEvent",
 		"CustomFieldValueChangedEvent",
 		"CustomizationStartedEvent",
@@ -280,7 +287,6 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"HostSyncFailedEvent",
 		"ScheduledTaskCompletedEvent",
 		"ScheduledTaskStartedEvent",
-		"UserLoginSessionEvent",
 		"GeneralHostWarningEvent",
 		"com.vmware.pbm.profile.associate",
 		"com.vmware.sso.LoginFailure",
@@ -315,7 +321,31 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"vsan.health.test.network.smallping.event",
 		"vsan.health.test.overallsummary.event",
 		"vsan.health.test.perfsvc.hostsmissing.event",
+		"DvsHostStatusUpdated",
+		"HostCnxFailedNoConnectionEvent",
+		"HostConnectedEvent",
+		"HostConnectionLostEvent",
+		"HostDisconnectedEvent",
+		"HostReconnectionFailedEvent",
+		"com.vmware.vcIntegrity.InstallUpdate",
+		"com.vmware.vcIntegrity.Remediate",
+		"com.vmware.vcIntegrity.RemediateStart",
+		"com.vmware.vcIntegrity.Scan",
+		"esx.audit.dcui.enabled",
+		"esx.audit.net.firewall.config.changed",
+		"esx.audit.net.firewall.port.hooked",
+		"esx.audit.ssh.enabled",
+		"esx.audit.vmfs.volume.mounted",
+		"esx.clear.coredump.configured2",
+		"esx.clear.net.connectivity.restored",
+		"esx.clear.net.dvport.connectivity.restored",
+		"esx.clear.net.dvport.redundancy.restored",
+		"esx.clear.net.redundancy.restored",
+		"esx.clear.net.vmnic.linkstate.up",
+		"esx.problem.net.vmnic.linkstate.down",
 		"GeneralUserEvent":
+
+		vce.DebugSubject = vce.Subject
 		vce.Subject = ""
 		return nil
 	}
@@ -325,7 +355,7 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		f, _ := os.OpenFile("test/vcenter/new/"+vce.Subject+".json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		defer f.Close()
 		fmt.Fprintf(f, "%s", jsonByte)
-		fmt.Println("\t" + vce.Subject)
+		fmt.Println("new event:\t" + vce.Subject)
 	}
 	err = fmt.Errorf("%w", ErrorEventNotImpemented)
 	return fmt.Errorf("%s %w", vce.Subject, err)
@@ -353,30 +383,36 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 	}
 
 	vce := vcenterEvent{
-		Subject:   subject,
-		RAWString: strings.ReplaceAll(strings.ReplaceAll(jsonString, "\"", ""), "'", ""),
-		ChainId:   strconv.FormatInt(chainId, 10),
+		Subject: subject,
+		RAWString: strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(jsonString,
+			"\\", "\\\\"),
+			"\"", "\\\""),
+			"'", "\\'"),
+			"\n", "\\n"),
+		ChainId: strconv.FormatInt(chainId, 10),
 	}
-
-	err = vce.parse([]byte(jsonString))
-	if err != nil {
-		p.errors.Inc("vcenter: Cannot parse")
-		p.logger.Debug(err)
-		return err
-	}
-
-	curevent := &common.Event{
-		Data:    vce,
-		Channel: e.Channel,
-		Type:    "VCenterEvent",
-	}
-	curevent.SetLogger(p.logger)
-	eventTime, _ := time.Parse(time.RFC3339Nano, vce.CreatedTime)
-
-	curevent.SetTime(eventTime)
 
 	p.requests.Inc(vce.Subject)
-	p.outputs.Send(curevent)
+	err = vce.parse([]byte(jsonString))
+
+	if err != ErrorEventDefinitelySkip {
+		if err != nil {
+			p.errors.Inc("vcenter: Cannot parse")
+			p.logger.Debug(err)
+			return err
+		}
+
+		eventTime, _ := time.Parse(time.RFC3339Nano, vce.CreatedTime)
+		curevent := &common.Event{
+			Data:    vce,
+			Channel: e.Channel,
+			Type:    "VCenterEvent",
+		}
+
+		curevent.SetTime(eventTime)
+		curevent.SetLogger(p.logger)
+		p.outputs.Send(curevent)
+	}
 
 	return nil
 }
