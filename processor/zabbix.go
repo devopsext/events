@@ -20,7 +20,7 @@ type ZabbixProcessor struct {
 	errors   sreCommon.Counter
 }
 
-type zabbixEvent struct {
+type ZabbixEvent struct {
 	EventType          string
 	EventNSeverity     string
 	Status             string
@@ -97,7 +97,7 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	var request zabbixEvent
+	var request ZabbixEvent
 
 	paths := [][]string{
 		[]string{"EventType"},
@@ -116,46 +116,35 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 	var EventDate, EventTime string
 	jsonparser.EachKey(body, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
+		u, _ := jsonparser.ParseString(value)
+		v := string(u)
 		switch idx {
 		case 0:
-			v, _ := jsonparser.ParseString(value)
-			request.EventType = string(v)
+			request.EventType = v
 		case 1:
-			v, _ := jsonparser.ParseString(value)
-			request.EventNSeverity = string(v)
+			request.EventNSeverity = v
 		case 2:
-			v, _ := jsonparser.ParseString(value)
-			request.Status = string(v)
+			request.Status = v
 		case 3:
-			v, _ := jsonparser.ParseString(value)
-			request.EventID = string(v)
+			request.EventID = v
 		case 4:
-			v, _ := jsonparser.ParseString(value)
-			EventTime = string(v)
+			EventTime = v
 		case 5:
-			v, _ := jsonparser.ParseString(value)
-			EventDate = string(v)
+			EventDate = v
 		case 6:
-			v, _ := jsonparser.ParseString(value)
-			request.HostName = string(v)
+			request.HostName = v
 		case 7:
-			v, _ := jsonparser.ParseString(value)
-			request.ItemID = string(v)
+			request.ItemID = v
 		case 8:
-			v, _ := jsonparser.ParseString(value)
-			request.ItemLastValue = string(v)
+			request.ItemLastValue = v
 		case 9:
-			v, _ := jsonparser.ParseString(value)
-			request.AlertURL = string(v)
+			request.AlertURL = v
 		case 10:
-			v, _ := jsonparser.ParseString(value)
-			request.TriggerDescription = string(v)
+			request.TriggerDescription = v
 		case 11:
-			v, _ := jsonparser.ParseString(value)
-			request.EventTags = string(v)
+			request.EventTags = v
 		case 12:
-			v, _ := jsonparser.ParseString(value)
-			request.Scope = string(v)
+			request.Scope = v
 		}
 	}, paths...)
 
