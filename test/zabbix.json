@@ -1,0 +1,14 @@
+{
+  "EventType": "ZabbixEvent",
+  "EventNSeverity": "3",
+  "Status": "Error",
+  "EventID": "29064809",
+  "EventTime": "08:03:45",
+  "EventDate": "2022.08.17",
+  "HostName": "xdata-click.fqdn",
+  "ItemID": "399495",
+  "ItemLastValue": "10",
+  "AlertURL": "http://zabbix.fqdn/tr_events.php?triggerid=188087&eventid=29064809",
+  "TriggerDescription": "Clickhouse team recommends inserting data in packets of at least 1000 rows or no more than a single request per second.\r\n\r\nPlease use Buffer table\r\nhttps://clickhouse.tech/docs/en/operations/table_engines/buffer/\r\nor \r\nhttps://github.com/nikepan/clickhouse-bulk\r\nor \r\nhttps://github.com/VKCOM/kittenhouse",
+  "EventTags": ""
+}

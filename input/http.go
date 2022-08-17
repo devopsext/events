@@ -30,6 +30,7 @@ type HttpInputOptions struct {
 	CloudflareURL   string
 	GoogleURL       string
 	AWSURL          string
+	ZabbixURL       string
 	CustomJsonURL   string
 	VCenterURL      string
 
@@ -215,6 +216,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 	h.setProcessor(m, h.options.CloudflareURL, processor.CloudflareProcessorType())
 	h.setProcessor(m, h.options.GoogleURL, processor.GoogleProcessorType())
 	h.setProcessor(m, h.options.AWSURL, processor.AWSProcessorType())
+	h.setProcessor(m, h.options.ZabbixURL, processor.ZabbixProcessorType())
 	h.setProcessor(m, h.options.VCenterURL, processor.VCenterProcessorType())
 	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
 	return m
