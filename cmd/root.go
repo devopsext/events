@@ -77,6 +77,7 @@ var httpInputOptions = input.HttpInputOptions{
 	DataDogURL:      envGet("HTTP_IN_DATADOG_URL", "").(string),
 	CustomJsonURL:   envGet("HTTP_IN_CUSTOMJSON_URL", "").(string),
 	AWSURL:          envGet("HTTP_IN_AWS_URL", "").(string),
+	ZabbixURL:       envGet("HTTP_IN_ZABBIX_URL", "").(string),
 	GoogleURL:       envGet("HTTP_IN_GOOGLE_URL", "").(string),
 	CloudflareURL:   envGet("HTTP_IN_CLOUDFLARE_URL", "").(string),
 	Site24x7URL:     envGet("HTTP_IN_SITE24X7_URL", "").(string),
@@ -491,6 +492,7 @@ func Execute() {
 			processors.Add(processor.NewCloudflareProcessor(&outputs, observability))
 			processors.Add(processor.NewGoogleProcessor(&outputs, observability))
 			processors.Add(processor.NewAWSProcessor(&outputs, observability))
+			processors.Add(processor.NewZabbixProcessor(&outputs, observability))
 			processors.Add(processor.NewVCenterProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
@@ -545,6 +547,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.CloudflareURL, "http-in-cloudflare-url", httpInputOptions.CloudflareURL, "Http Cloudflare url")
 	flags.StringVar(&httpInputOptions.GoogleURL, "http-in-google-url", httpInputOptions.GoogleURL, "Http Google url")
 	flags.StringVar(&httpInputOptions.AWSURL, "http-in-aws-url", httpInputOptions.AWSURL, "Http AWS url")
+	flags.StringVar(&httpInputOptions.ZabbixURL, "http-in-zabbix-url", httpInputOptions.ZabbixURL, "Http Zabbix url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")

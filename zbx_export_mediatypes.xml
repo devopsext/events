@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>4.4</version>
+    <date>2022-08-17T07:39:38Z</date>
+    <media_types>
+        <media_type>
+            <name>zabbixEvent</name>
+            <type>WEBHOOK</type>
+            <parameters>
+                <parameter>
+                    <name>AlertURL</name>
+                    <value>http://zabbix.fqdn/tr_events.php?triggerid={TRIGGER.ID}&amp;eventid={EVENT.ID}</value>
+                </parameter>
+                <parameter>
+                    <name>EventDate</name>
+                    <value>{EVENT.DATE}</value>
+                </parameter>
+                <parameter>
+                    <name>EventID</name>
+                    <value>{EVENT.ID}</value>
+                </parameter>
+                <parameter>
+                    <name>EventNSeverity</name>
+                    <value>{EVENT.NSEVERITY}</value>
+                </parameter>
+                <parameter>
+                    <name>EventTags</name>
+                    <value>{EVENT.TAGS}</value>
+                </parameter>
+                <parameter>
+                    <name>EventTime</name>
+                    <value>{EVENT.TIME}</value>
+                </parameter>
+                <parameter>
+                    <name>EventType</name>
+                    <value>ZabbixEvent</value>
+                </parameter>
+                <parameter>
+                    <name>HostName</name>
+                    <value>{HOST.NAME}</value>
+                </parameter>
+                <parameter>
+                    <name>ItemID</name>
+                    <value>{ITEM.ID}</value>
+                </parameter>
+                <parameter>
+                    <name>ItemLastValue</name>
+                    <value>{ITEM.LASTVALUE}</value>
+                </parameter>
+                <parameter>
+                    <name>Status</name>
+                    <value>Error</value>
+                </parameter>
+                <parameter>
+                    <name>TriggerDescription</name>
+                    <value>{TRIGGER.DESCRIPTION}</value>
+                </parameter>
+            </parameters>
+            <script>try {&#13;
+    Zabbix.Log(4, '[ Events webhook ] Started with params: ' + value);&#13;
+    params = JSON.parse(value)&#13;
+    req = new CurlHttpRequest()&#13;
+  &#13;
+    req.AddHeader('Content-Type: application/json');&#13;
+&#13;
+    resp = req.Post('https://catcher.fqdn/events?source=zabbix',&#13;
+        JSON.stringify(params)&#13;
+    );&#13;
+&#13;
+    if (req.Status() != 200) {&#13;
+        throw 'Response code: ' + req.Status();&#13;
+    }&#13;
+    return resp;&#13;
+}&#13;
+catch (error) {&#13;
+    Zabbix.Log(3, '[ Events webhook ] issue creation failed : ' + error);&#13;
+    throw 'Failed with error: ' + error;&#13;
+}</script>
+            <process_tags>YES</process_tags>
+            <description>SRE Events </description>
+        </media_type>
+    </media_types>
+</zabbix_export>
