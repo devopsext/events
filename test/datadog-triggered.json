@@ -1,18 +1,18 @@
 {
   "alert": {
-    "id": "55619019",
+    "id": "155619019",
     "metric": "sre.quality",
     "priority": "P1",
-    "query": "avg(last_5m):avg:sre.quality{*} by {product} \u003c 70",
+    "query": "avg(last_5m):avg:sre.availability{service_from:site24x7.com} by {service} < 50",
     "scope": "product:pp",
-    "status": "sre.quality over *** was \u003c 70.0 on average during the last 5m**.",
-    "title": "[TEST] Average SRE quality \u003c 70% on product:pp",
+    "status": "sre.availability over *** was \u003c 50.0 on average during the last 5m**.",
+    "title": "[TEST] Average SRE availability \u003c 50% on product:pp",
     "transition": "Triggered",
     "type": "error"
   },
   "date": 1658322714000,
   "event": {
-    "msg": "%%%\nAverage over SRE quality over [pp] is less than 70%\n@webhook-sre-events\n\nTest notification triggered by sergey.tomilov@exness.com.\n\n[![Metric Graph](https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-07-20/c88354658a86ac96833bfa4214aa4fb2abe6de8b.png)](https://app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000)\n\n**sre.quality** over **product:pp** was **\u003c 70.0** on average during the **last 5m**.\n\nThe monitor was last triggered at Wed Jul 20 2022 13:11:54 UTC.\n\n- - -\n\n[[Monitor Status](https://app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000)] · [[Edit Monitor](https://app.datadoghq.eu/monitors#5561901/edit)]\n%%%",
+    "msg": "%%%\nAverage over SRE quality over [pp] is less than 70%\n@webhook-sre-events\n\nTest notification triggered by tsv.\n\n[![Metric Graph](https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-07-20/c88354658a86ac96833bfa4214aa4fb2abe6de8b.png)](https://app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000)\n\n**sre.quality** over **product:pp** was **\u003c 70.0** on average during the **last 5m**.\n\nThe monitor was last triggered at Wed Jul 20 2022 13:11:54 UTC.\n\n- - -\n\n[[Monitor Status](https://app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000)] · [[Edit Monitor](https://app.datadoghq.eu/monitors#5561901/edit)]\n%%%",
     "title": "[P1] [Triggered on {product:pp}] [TEST] Average SRE quality \u003c 70%",
     "type": "query_alert_monitor"
   },
@@ -27,12 +27,12 @@
   },
   "org": {
     "id": "1000060640",
-    "name": "Exness"
+    "name": "Some"
   },
   "priority": "normal",
   "security": {
     "rule_name": "null"
   },
   "snapshot": "https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-07-20/c88354658a86ac96833bfa4214aa4fb2abe6de8b.png",
-  "tags": "monitor,product:pp,sre-anomaly:quality",
-  "text_only_msg":"\nAverage over SRE quality over [pp] is less than 70%\n@webhook-sre-events\n\nTest notification triggered by sergey.tomilov@exness.com.\n\nsre.quality over product:pp was \u003c 70.0 on average during the last 5m.\n\nMetric value: 0.0\n\nMetric Graph: https: //app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000 · Monitor Status: https://app.datadoghq.eu/monitors/5561901?group=product%3App · Edit Monitor: https://app.datadoghq.eu/monitors#5561901/edit · Event URL: https://app.datadoghq.eu/event/event?id=6611227196640466337","user":"null","username":""}
+  "tags": "monitor,product:pp,sre-anomaly:availability,!service_from",
+  "text_only_msg":"\nAverage over SRE quality over [pp] is less than 70%\n@webhook-sre-events\n\nTest notification triggered by tsv.\n\nsre.quality over product:pp was \u003c 70.0 on average during the last 5m.\n\nMetric value: 0.0\n\nMetric Graph: https: //app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000 · Monitor Status: https://app.datadoghq.eu/monitors/5561901?group=product%3App · Edit Monitor: https://app.datadoghq.eu/monitors#5561901/edit · Event URL: https://app.datadoghq.eu/event/event?id=6611227196640466337","user":"null","username":""}

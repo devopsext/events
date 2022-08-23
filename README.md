@@ -222,7 +222,7 @@ cat <<EOF > k8s.json
         "securityContext": {},
         "imagePullSecrets": [
           {
-            "name": "registry.exness.io"
+            "name": "registry.some.io"
           }
         ],
         "schedulerName": "default-scheduler",
