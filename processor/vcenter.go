@@ -121,6 +121,8 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 	//definitly skip
 	case "com.vmware.vc.authorization.NoPermission",
 		"UserLogoutSessionEvent",
+		"UserPasswordChanged",
+		"VimAccountPasswordChangedEvent",
 		"UserLoginSessionEvent":
 		return ErrorEventDefinitelySkip
 
@@ -343,6 +345,37 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"esx.clear.net.redundancy.restored",
 		"esx.clear.net.vmnic.linkstate.up",
 		"esx.problem.net.vmnic.linkstate.down",
+		"AlarmClearedEvent",
+		"DVPortgroupCreatedEvent",
+		"DatastoreDestroyedEvent",
+		"DatastoreDiscoveredEvent",
+		"DatastoreIORMReconfiguredEvent",
+		"DatastoreRemovedOnHostEvent",
+		"DrsResourceConfigureFailedEvent",
+		"DrsResourceConfigureSyncedEvent",
+		"NASDatastoreCreatedEvent",
+		"VmGuestOSCrashedEvent",
+		"VmInstanceUuidChangedEvent",
+		"VmInstanceUuidConflictEvent",
+		"VmMacConflictEvent",
+		"VmRegisteredEvent",
+		"VmUuidChangedEvent",
+		"com.vmware.cl.SyncLibraryEvent",
+		"com.vmware.license.AddLicenseEvent",
+		"com.vmware.license.AssignLicenseEvent",
+		"com.vmware.license.RemoveLicenseEvent",
+		"com.vmware.vc.guestOperations.GuestOperation",
+		"com.vmware.vcIntegrity.ImageRecommendationGenerationFinished",
+		"com.vmware.vcIntegrity.NeedSyncDepots",
+		"esx.audit.usb.config.changed",
+		"esx.clear.storage.apd.exit",
+		"esx.clear.storage.redundancy.restored",
+		"esx.clear.vmfs.nfs.server.restored",
+		"esx.problem.storage.connectivity.lost",
+		"esx.problem.storage.redundancy.degraded",
+		"esx.problem.storage.redundancy.lost",
+		"esx.problem.vmsyslogd.remote.failure",
+		"MigrationResourceErrorEvent",
 		"GeneralUserEvent":
 
 		vce.DebugSubject = vce.Subject
