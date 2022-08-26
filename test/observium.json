@@ -1,0 +1,8 @@
+{
+  "TITLE": "Om-nom-nom! Antonovka!",
+  "ALERT_STATE": "SYSLOG",
+  "ALERT_URL": "http:/whatever.url",
+  "ALERT_UNIXTIME": 99944999399,
+  "DEVICE_HOSTNAME": "localhost",
+  "DEVICE_LOCATION": "Alaska"
+}

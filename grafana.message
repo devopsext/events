@@ -10,8 +10,8 @@
     {{- end}}
   {{- end}}
 {{- end}}
-{{- define "text"}}
 
+{{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
       {{- printf "%s\n%s / %s" (upper .data.operation) .data.kind .data.location}}
@@ -24,6 +24,10 @@
   {{- end}}
 
   {{- if eq .type "WinEvent"}}{{- printf "[%s]%s: %s %s" .data.tags.LevelText (upper .data.tags.host) .data.tags.EventRecordID .data.tags.Message }}{{- end}}
+
+  {{- if eq .type "ObserviumEvent"}}
+    {{- printf "%s<br/>State: <b>%s</b><br/>URL: <a href=\"%s\">here</a>" .data.TITLE .data.ALERT_STATE .data.ALERT_URL }}
+  {{- end}}
 
   {{- if eq .type "GitlabEvent"}}
     {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
@@ -58,4 +62,5 @@
     {{- end}}
   {{- end}}
 {{- end}}
+
 {{- define "grafana-message"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

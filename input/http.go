@@ -33,6 +33,7 @@ type HttpInputOptions struct {
 	ZabbixURL       string
 	CustomJsonURL   string
 	VCenterURL      string
+	ObserviumEventURL string
 
 	Listen        string
 	Tls           bool
@@ -208,6 +209,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 	h.setProcessor(m, h.options.K8sURL, processor.K8sProcessorType())
 	h.setProcessor(m, h.options.KubeURL, processor.KubeProcessorType())
 	h.setProcessor(m, h.options.WinEventURL, processor.WinEventProcessorType())
+	h.setProcessor(m, h.options.ObserviumEventURL, processor.ObserviumEventProcessorType())
 	h.setProcessor(m, h.options.AlertmanagerURL, processor.AlertmanagerProcessorType())
 	h.setProcessor(m, h.options.GitlabURL, processor.GitlabProcessorType())
 	h.setProcessor(m, h.options.RancherURL, processor.RancherProcessorType())
