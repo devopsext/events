@@ -71,6 +71,7 @@ var httpInputOptions = input.HttpInputOptions{
 	K8sURL:          envGet("HTTP_IN_K8S_URL", "").(string),
 	KubeURL:         envGet("HTTP_IN_KUBE_URL", "").(string),
 	WinEventURL:     envGet("HTTP_IN_WINEVENT_URL", "").(string),
+	ObserviumEventURL:     envGet("HTTP_IN_OBSERVIUM_URL", "").(string),
 	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
 	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
 	GitlabURL:       envGet("HTTP_IN_GITLAB_URL", "").(string),
@@ -494,6 +495,7 @@ func Execute() {
 			processors.Add(processor.NewAWSProcessor(&outputs, observability))
 			processors.Add(processor.NewZabbixProcessor(&outputs, observability))
 			processors.Add(processor.NewVCenterProcessor(&outputs, observability))
+			processors.Add(processor.NewObserviumEventProcessor(&outputs, observability))
 
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
@@ -539,6 +541,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.K8sURL, "http-in-k8s-url", httpInputOptions.K8sURL, "Http K8s url")
 	flags.StringVar(&httpInputOptions.KubeURL, "http-in-kube-url", httpInputOptions.KubeURL, "Http Kubernetes events url")
 	flags.StringVar(&httpInputOptions.WinEventURL, "http-in-winevent-url", httpInputOptions.WinEventURL, "Http Windows Event url")
+	flags.StringVar(&httpInputOptions.ObserviumEventURL, "http-in-observium-url", httpInputOptions.ObserviumEventURL, "Http Observium Event url")
 	flags.StringVar(&httpInputOptions.RancherURL, "http-in-rancher-url", httpInputOptions.RancherURL, "Http Rancher url")
 	flags.StringVar(&httpInputOptions.AlertmanagerURL, "http-in-alertmanager-url", httpInputOptions.AlertmanagerURL, "Http Alertmanager url")
 	flags.StringVar(&httpInputOptions.GitlabURL, "http-in-gitlab-url", httpInputOptions.GitlabURL, "Http Gitlab url")
