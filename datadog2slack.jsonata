@@ -1,7 +1,7 @@
 {
     "Title": datadog.event.title,
     "Message": "*" & $fromMillis(datadog.date) & "*: " &datadog.alert.status & " <" & datadog.link & "|Datadog Monitor Link>",
-    "ImageURL": datadog.snapshot,
+    "ImageURL": image,
     "Channel": slack.channel,
     "ParentTS": slack.thread
 }

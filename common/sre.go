@@ -13,25 +13,25 @@ type Observability struct {
 
 func (o *Observability) Info(obj interface{}, args ...interface{}) {
 	if o.logs != nil {
-		o.logs.Info(obj, args)
+		o.logs.Info(obj, args...)
 	}
 }
 
 func (o *Observability) Warn(obj interface{}, args ...interface{}) {
 	if o.logs != nil {
-		o.logs.Warn(obj, args)
+		o.logs.Warn(obj, args...)
 	}
 }
 
 func (o *Observability) Debug(obj interface{}, args ...interface{}) {
 	if o.logs != nil {
-		o.logs.Debug(obj, args)
+		o.logs.Debug(obj, args...)
 	}
 }
 
 func (o *Observability) Error(obj interface{}, args ...interface{}) {
 	if o.logs != nil {
-		o.logs.Error(obj, args)
+		o.logs.Error(obj, args...)
 	}
 }
 
