@@ -6,10 +6,10 @@
 #curl -sk -X POST -H "Content-type: application/json" -d @k8s.json "http://localhost:80/k8s"
 
 #curl -sk -X POST -H "Content-type: application/json" -d @alertmanager.json "http://localhost:80/alertmanager"
-curl -sk -X POST -H "Content-type: application/json" -d @zabbix.json "http://localhost:80/zabbix"
+#curl -sk -X POST -H "Content-type: application/json" -d @zabbix.json "http://localhost:80/zabbix"
 
-#curl -sk -X POST -H "Content-type: application/json" -d @datadog-triggered.json "http://localhost:80/datadog"
-#curl -sk -X POST -H "Content-type: application/json" -d @datadog-recovered.json "http://localhost:80/datadog"
+curl -sk -X POST -H "Content-type: application/json" -d @datadog-triggered.json "http://localhost:8081/datadog"
+#curl -sk -X POST -H "Content-type: application/json" -d @datadog-recovered.json "http://localhost:8081/datadog"
 
 #curl -sk -X POST -H "Content-type: application/json" -d @site24x7.json "http://localhost:80/site24x7"
 
