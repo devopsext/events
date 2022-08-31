@@ -2,7 +2,8 @@
   "TITLE": "Om-nom-nom! Antonovka!",
   "ALERT_STATE": "SYSLOG",
   "ALERT_URL": "http:/whatever.url",
-  "ALERT_UNIXTIME": 99944999399,
+  "ALERT_UNIXTIME": 1661869111,
   "DEVICE_HOSTNAME": "localhost",
-  "DEVICE_LOCATION": "Alaska"
+  "DEVICE_LOCATION": "Alaska",
+  "METRICS": "This the exact message from syslog or metric and value for alerts"
 }
