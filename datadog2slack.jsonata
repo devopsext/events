@@ -3,5 +3,6 @@
     "Message": "*" & $fromMillis(datadog.date) & "*: " &datadog.alert.status & " <" & datadog.link & "|Datadog Monitor Link>",
     "ImageURL": image,
     "Channel": slack.channel,
-    "ParentTS": slack.thread
+    "ParentTS": slack.thread,
+    "QuoteColor": datadog.alert.type = "error" ? "#FF0000" : datadog.alert.type = "success" ? "#00FF00" : ""
 }
