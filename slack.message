@@ -140,7 +140,7 @@
     {{- end}}
 
     {{- $image := "https://via.placeholder.com/452x185.png?text=No%20chart%20image"}}
-    {{- if urlWait .data.snapshot 200 5 3 199 }}
+    {{- if urlWait .data.snapshot 5 3 199 }}
       {{- $image = .data.snapshot}}
     {{- end}}
     {{- logInfo "Datadog image => %s" $image }}
