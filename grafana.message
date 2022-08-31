@@ -26,9 +26,9 @@
   {{- if eq .type "WinEvent"}}{{- printf "[%s]%s: %s %s" .data.tags.LevelText (upper .data.tags.host) .data.tags.EventRecordID .data.tags.Message }}{{- end}}
 
   {{- if eq .type "ObserviumEvent"}}
-    {{- if not (.data.ALERT_STATE eq "ALERT REMINDER") }}
-      {{- printf "%s<br/>State: <b>%s</b><br/>URL: <a href=\"%s\">here</a>" .data.TITLE .data.ALERT_STATE .data.ALERT_URL }}
-    {{-end}}
+    {{- if not (eq .data.ALERT_STATE "ALERT REMINDER") }}
+      {{- printf "%s<br/>State: <b>%s</b><br/>Details:<br/><code>%s</code><br/>URL: <a href=\"%s\">here</a>" .data.TITLE .data.ALERT_STATE .data.METRICS .data.ALERT_URL }}
+    {{- end }}
   {{- end}}
 
   {{- if eq .type "GitlabEvent"}}
