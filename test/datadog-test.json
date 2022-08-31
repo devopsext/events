@@ -34,7 +34,7 @@
   "security": {
     "rule_name": "null"
   },
-  "snapshot": "https://p.datadoghq.eu/snapshot/view/dd-snapshots-eu1-prod/org_1000060640/2022-07-20/c88354658a86ac96833bfa4214aa4fb2abe6de8b.png",
+  "snapshot": "https://stsci-opo.org/STScI-01G8GZHGM987XCHJZ846YRHWGF.tif",
   "tags": "monitor,product:pp,sre-anomaly:availability,!service_from",
   "text_only_msg":"\nAverage over SRE quality over [pp] is less than 70%\n@webhook-sre-events\n\nTest notification triggered by tsv.\n\nsre.quality over product:pp was \u003c 70.0 on average during the last 5m.\n\nMetric value: 0.0\n\nMetric Graph: https: //app.datadoghq.eu/monitors/5561901?to_ts=1658323014000\u0026group=product%3App\u0026from_ts=1658321814000 · Monitor Status: https://app.datadoghq.eu/monitors/5561901?group=product%3App · Edit Monitor: https://app.datadoghq.eu/monitors#5561901/edit · Event URL: https://app.datadoghq.eu/event/event?id=6611227196640466337","user":"null","username":""
  }
