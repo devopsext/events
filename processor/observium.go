@@ -22,12 +22,13 @@ type ObserviumEventProcessor struct {
 }
 
 type ObserviumRequest struct {
-    Title string            `json:"TITLE"`
-    AlertState string       `json:"ALERT_STATE"`
-	AlertURL string         `json:"ALERT_URL"`
-	AlertUnixTime int64     `json:"ALERT_UNIXTIME"`
-	DeviceHostname string   `json:"DEVICE_HOSTNAME"`
-	DeviceLocation string   `json:"DEVICE_LOCATION"`
+	Title          string `json:"TITLE"`
+	AlertState     string `json:"ALERT_STATE"`
+	AlertURL       string `json:"ALERT_URL"`
+	AlertUnixTime  int64  `json:"ALERT_UNIXTIME"`
+	DeviceHostname string `json:"DEVICE_HOSTNAME"`
+	DeviceLocation string `json:"DEVICE_LOCATION"`
+	Metrics        string `json:"METRICS"`
 }
 
 type ObserviumResponse struct {
