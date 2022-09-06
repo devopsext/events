@@ -104,12 +104,18 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.SpanError(span, err)
 			return
 		}
-
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
 			g.logger.SpanDebug(span, "Grafana message is empty")
 			return
 		}
+		g.logger.SpanDebug(span, "Grafana message => %s", message)
+
+		attributes, err := g.getAttributes(jsonObject, span)
+		if err != nil {
+			g.logger.SpanError(span, err)
+		}
+		g.logger.SpanDebug(span, "Grafana attributes => %s", attributes)
 
 		g.rateLimiterIn.Inc(event.Channel)
 		r := g.rateLimiter.Reserve()
@@ -117,13 +123,7 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 		time.Sleep(r.Delay())
 		g.rateLimiterOut.Inc(event.Channel)
 
-		g.logger.SpanDebug(span, "Grafana message => %s", message)
-
-		attributes, err := g.getAttributes(jsonObject, span)
-		if err != nil {
-			g.logger.SpanError(span, err)
-		}
-
+		g.requests.Inc()
 		err = g.grafanaEventer.Interval(message, attributes, event.Time, event.Time)
 		if err != nil {
 			g.errors.Inc()
