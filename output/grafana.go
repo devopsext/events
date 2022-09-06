@@ -1,7 +1,6 @@
 package output
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -30,6 +29,8 @@ type GrafanaOutput struct {
 	logger         sreCommon.Logger
 	requests       sreCommon.Counter
 	errors         sreCommon.Counter
+	rateLimiterIn  sreCommon.Counter
+	rateLimiterOut sreCommon.Counter
 	grafanaEventer *sreProvider.GrafanaEventer
 	rateLimiter    *rate.Limiter
 }
@@ -109,10 +110,13 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.SpanDebug(span, "Grafana message is empty")
 			return
 		}
-		if err := g.rateLimiter.Wait(context.TODO()); err != nil {
-			return
-		}
-		g.requests.Inc()
+
+		g.rateLimiterIn.Inc(event.Channel)
+		r := g.rateLimiter.Reserve()
+		// TODO increment another counter events_grafana_output_ratelimiter_wait_time_total by r.Delay*time.Millisecond
+		time.Sleep(r.Delay())
+		g.rateLimiterOut.Inc(event.Channel)
+
 		g.logger.SpanDebug(span, "Grafana message => %s", message)
 
 		attributes, err := g.getAttributes(jsonObject, span)
@@ -170,6 +174,8 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		tracer:         observability.Traces(),
 		requests:       observability.Metrics().Counter("requests", "Count of all grafana requests", []string{}, "grafana", "output"),
 		errors:         observability.Metrics().Counter("errors", "Count of all grafana errors", []string{}, "grafana", "output"),
+		rateLimiterIn:  observability.Metrics().Counter("rl_in", "Count of all grafana requests before waiting", []string{"channel"}, "grafana", "output"),
+		rateLimiterOut: observability.Metrics().Counter("rl_out", "Count of all grafana requests after waiting", []string{"channel"}, "grafana", "output"),
 		grafanaEventer: grafanaEventer,
 	}
 }
