@@ -1,0 +1,139 @@
+zabbix_export:
+  version: '6.0'
+  date: '2022-09-16T08:45:03Z'
+  media_types:
+    -
+      name: 'ZabbixEvent - sre'
+      type: WEBHOOK
+      parameters:
+        -
+          name: AlertURL
+          value: 'https://zabbix.fqdn/tr_events.php?triggerid={TRIGGER.ID}&eventid={EVENT.ID}'
+        -
+          name: Environment
+          value: zabbix.test.env
+        -
+          name: EventDate
+          value: '{EVENT.DATE}'
+        -
+          name: EventID
+          value: '{EVENT.ID}'
+        -
+          name: EventName
+          value: '{EVENT.NAME}'
+        -
+          name: EventNSeverity
+          value: '{EVENT.NSEVERITY}'
+        -
+          name: EventOpData
+          value: '{EVENT.OPDATA}'
+        -
+          name: EventStatus
+          value: '{EVENT.Status}'
+        -
+          name: EventTags
+          value: '{EVENT.TAGS}'
+        -
+          name: EventTime
+          value: '{EVENT.TIME}'
+        -
+          name: EventType
+          value: ZabbixEvent
+        -
+          name: HostName
+          value: '{HOST.NAME}'
+        -
+          name: ItemID
+          value: '{ITEM.ID}'
+        -
+          name: ItemLastValue
+          value: '{ITEM.LASTVALUE}'
+        -
+          name: TriggerDescription
+          value: '{TRIGGER.DESCRIPTION}'
+        -
+          name: TriggerExpression
+          value: '{TRIGGER.EXPRESSION}'
+        -
+          name: TriggerName
+          value: '{TRIGGER.NAME}'
+      script: |
+        try {
+            Zabbix.Log(4, '[ Events webhook ] Started with params: ' + value);
+            params = JSON.parse(value)
+            req = new CurlHttpRequest()
+          
+            req.AddHeader('Content-Type: application/json');
+        
+            resp = req.Post('https://catcher.fqdn/events?source=zabbix',
+                JSON.stringify(params)
+            );
+        
+            if (req.Status() != 200) {
+                throw 'Response code: ' + req.Status();
+            }
+            return resp;
+        }
+        catch (error) {
+            Zabbix.Log(3, '[ Events webhook ] issue creation failed : ' + error);
+            throw 'Failed with error: ' + error;
+        }
+      process_tags: 'YES'
+      description: 'SRE Events '
+      message_templates:
+        -
+          event_source: TRIGGERS
+          operation_mode: PROBLEM
+          subject: 'Problem: {EVENT.NAME}'
+          message: |
+            Problem started at {EVENT.TIME} on {EVENT.DATE}
+            Problem name: {EVENT.NAME}
+            Host: {HOST.NAME}
+            Severity: {EVENT.SEVERITY}
+            Operational data: {EVENT.OPDATA}
+            Original problem ID: {EVENT.ID}
+            {TRIGGER.URL}
+        -
+          event_source: TRIGGERS
+          operation_mode: RECOVERY
+          subject: 'Resolved: {EVENT.RECOVERY.NAME}'
+          message: |
+            Problem has been resolved at {EVENT.RECOVERY.TIME} on {EVENT.RECOVERY.DATE}
+            Problem name: {EVENT.RECOVERY.NAME}
+            Host: {HOST.NAME}
+            Severity: {EVENT.SEVERITY}
+            Original problem ID: {EVENT.ID}
+            {TRIGGER.URL}
+        -
+          event_source: TRIGGERS
+          operation_mode: UPDATE
+          subject: 'Updated problem: {EVENT.NAME}'
+          message: |
+            {USER.FULLNAME} {EVENT.UPDATE.ACTION} problem at {EVENT.UPDATE.DATE} {EVENT.UPDATE.TIME}.
+            {EVENT.UPDATE.MESSAGE}
+            
+            Current problem status is {EVENT.STATUS}, acknowledged: {EVENT.ACK.STATUS}.
+        -
+          event_source: DISCOVERY
+          operation_mode: PROBLEM
+          subject: 'Discovery: {DISCOVERY.DEVICE.STATUS} {DISCOVERY.DEVICE.IPADDRESS}'
+          message: |
+            Discovery rule: {DISCOVERY.RULE.NAME}
+            
+            Device IP: {DISCOVERY.DEVICE.IPADDRESS}
+            Device DNS: {DISCOVERY.DEVICE.DNS}
+            Device status: {DISCOVERY.DEVICE.STATUS}
+            Device uptime: {DISCOVERY.DEVICE.UPTIME}
+            
+            Device service name: {DISCOVERY.SERVICE.NAME}
+            Device service port: {DISCOVERY.SERVICE.PORT}
+            Device service status: {DISCOVERY.SERVICE.STATUS}
+            Device service uptime: {DISCOVERY.SERVICE.UPTIME}
+        -
+          event_source: AUTOREGISTRATION
+          operation_mode: PROBLEM
+          subject: 'Autoregistration: {HOST.HOST}'
+          message: |
+            Host name: {HOST.HOST}
+            Host IP: {HOST.IP}
+            Agent port: {HOST.PORT}

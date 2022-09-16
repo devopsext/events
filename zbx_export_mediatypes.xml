@@ -20,8 +20,16 @@
                     <value>{EVENT.ID}</value>
                 </parameter>
                 <parameter>
+                    <name>EventName</name>
+                    <value>{EVENT.NAME}</value>
+                </parameter>
+                <parameter>
                     <name>EventNSeverity</name>
                     <value>{EVENT.NSEVERITY}</value>
+                </parameter>
+                <parameter>
+                    <name>EventOpData</name>
+                    <value>{EVENT.OPDATA}</value>
                 </parameter>
                 <parameter>
                     <name>EventTags</name>
@@ -49,11 +57,19 @@
                 </parameter>
                 <parameter>
                     <name>Status</name>
-                    <value>Error</value>
+                    <value>{EVENT.Status}</value>
                 </parameter>
                 <parameter>
                     <name>TriggerDescription</name>
                     <value>{TRIGGER.DESCRIPTION}</value>
+                </parameter>
+                <parameter>
+                    <name>TriggerExpression</name>
+                    <value>{TRIGGER.EXPRESSION}</value>
+                </parameter>
+                <parameter>
+                    <name>TriggerName</name>
+                    <value>{TRIGGER.NAME}</value>
                 </parameter>
             </parameters>
             <script>try {&#13;
