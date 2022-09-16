@@ -21,17 +21,23 @@ type ZabbixProcessor struct {
 }
 
 type ZabbixEvent struct {
-	EventType          string
-	EventNSeverity     string
-	Status             string
+	AlertURL           string
+	Environment        string
+	EventDate          string
 	EventID            string
+	EventName          string
+	EventNSeverity     string
+	EventOpData        string
+	Status             string
+	EventTags          string
+	EventTime          string
+	EventType          string
 	HostName           string
 	ItemID             string
 	ItemLastValue      string
-	AlertURL           string
 	TriggerDescription string
-	EventTags          string
-	Scope              string
+	TriggerExpression  string
+	TriggerName        string
 }
 
 func ZabbixProcessorType() string {
@@ -100,19 +106,23 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	var request ZabbixEvent
 
 	paths := [][]string{
-		[]string{"EventType"},
-		[]string{"EventNSeverity"},
-		[]string{"Status"},
-		[]string{"EventID"},
-		[]string{"EventTime"},
+		[]string{"AlertURL"},
+		[]string{"Environment"},
 		[]string{"EventDate"},
+		[]string{"EventID"},
+		[]string{"EventName"},
+		[]string{"EventNSeverity"},
+		[]string{"EventOpData"},
+		[]string{"Status"},
+		[]string{"EventTags"},
+		[]string{"EventTime"},
+		[]string{"EventType"},
 		[]string{"HostName"},
 		[]string{"ItemID"},
 		[]string{"ItemLastValue"},
-		[]string{"AlertURL"},
 		[]string{"TriggerDescription"},
-		[]string{"EventTags"},
-		[]string{"Scope"},
+		[]string{"TriggerExpression"},
+		[]string{"TriggerName"},
 	}
 	var EventDate, EventTime string
 	jsonparser.EachKey(body, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
@@ -120,31 +130,39 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 		v := string(u)
 		switch idx {
 		case 0:
-			request.EventType = v
+			request.AlertURL = v
 		case 1:
-			request.EventNSeverity = v
+			request.Environment = v
 		case 2:
-			request.Status = v
+			request.EventDate = v
 		case 3:
 			request.EventID = v
 		case 4:
-			EventTime = v
+			request.EventName = v
 		case 5:
-			EventDate = v
+			request.EventNSeverity = v
 		case 6:
-			request.HostName = v
+			request.EventOpData = v
 		case 7:
-			request.ItemID = v
+			request.Status = v
 		case 8:
-			request.ItemLastValue = v
-		case 9:
-			request.AlertURL = v
-		case 10:
-			request.TriggerDescription = v
-		case 11:
 			request.EventTags = v
+		case 9:
+			request.EventTime = v
+		case 10:
+			request.EventType = v
+		case 11:
+			request.HostName = v
 		case 12:
-			request.Scope = v
+			request.ItemID = v
+		case 13:
+			request.ItemLastValue = v
+		case 14:
+			request.TriggerDescription = v
+		case 15:
+			request.TriggerExpression = v
+		case 16:
+			request.TriggerName = v
 		}
 	}, paths...)
 
