@@ -6,7 +6,9 @@
   {{- if eq .type "GitlabEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "DataDogEvent"}}
-    {{- template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}
+    {{- if (.data.alert.title | regexMatch ".*TEST.*")}}
+      {{- template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}
+    {{- end}}
   {{- end}}
   {{- if eq .type "Site24x7Event"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "CloudflareEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}

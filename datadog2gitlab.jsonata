@@ -1,11 +1,12 @@
 (
   {
-    'DATADOG_TRANSITION': data.alert.transition,
-    'DATADOG_ID': data.alert.id,
-    'DATADOG_TAGS': data.tags,
-    'SLACK_CHANNEL': via.Slack.channel,
-    'SLACK_THREAD': via.Slack.ts,
-    'DATE_FROM': $fromMillis(data.date - 1000 * 60 * 10),
-    'DATE_TO': $fromMillis(data.date)
+    'DATADOG_TRANSITION': datadog.alert.transition,
+    'DATADOG_ID': datadog.alert.id,
+    'DATADOG_TAGS': datadog.tags,
+    'SLACK_CHANNEL': slack.channel,
+    'SLACK_THREAD': slack.thread,
+    'DATE_FROM': $fromMillis(datadog.date - 1000 * 60 * 10),
+    'DATE_TO': $fromMillis(datadog.date),
+    'TEST': test ? "true" : ""
   }
 )
