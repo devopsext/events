@@ -140,9 +140,13 @@
     {{- end}}
 
     {{- $image := "https://via.placeholder.com/452x185.png?text=No%20chart%20image"}}
-    {{- if urlWait .data.snapshot 5 3 199 }}
-      {{- $image = .data.snapshot}}
-    {{- end}}
+    {{- range (list .data.snapshot .data.snapshot .data.snapshot)}}
+      {{- $png := printf "%s?%s" . (randAlphaNum 6) }}
+      {{- if urlWait $png 1 2 199 }}
+        {{- $image = $png}}
+        {{- break }}
+      {{- end}}
+    {{- end}} 
     {{- logInfo "Datadog image => %s" $image }}
     {{- jsonata (dict "datadog" .data "image" $image "slack" $slack) "datadog2slack.jsonata"}}
   {{- end}}
