@@ -18,25 +18,27 @@ import (
 )
 
 type HttpInputOptions struct {
-	HealthcheckURL  string
-	K8sURL          string
-	KubeURL         string
-	WinEventURL     string
-	RancherURL      string
-	AlertmanagerURL string
-	GitlabURL       string
-	DataDogURL      string
-	Site24x7URL     string
-	CloudflareURL   string
-	GoogleURL       string
-	AWSURL          string
-	ZabbixURL       string
-	CustomJsonURL   string
-	VCenterURL      string
+	HealthcheckURL    string
+	K8sURL            string
+	KubeURL           string
+	WinEventURL       string
+	RancherURL        string
+	AlertmanagerURL   string
+	GitlabURL         string
+	DataDogURL        string
+	Site24x7URL       string
+	CloudflareURL     string
+	GoogleURL         string
+	AWSURL            string
+	ZabbixURL         string
+	CustomJsonURL     string
+	VCenterURL        string
 	ObserviumEventURL string
 
+	ServerName    string
 	Listen        string
 	Tls           bool
+	Insecure      bool
 	Cert          string
 	Key           string
 	Chain         string
@@ -171,13 +173,18 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 		h.logger.Info("Http input is up. Listening...")
 
-		srv := &http.Server{Handler: mux}
+		srv := &http.Server{
+			Handler:  mux,
+			ErrorLog: nil,
+		}
 
 		if h.options.Tls {
 
 			srv.TLSConfig = &tls.Config{
-				Certificates: certificates,
-				RootCAs:      caPool,
+				Certificates:       certificates,
+				RootCAs:            caPool,
+				InsecureSkipVerify: h.options.Insecure,
+				ServerName:         h.options.ServerName,
 			}
 
 			err = srv.ServeTLS(listener, "", "")

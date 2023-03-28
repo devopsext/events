@@ -6,6 +6,7 @@ src/
 vscode.sh
 events.key
 events.crt
+events.ca
 coverage.txt
 pubsub.credentials
 __debug_bin

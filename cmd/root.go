@@ -67,27 +67,30 @@ var prometheusOptions = sreProvider.PrometheusOptions{
 }
 
 var httpInputOptions = input.HttpInputOptions{
-	HealthcheckURL:  envGet("HTTP_IN_HEALTHCHECK_URL", "/healthcheck").(string),
-	K8sURL:          envGet("HTTP_IN_K8S_URL", "").(string),
-	KubeURL:         envGet("HTTP_IN_KUBE_URL", "").(string),
-	WinEventURL:     envGet("HTTP_IN_WINEVENT_URL", "").(string),
-	ObserviumEventURL:     envGet("HTTP_IN_OBSERVIUM_URL", "").(string),
-	RancherURL:      envGet("HTTP_IN_RANCHER_URL", "").(string),
-	AlertmanagerURL: envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
-	GitlabURL:       envGet("HTTP_IN_GITLAB_URL", "").(string),
-	DataDogURL:      envGet("HTTP_IN_DATADOG_URL", "").(string),
-	CustomJsonURL:   envGet("HTTP_IN_CUSTOMJSON_URL", "").(string),
-	AWSURL:          envGet("HTTP_IN_AWS_URL", "").(string),
-	ZabbixURL:       envGet("HTTP_IN_ZABBIX_URL", "").(string),
-	GoogleURL:       envGet("HTTP_IN_GOOGLE_URL", "").(string),
-	CloudflareURL:   envGet("HTTP_IN_CLOUDFLARE_URL", "").(string),
-	Site24x7URL:     envGet("HTTP_IN_SITE24X7_URL", "").(string),
-	Listen:          envGet("HTTP_IN_LISTEN", ":80").(string),
-	Tls:             envGet("HTTP_IN_TLS", false).(bool),
-	Cert:            envGet("HTTP_IN_CERT", "").(string),
-	Key:             envGet("HTTP_IN_KEY", "").(string),
-	Chain:           envGet("HTTP_IN_CHAIN", "").(string),
-	HeaderTraceID:   envGet("HTTP_IN_HEADER_TRACE_ID", "X-Trace-ID").(string),
+	HealthcheckURL:    envGet("HTTP_IN_HEALTHCHECK_URL", "/healthcheck").(string),
+	K8sURL:            envGet("HTTP_IN_K8S_URL", "").(string),
+	KubeURL:           envGet("HTTP_IN_KUBE_URL", "").(string),
+	WinEventURL:       envGet("HTTP_IN_WINEVENT_URL", "").(string),
+	ObserviumEventURL: envGet("HTTP_IN_OBSERVIUM_URL", "").(string),
+	RancherURL:        envGet("HTTP_IN_RANCHER_URL", "").(string),
+	AlertmanagerURL:   envGet("HTTP_IN_ALERTMANAGER_URL", "").(string),
+	GitlabURL:         envGet("HTTP_IN_GITLAB_URL", "").(string),
+	DataDogURL:        envGet("HTTP_IN_DATADOG_URL", "").(string),
+	CustomJsonURL:     envGet("HTTP_IN_CUSTOMJSON_URL", "").(string),
+	AWSURL:            envGet("HTTP_IN_AWS_URL", "").(string),
+	ZabbixURL:         envGet("HTTP_IN_ZABBIX_URL", "").(string),
+	GoogleURL:         envGet("HTTP_IN_GOOGLE_URL", "").(string),
+	CloudflareURL:     envGet("HTTP_IN_CLOUDFLARE_URL", "").(string),
+	Site24x7URL:       envGet("HTTP_IN_SITE24X7_URL", "").(string),
+
+	ServerName:    envGet("HTTP_IN_SERVER_NAME", "").(string),
+	Listen:        envGet("HTTP_IN_LISTEN", ":80").(string),
+	Tls:           envGet("HTTP_IN_TLS", false).(bool),
+	Insecure:      envGet("HTTP_IN_INSECURE", false).(bool),
+	Cert:          envGet("HTTP_IN_CERT", "").(string),
+	Key:           envGet("HTTP_IN_KEY", "").(string),
+	Chain:         envGet("HTTP_IN_CHAIN", "").(string),
+	HeaderTraceID: envGet("HTTP_IN_HEADER_TRACE_ID", "X-Trace-ID").(string),
 }
 
 var pubsubInputOptions = input.PubSubInputOptions{
@@ -552,8 +555,10 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.AWSURL, "http-in-aws-url", httpInputOptions.AWSURL, "Http AWS url")
 	flags.StringVar(&httpInputOptions.ZabbixURL, "http-in-zabbix-url", httpInputOptions.ZabbixURL, "Http Zabbix url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
+	flags.StringVar(&httpInputOptions.ServerName, "http-in-server-name", httpInputOptions.ServerName, "Http server name")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")
+	flags.BoolVar(&httpInputOptions.Insecure, "http-in-insecure", httpInputOptions.Insecure, "Http insecure skip verify")
 	flags.StringVar(&httpInputOptions.Cert, "http-in-cert", httpInputOptions.Cert, "Http cert file or content")
 	flags.StringVar(&httpInputOptions.Key, "http-in-key", httpInputOptions.Key, "Http key file or content")
 	flags.StringVar(&httpInputOptions.Chain, "http-in-chain", httpInputOptions.Chain, "Http CA chain file or content")
