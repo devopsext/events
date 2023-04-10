@@ -34,6 +34,7 @@ type HttpInputOptions struct {
 	CustomJsonURL     string
 	VCenterURL        string
 	ObserviumEventURL string
+	TeamcityURL       string
 
 	ServerName    string
 	Listen        string
@@ -228,6 +229,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 	h.setProcessor(m, h.options.ZabbixURL, processor.ZabbixProcessorType())
 	h.setProcessor(m, h.options.VCenterURL, processor.VCenterProcessorType())
 	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
+	h.setProcessor(m, h.options.TeamcityURL, processor.TeamcityProcessorType())
 	return m
 }
 

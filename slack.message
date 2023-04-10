@@ -153,7 +153,10 @@
 {{- end}}
 
 {{- define "site24x7"}}
-  {{ toJSON .data}}
+  Site24x7 Event
+  ---
+  {{toPrettyJson .data | js }}
+  ---
 {{- end}}
 
 {{- define "cloudflare"}}
@@ -164,6 +167,12 @@
   {{- if .data.incident}}
     {{ toJSON .data}}
   {{- end}}
+{{- end}}
+
+{{- define "teamcity"}}
+  {{- printf "Teamcity build\n"}}
+  {{- printf "Triggered by %s\n" .triggeredBy}}
+  {{- printf "%s" .text}}
 {{- end}}
 
 {{- define "aws-ec2"}}
@@ -272,7 +281,7 @@
     {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
   {{- end}}
   {{- if eq .type "DataDogEvent"}}{{- if .data.event}}{{template "datadog" .}}{{end}}{{- end}}
-  {{- if eq .type "Site24x7Event"}}{{- if .data}}{{template "site24x7" .}}{{end}}{{- end}}
+  {{- if eq .type "Site24x7Event"}}{{- if .data }}{{template "site24x7" .}}{{end}}{{- end}}
   {{- if eq .type "CloudflareEvent"}}{{- if .data}}{{template "cloudflare" .}}{{end}}{{- end}}
   {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
   {{- if eq .type "AWSEvent"}}
@@ -295,5 +304,6 @@
       {{- if eq .data.source "aws.acm"}}{{template "aws-acm" .}}{{end}}
     {{- end}}
   {{- end}}
+  {{- if eq .type "TeamcityEvent"}}{{- if .data}}{{template "teamcity" .data}}{{end}}{{- end}}
 {{- end}}
 {{- define "slack-message"}}{{template "text" .}}{{- end}}

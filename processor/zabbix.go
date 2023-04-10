@@ -181,7 +181,7 @@ func NewZabbixProcessor(outputs *common.Outputs, observability *common.Observabi
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all google processor requests", []string{"channel"}, "zabbix", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all google processor errors", []string{"channel"}, "zabbix", "processor"),
+		requests: observability.Metrics().Counter("requests", "Count of all zabbix processor requests", []string{"channel"}, "zabbix", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all zabbix processor errors", []string{"channel"}, "zabbix", "processor"),
 	}
 }
