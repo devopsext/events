@@ -170,9 +170,8 @@
 {{- end}}
 
 {{- define "teamcity"}}
-  {{- printf "Teamcity build\n"}}
-  {{- printf "Triggered by %s\n" .triggeredBy}}
-  {{- printf "%s" .text}}
+  {{printf "Teamcity build triggered by %s\n" .triggeredBy}}
+  {{printf "%s" .text}}
 {{- end}}
 
 {{- define "aws-ec2"}}

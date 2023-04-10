@@ -22,53 +22,64 @@ type TeamcityProcessor struct {
 	hook     *gitlab.Webhook
 }
 
+type ExtraParameter struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type TeamcityRequest struct {
 	Build struct {
-		BuildStatus           string        `json:"buildStatus"`
-		BuildResult           string        `json:"buildResult"`
-		BuildResultPrevious   string        `json:"buildResultPrevious"`
-		BuildResultDelta      string        `json:"buildResultDelta"`
-		NotifyType            string        `json:"notifyType"`
-		BuildFullName         string        `json:"buildFullName"`
-		BuildName             string        `json:"buildName"`
-		BuildId               string        `json:"buildId"`
-		BuildTypeId           string        `json:"buildTypeId"`
-		BuildInternalTypeId   string        `json:"buildInternalTypeId"`
-		BuildExternalTypeId   string        `json:"buildExternalTypeId"`
-		BuildStatusUrl        string        `json:"buildStatusUrl"`
-		BuildStatusHtml       string        `json:"buildStatusHtml"`
-		BuildStartTime        string        `json:"buildStartTime"`
-		CurrentTime           string        `json:"currentTime"`
-		RootUrl               string        `json:"rootUrl"`
-		ProjectName           string        `json:"projectName"`
-		ProjectId             string        `json:"projectId"`
-		ProjectInternalId     string        `json:"projectInternalId"`
-		ProjectExternalId     string        `json:"projectExternalId"`
-		BuildNumber           string        `json:"buildNumber"`
-		AgentName             string        `json:"agentName"`
-		AgentOs               string        `json:"agentOs"`
-		AgentHostname         string        `json:"agentHostname"`
-		TriggeredBy           string        `json:"triggeredBy"`
-		Message               string        `json:"message"`
-		Text                  string        `json:"text"`
-		BuildStateDescription string        `json:"buildStateDescription"`
-		BuildIsPersonal       bool          `json:"buildIsPersonal"`
-		DerivedBuildEventType string        `json:"derivedBuildEventType"`
-		BuildRunners          []string      `json:"buildRunners"`
-		BuildTags             []interface{} `json:"buildTags"`
-		ExtraParameters       []struct {
-			Name  string `json:"name"`
-			Value string `json:"value"`
-		} `json:"extraParameters"`
-		TeamcityProperties []struct {
-			Name  string `json:"name"`
-			Value string `json:"value"`
-		} `json:"teamcityProperties"`
-		MaxChangeFileListSize          int           `json:"maxChangeFileListSize"`
-		MaxChangeFileListCountExceeded bool          `json:"maxChangeFileListCountExceeded"`
-		ChangeFileListCount            int           `json:"changeFileListCount"`
-		Changes                        []interface{} `json:"changes"`
+		BuildStatus                    string           `json:"buildStatus"`
+		BuildResult                    string           `json:"buildResult"`
+		BuildResultPrevious            string           `json:"buildResultPrevious"`
+		BuildResultDelta               string           `json:"buildResultDelta"`
+		NotifyType                     string           `json:"notifyType"`
+		BuildFullName                  string           `json:"buildFullName"`
+		BuildName                      string           `json:"buildName"`
+		BuildId                        string           `json:"buildId"`
+		BuildTypeId                    string           `json:"buildTypeId"`
+		BuildInternalTypeId            string           `json:"buildInternalTypeId"`
+		BuildExternalTypeId            string           `json:"buildExternalTypeId"`
+		BuildStatusUrl                 string           `json:"buildStatusUrl"`
+		BuildStatusHtml                string           `json:"buildStatusHtml"`
+		BuildStartTime                 string           `json:"buildStartTime"`
+		CurrentTime                    string           `json:"currentTime"`
+		RootUrl                        string           `json:"rootUrl"`
+		ProjectName                    string           `json:"projectName"`
+		ProjectId                      string           `json:"projectId"`
+		ProjectInternalId              string           `json:"projectInternalId"`
+		ProjectExternalId              string           `json:"projectExternalId"`
+		BuildNumber                    string           `json:"buildNumber"`
+		AgentName                      string           `json:"agentName"`
+		AgentOs                        string           `json:"agentOs"`
+		AgentHostname                  string           `json:"agentHostname"`
+		TriggeredBy                    string           `json:"triggeredBy"`
+		Message                        string           `json:"message"`
+		Text                           string           `json:"text"`
+		BuildStateDescription          string           `json:"buildStateDescription"`
+		BuildIsPersonal                bool             `json:"buildIsPersonal"`
+		DerivedBuildEventType          string           `json:"derivedBuildEventType"`
+		BuildRunners                   []string         `json:"buildRunners"`
+		BuildTags                      []interface{}    `json:"buildTags"`
+		ExtraParameters                []ExtraParameter `json:"extraParameters"`
+		TeamcityProperties             []ExtraParameter `json:"teamcityProperties"`
+		MaxChangeFileListSize          int              `json:"maxChangeFileListSize"`
+		MaxChangeFileListCountExceeded bool             `json:"maxChangeFileListCountExceeded"`
+		ChangeFileListCount            int              `json:"changeFileListCount"`
+		Changes                        []interface{}    `json:"changes"`
 	} `json:"build"`
+}
+
+func (tcr TeamcityRequest) GetParams(names []string) string {
+	rs := make([]string, 0)
+	for _, p := range tcr.Build.TeamcityProperties {
+		for _, n := range names {
+			if p.Name == n {
+				rs = append(rs, fmt.Sprintf("%s:%s", p.Name, p.Value))
+			}
+		}
+	}
+	return strings.Join(rs, ",")
 }
 
 type TeamcityResponse struct {
@@ -124,6 +135,8 @@ func (p TeamcityProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
+
+	tc.Build.Text = fmt.Sprintf("%s (%s)", tc.Build.Text, tc.GetParams([]string{"env.ENVIRONMENT"}))
 
 	EventDateTime, err := time.Parse(time.RFC3339Nano, tc.Build.CurrentTime)
 	if err != nil {
