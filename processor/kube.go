@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
-	"io/ioutil"
+	"io"
 	"k8s.io/api/core/v1"
 	"net/http"
 	"strings"
@@ -94,7 +94,7 @@ func (p *KubeProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request
 
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}

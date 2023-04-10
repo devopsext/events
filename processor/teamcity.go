@@ -70,6 +70,19 @@ type TeamcityRequest struct {
 	} `json:"build"`
 }
 
+type TeamcityEvent struct {
+	CurrentTime    string `json:"currentTime"`
+	BuildFullName  string `json:"buildFullName"`
+	BuildStatus    string `json:"buildStatus"`
+	BuildStatusURL string `json:"buildStatusUrl"`
+	BuildName      string `json:"buildName"`
+	BuildId        string `json:"buildId"`
+	TriggeredBy    string `json:"triggeredBy"`
+	Message        string `json:"message"`
+	Text           string `json:"text"`
+	Environment    string `json:"environment"`
+}
+
 func (tcr TeamcityRequest) GetParams(names []string) string {
 	rs := make([]string, 0)
 	for _, p := range tcr.Build.TeamcityProperties {
@@ -80,6 +93,39 @@ func (tcr TeamcityRequest) GetParams(names []string) string {
 		}
 	}
 	return strings.Join(rs, ",")
+}
+
+func (tcr TeamcityRequest) GetParam(name string) string {
+	for _, p := range tcr.Build.ExtraParameters {
+		if p.Name == name {
+			return p.Value
+		}
+	}
+	return ""
+}
+
+func (tcr TeamcityRequest) GetProperty(name string) string {
+	for _, p := range tcr.Build.TeamcityProperties {
+		if p.Name == name {
+			return p.Value
+		}
+	}
+	return ""
+}
+
+func (tcr TeamcityRequest) GetEvent() TeamcityEvent {
+	return TeamcityEvent{
+		CurrentTime:    tcr.Build.CurrentTime,
+		BuildStatus:    tcr.Build.BuildStatus,
+		BuildStatusURL: tcr.Build.BuildStatusUrl,
+		BuildFullName:  tcr.Build.BuildFullName,
+		BuildName:      tcr.Build.BuildName,
+		BuildId:        tcr.Build.BuildId,
+		TriggeredBy:    tcr.Build.TriggeredBy,
+		Message:        tcr.Build.Message,
+		Text:           tcr.Build.Text,
+		Environment:    tcr.GetProperty("env.ENVIRONMENT"),
+	}
 }
 
 type TeamcityResponse struct {
@@ -170,7 +216,7 @@ func (p TeamcityProcessor) send(span sreCommon.TracerSpan, channel string, tc Te
 	e := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
-		Data:    tc.Build,
+		Data:    tc.GetEvent(),
 	}
 	if t != nil && (*t).UnixNano() > 0 {
 		e.SetTime((*t).UTC())

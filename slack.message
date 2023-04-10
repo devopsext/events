@@ -153,13 +153,13 @@
 {{- end}}
 
 {{- define "site24x7"}}
-  Site24x7 Event
-  ---
-  {{toPrettyJson .data | js }}
-  ---
+  {{printf "Site24x7 Event\n"}}
+  {{- printf "%s is %s from %s\n" .data.MONITORNAME .data.STATUS .data.FAILED_LOCATIONS}}
+  {{- printf "%s" .data.MONITOR_DASHBOARD_LINK}}
 {{- end}}
 
 {{- define "cloudflare"}}
+  {{- printf "Cloudflare Event\n"}}
   {{ toJSON .data}}
 {{- end}}
 
@@ -170,8 +170,10 @@
 {{- end}}
 
 {{- define "teamcity"}}
-  {{printf "Teamcity build triggered by %s\n" .triggeredBy}}
-  {{printf "%s" .text}}
+  {{- printf "*Build:* <%s|%s>\n" .buildStatusUrl .buildFullName}}
+  {{- printf "*Environment:* %s\n" .environment}}
+  {{- printf "*Triggered by:* %s\n" .triggeredBy}}
+  {{- printf "*Status:* %s" .buildStatus}}
 {{- end}}
 
 {{- define "aws-ec2"}}
