@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -34,6 +33,7 @@ type HttpInputOptions struct {
 	CustomJsonURL     string
 	VCenterURL        string
 	ObserviumEventURL string
+	TeamcityURL       string
 
 	ServerName    string
 	Listen        string
@@ -106,7 +106,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			var cert []byte
 			if _, err := os.Stat(h.options.Cert); err == nil {
 
-				cert, err = ioutil.ReadFile(h.options.Cert)
+				cert, err = os.ReadFile(h.options.Cert)
 				if err != nil {
 					h.logger.Panic(err)
 				}
@@ -117,7 +117,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			// load key
 			var key []byte
 			if _, err := os.Stat(h.options.Key); err == nil {
-				key, err = ioutil.ReadFile(h.options.Key)
+				key, err = os.ReadFile(h.options.Key)
 				if err != nil {
 					h.logger.Panic(err)
 				}
@@ -136,7 +136,7 @@ func (h *HttpInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 			// load CA chain
 			var chain []byte
 			if _, err := os.Stat(h.options.Chain); err == nil {
-				chain, err = ioutil.ReadFile(h.options.Chain)
+				chain, err = os.ReadFile(h.options.Chain)
 				if err != nil {
 					h.logger.Panic(err)
 				}
@@ -228,6 +228,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 	h.setProcessor(m, h.options.ZabbixURL, processor.ZabbixProcessorType())
 	h.setProcessor(m, h.options.VCenterURL, processor.VCenterProcessorType())
 	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
+	h.setProcessor(m, h.options.TeamcityURL, processor.TeamcityProcessorType())
 	return m
 }
 

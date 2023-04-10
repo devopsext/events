@@ -10,7 +10,8 @@
       {{- template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}
     {{- end}}
   {{- end}}
-  {{- if eq .type "Site24x7Event"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
+  {{- if eq .type "Site24x7Event"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "TeamcityEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
   {{- if eq .type "CloudflareEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "GoogleEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "AWSEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}

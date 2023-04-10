@@ -82,6 +82,7 @@ var httpInputOptions = input.HttpInputOptions{
 	GoogleURL:         envGet("HTTP_IN_GOOGLE_URL", "").(string),
 	CloudflareURL:     envGet("HTTP_IN_CLOUDFLARE_URL", "").(string),
 	Site24x7URL:       envGet("HTTP_IN_SITE24X7_URL", "").(string),
+	TeamcityURL:       envGet("HTTP_IN_TEAMCITY_URL", "").(string),
 
 	ServerName:    envGet("HTTP_IN_SERVER_NAME", "").(string),
 	Listen:        envGet("HTTP_IN_LISTEN", ":80").(string),
@@ -499,7 +500,7 @@ func Execute() {
 			processors.Add(processor.NewZabbixProcessor(&outputs, observability))
 			processors.Add(processor.NewVCenterProcessor(&outputs, observability))
 			processors.Add(processor.NewObserviumEventProcessor(&outputs, observability))
-
+			processors.Add(processor.NewTeamcityProcessor(&outputs, observability))
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
 			inputs.Add(input.NewPubSubInput(pubsubInputOptions, processors, observability))
@@ -555,6 +556,7 @@ func Execute() {
 	flags.StringVar(&httpInputOptions.AWSURL, "http-in-aws-url", httpInputOptions.AWSURL, "Http AWS url")
 	flags.StringVar(&httpInputOptions.ZabbixURL, "http-in-zabbix-url", httpInputOptions.ZabbixURL, "Http Zabbix url")
 	flags.StringVar(&httpInputOptions.CustomJsonURL, "http-in-customjson-url", httpInputOptions.CustomJsonURL, "Http CustomJson url")
+	flags.StringVar(&httpInputOptions.TeamcityURL, "http-in-teamcity-url", httpInputOptions.TeamcityURL, "Http Teamcity url")
 	flags.StringVar(&httpInputOptions.ServerName, "http-in-server-name", httpInputOptions.ServerName, "Http server name")
 	flags.StringVar(&httpInputOptions.Listen, "http-in-listen", httpInputOptions.Listen, "Http listen")
 	flags.BoolVar(&httpInputOptions.Tls, "http-in-tls", httpInputOptions.Tls, "Http TLS")

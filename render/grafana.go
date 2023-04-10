@@ -116,7 +116,7 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 	board.Timezone = "utc"
 
 	to := time.Now().UTC().Unix() * 1000
-	from := (to - int64(period*60)*1000)
+	from := to - int64(period*60)*1000
 	board.Time = sdk.Time{From: fmt.Sprintf("now-%dm", period), To: "now"}
 
 	row1 := board.AddRow("")

@@ -3,7 +3,7 @@ package processor
 import (
 	"errors"
 	"github.com/buger/jsonparser"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -88,7 +88,7 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
@@ -106,23 +106,23 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	var request ZabbixEvent
 
 	paths := [][]string{
-		[]string{"AlertURL"},
-		[]string{"Environment"},
-		[]string{"EventDate"},
-		[]string{"EventID"},
-		[]string{"EventName"},
-		[]string{"EventNSeverity"},
-		[]string{"EventOpData"},
-		[]string{"Status"},
-		[]string{"EventTags"},
-		[]string{"EventTime"},
-		[]string{"EventType"},
-		[]string{"HostName"},
-		[]string{"ItemID"},
-		[]string{"ItemLastValue"},
-		[]string{"TriggerDescription"},
-		[]string{"TriggerExpression"},
-		[]string{"TriggerName"},
+		{"AlertURL"},
+		{"Environment"},
+		{"EventDate"},
+		{"EventID"},
+		{"EventName"},
+		{"EventNSeverity"},
+		{"EventOpData"},
+		{"Status"},
+		{"EventTags"},
+		{"EventTime"},
+		{"EventType"},
+		{"HostName"},
+		{"ItemID"},
+		{"ItemLastValue"},
+		{"TriggerDescription"},
+		{"TriggerExpression"},
+		{"TriggerName"},
 	}
 	var EventDate, EventTime string
 	jsonparser.EachKey(body, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
@@ -181,7 +181,7 @@ func NewZabbixProcessor(outputs *common.Outputs, observability *common.Observabi
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all google processor requests", []string{"channel"}, "zabbix", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all google processor errors", []string{"channel"}, "zabbix", "processor"),
+		requests: observability.Metrics().Counter("requests", "Count of all zabbix processor requests", []string{"channel"}, "zabbix", "processor"),
+		errors:   observability.Metrics().Counter("errors", "Count of all zabbix processor errors", []string{"channel"}, "zabbix", "processor"),
 	}
 }
