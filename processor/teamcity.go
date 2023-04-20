@@ -22,110 +22,18 @@ type TeamcityProcessor struct {
 	hook     *gitlab.Webhook
 }
 
-type ExtraParameter struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-type TeamcityRequest struct {
-	Build struct {
-		BuildStatus                    string           `json:"buildStatus"`
-		BuildResult                    string           `json:"buildResult"`
-		BuildResultPrevious            string           `json:"buildResultPrevious"`
-		BuildResultDelta               string           `json:"buildResultDelta"`
-		NotifyType                     string           `json:"notifyType"`
-		BuildFullName                  string           `json:"buildFullName"`
-		BuildName                      string           `json:"buildName"`
-		BuildId                        string           `json:"buildId"`
-		BuildTypeId                    string           `json:"buildTypeId"`
-		BuildInternalTypeId            string           `json:"buildInternalTypeId"`
-		BuildExternalTypeId            string           `json:"buildExternalTypeId"`
-		BuildStatusUrl                 string           `json:"buildStatusUrl"`
-		BuildStatusHtml                string           `json:"buildStatusHtml"`
-		BuildStartTime                 string           `json:"buildStartTime"`
-		CurrentTime                    string           `json:"currentTime"`
-		RootUrl                        string           `json:"rootUrl"`
-		ProjectName                    string           `json:"projectName"`
-		ProjectId                      string           `json:"projectId"`
-		ProjectInternalId              string           `json:"projectInternalId"`
-		ProjectExternalId              string           `json:"projectExternalId"`
-		BuildNumber                    string           `json:"buildNumber"`
-		AgentName                      string           `json:"agentName"`
-		AgentOs                        string           `json:"agentOs"`
-		AgentHostname                  string           `json:"agentHostname"`
-		TriggeredBy                    string           `json:"triggeredBy"`
-		Message                        string           `json:"message"`
-		Text                           string           `json:"text"`
-		BuildStateDescription          string           `json:"buildStateDescription"`
-		BuildIsPersonal                bool             `json:"buildIsPersonal"`
-		DerivedBuildEventType          string           `json:"derivedBuildEventType"`
-		BuildRunners                   []string         `json:"buildRunners"`
-		BuildTags                      []interface{}    `json:"buildTags"`
-		ExtraParameters                []ExtraParameter `json:"extraParameters"`
-		TeamcityProperties             []ExtraParameter `json:"teamcityProperties"`
-		MaxChangeFileListSize          int              `json:"maxChangeFileListSize"`
-		MaxChangeFileListCountExceeded bool             `json:"maxChangeFileListCountExceeded"`
-		ChangeFileListCount            int              `json:"changeFileListCount"`
-		Changes                        []interface{}    `json:"changes"`
-	} `json:"build"`
-}
-
 type TeamcityEvent struct {
-	CurrentTime    string `json:"currentTime"`
-	BuildFullName  string `json:"buildFullName"`
-	BuildStatus    string `json:"buildStatus"`
-	BuildStatusURL string `json:"buildStatusUrl"`
-	BuildName      string `json:"buildName"`
-	BuildId        string `json:"buildId"`
-	TriggeredBy    string `json:"triggeredBy"`
-	Message        string `json:"message"`
-	Text           string `json:"text"`
-	Environment    string `json:"environment"`
-}
-
-func (tcr TeamcityRequest) GetParams(names []string) string {
-	rs := make([]string, 0)
-	for _, p := range tcr.Build.TeamcityProperties {
-		for _, n := range names {
-			if p.Name == n {
-				rs = append(rs, fmt.Sprintf("%s:%s", p.Name, p.Value))
-			}
-		}
-	}
-	return strings.Join(rs, ",")
-}
-
-func (tcr TeamcityRequest) GetParam(name string) string {
-	for _, p := range tcr.Build.ExtraParameters {
-		if p.Name == name {
-			return p.Value
-		}
-	}
-	return ""
-}
-
-func (tcr TeamcityRequest) GetProperty(name string) string {
-	for _, p := range tcr.Build.TeamcityProperties {
-		if p.Name == name {
-			return p.Value
-		}
-	}
-	return ""
-}
-
-func (tcr TeamcityRequest) GetEvent() TeamcityEvent {
-	return TeamcityEvent{
-		CurrentTime:    tcr.Build.CurrentTime,
-		BuildStatus:    tcr.Build.BuildStatus,
-		BuildStatusURL: tcr.Build.BuildStatusUrl,
-		BuildFullName:  tcr.Build.BuildFullName,
-		BuildName:      tcr.Build.BuildName,
-		BuildId:        tcr.Build.BuildId,
-		TriggeredBy:    tcr.Build.TriggeredBy,
-		Message:        tcr.Build.Message,
-		Text:           tcr.Build.Text,
-		Environment:    tcr.GetProperty("env.ENVIRONMENT"),
-	}
+	BuildStartTime      time.Time `json:"build_start_time"`
+	Timestamp           time.Time `json:"timestamp"`
+	BuildFinishTime     time.Time `json:"build_finish_time"`
+	BuildEvent          string    `json:"build_event"`
+	BuildName           string    `json:"build_name"`
+	BuildStatusUrl      string    `json:"build_status_url"`
+	BuildNumber         string    `json:"build_number"`
+	TriggeredBy         string    `json:"triggered_by"`
+	BuildResult         string    `json:"build_result"`
+	BuildResultPrevious string    `json:"build_result_previous"`
+	BuildResultDelta    string    `json:"build_result_delta"`
 }
 
 type TeamcityResponse struct {
@@ -174,7 +82,7 @@ func (p TeamcityProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 
 	p.logger.SpanDebug(span, "Body => %s", body)
 
-	var tc TeamcityRequest
+	var tc TeamcityEvent
 	if err := json.Unmarshal(body, &tc); err != nil {
 		p.errors.Inc(channel)
 		p.logger.SpanError(span, err)
@@ -182,14 +90,7 @@ func (p TeamcityProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 		return err
 	}
 
-	tc.Build.Text = fmt.Sprintf("%s (%s)", tc.Build.Text, tc.GetParams([]string{"env.ENVIRONMENT"}))
-
-	EventDateTime, err := time.Parse(time.RFC3339Nano, tc.Build.CurrentTime)
-	if err != nil {
-		p.send(span, channel, tc, nil)
-		return nil
-	}
-	p.send(span, channel, tc, &EventDateTime)
+	p.send(span, channel, tc, &tc.Timestamp)
 
 	response := &TeamcityResponse{
 		Message: "OK",
@@ -212,11 +113,11 @@ func (p TeamcityProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func (p TeamcityProcessor) send(span sreCommon.TracerSpan, channel string, tc TeamcityRequest, t *time.Time) {
+func (p TeamcityProcessor) send(span sreCommon.TracerSpan, channel string, tc TeamcityEvent, t *time.Time) {
 	e := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
-		Data:    tc.GetEvent(),
+		Data:    tc,
 	}
 	if t != nil && (*t).UnixNano() > 0 {
 		e.SetTime((*t).UTC())
