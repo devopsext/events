@@ -3,6 +3,11 @@
   {{- if eq .type "GitlabEvent"}}
     {{- printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
   {{- end}}
+
+  {{- if eq .type "TeamcityEvent" -}}
+      {{ $tagSet = (concat (splitList "," .data.target) (list .data.build_name .data.build_event)) -}}
+  {{- end -}}
+
   {{- if eq .type "WinEvent"}}{{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .data.tags.host .data.tags.city .data.tags.mt .data.tags.provider }}{{- end}}
 
   {{- if eq .type "ObserviumEvent"}}

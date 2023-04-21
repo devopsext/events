@@ -23,17 +23,13 @@ type TeamcityProcessor struct {
 }
 
 type TeamcityEvent struct {
-	//BuildStartTime      time.Time `json:"build_start_time"`
-	Timestamp time.Time `json:"timestamp"`
-	//BuildFinishTime     time.Time `json:"build_finish_time"`
-	BuildEvent     string `json:"build_event"`
-	BuildName      string `json:"build_name"`
-	BuildStatusUrl string `json:"build_status_url"`
-	//BuildNumber         string    `json:"build_number"`
-	TriggeredBy string `json:"triggered_by"`
-	BuildResult string `json:"build_result"`
-	//BuildResultPrevious string    `json:"build_result_previous"`
-	//BuildResultDelta    string    `json:"build_result_delta"`
+	Timestamp      time.Time `json:"timestamp"`
+	BuildEvent     string    `json:"build_event"`
+	BuildName      string    `json:"build_name"`
+	BuildStatusUrl string    `json:"build_status_url,omitempty"`
+	TriggeredBy    string    `json:"triggered_by,omitempty"`
+	BuildResult    string    `json:"build_result,omitempty"`
+	Target         string    `json:"target,omitempty"`
 }
 
 type TeamcityResponse struct {

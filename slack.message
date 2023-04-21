@@ -171,6 +171,7 @@
 
 {{- define "teamcity"}}
   {{- printf "*Build:* %s %s\n" .build_name .build_event}}
+  {{- printf "*Target:*  %s\n" .target}}
   {{- printf "*Triggered by:* %s\n" .triggered_by}}
   {{- printf "*Status:* <%s|%s>" .build_status_url .build_result}}
 {{- end}}
