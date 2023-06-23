@@ -314,10 +314,12 @@ func (s *SlackOutput) Send(event *common.Event) {
 					Message: message,
 					Title:   "AlertmanagerEvent",
 				}
-				bytes, err := s.sendAlertmanagerImage(span.GetContext(), token, channel, message, event.Data.(template.Alert))
+				// TODO: improve sendAlertmanagerImage to be compatible with slack output
+				//bytes, err := s.sendAlertmanagerImage(span.GetContext(), token, channel, message, event.Data.(template.Alert))
+				bytes, err := s.sendMessage(span.GetContext(), m)
 				if err != nil {
 					s.errors.Inc(channel)
-					s.sendErrorMessage(span.GetContext(), m, err)
+					//s.sendErrorMessage(span.GetContext(), m, err)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
