@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"io"
 	"net/http"
 	"strings"
 
@@ -35,7 +37,9 @@ func (p *AlertmanagerProcessor) EventType() string {
 }
 
 func (p *AlertmanagerProcessor) prepareStatus(status string) string {
-	return strings.Title(strings.ToLower(status))
+	lower := cases.Lower(language.English)
+	title := cases.Title(language.English)
+	return title.String(lower.String(status))
 }
 
 func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, data *template.Data) {
@@ -77,7 +81,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 
 	var body []byte
 	if r.Body != nil {
-		if data, err := ioutil.ReadAll(r.Body); err == nil {
+		if data, err := io.ReadAll(r.Body); err == nil {
 			body = data
 		}
 	}
