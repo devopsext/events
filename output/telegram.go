@@ -302,7 +302,9 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				bytes, err := t.sendAlertmanagerImage(span.GetContext(), IDToken, chatID, message, event.Data.(template.Alert))
+				// TODO: improve sendAlertmanagerImage to be compatible with telegram output
+				//bytes, err := t.sendAlertmanagerImage(span.GetContext(), IDToken, chatID, message, event.Data.(template.Alert))
+				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
 				if err != nil {
 					t.errors.Inc(botID, chatID)
 					t.sendErrorMessage(span.GetContext(), IDToken, chatID, message, err)

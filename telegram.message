@@ -70,6 +70,15 @@
 {{- define "alertmanager-body"}}
   {{- if eq .status "firing"}}{{- printf "\n<b>StartsAt</b>: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
   {{- if eq .status "resolved"}}{{- printf "\n<b>endsAt</b>: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
+  {{- if .labels}}
+    {{- printf "\n*Labels*:"}}
+    {{ range $key, $value := .labels }}
+      {{- printf "*%s*: %s" $key $value }}
+    {{ end }}
+  {{- end}}
+  {{- if eq .status "firing"}}
+    {{- printf "\n*GeneratorURL*: %s" .generatorURL }}
+  {{- end}}
 {{- end}}
 
 {{- define "gitlab-header"}}
