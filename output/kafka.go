@@ -11,7 +11,7 @@ import (
 
 	"github.com/devopsext/events/common"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 )
 
 type KafkaOutputOptions struct {

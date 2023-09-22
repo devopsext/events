@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -94,7 +94,7 @@ func (g *GrafanaRender) renderImage(imageURL string, apiKey string) ([]byte, err
 	}
 
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
@@ -216,8 +216,11 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 
 	row1.Add(graph)
 
-	c := sdk.NewClient(g.options.URL, g.options.ApiKey, g.client)
-
+	c, err := sdk.NewClient(g.options.URL, g.options.ApiKey, g.client)
+	if err != nil {
+		g.logger.SpanError(span, err)
+		return nil, "", err
+	}
 	ctx := context.Background()
 
 	/*b := g.findDashboard(c, ctx, "New dashboard Copy")

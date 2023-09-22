@@ -259,6 +259,26 @@
   {{- template "object" (list .data.detail "(DaysToExpiry|userAgent)")}}
 {{- end}}
 
+{{- define "nomad-allocation"}}
+  {{ printf "%s at %s is %s" .Name .NodeName .ClientStatus}}
+{{- end}}
+
+{{- define "nomad-evaluation"}}
+    {{- printf "%s %s\n%s" .JobID .Status .StatusDescription}}
+{{- end}}
+
+{{- define "nomad-deployment"}}
+  {{- printf "%s is %s" .ID .Status}}
+{{- end}}
+
+{{- define "nomad-job"}}
+  {{- printf "%s is %s" .ID .Status}}
+{{- end}}
+
+{{- define "nomad-node"}}
+  {{- printf "%s is %s" .Name .Status}}
+{{- end}}
+
 {{- define "text"}}
   {{- if eq .type "KubeEvent"}}
     {{template "kube-event" .data}}
@@ -315,5 +335,16 @@
     {{- end}}
   {{- end}}
   {{- if eq .type "TeamcityEvent"}}{{- if .data}}{{template "teamcity" .data}}{{end}}{{- end}}
+  {{- if eq .type "NomadEvent"}}
+    {{- if ne .data.Type "AllocationUpdated" }}
+      {{- printf "Nomad Event %s\n" .data.Type}}
+      {{- if eq .data.Topic "Allocation"}}{{template "nomad-allocation" .data.Payload.Allocation}}{{end}}
+      {{- if eq .data.Topic "Job"}}{{template "nomad-job" .data.Payload.Job}}{{end}}
+      {{- if eq .data.Topic "Deployment"}}{{template "nomad-deployment" .data.Payload.Deployment}}{{end}}
+      {{- if eq .data.Topic "Evaluation"}}{{template "nomad-evaluation" .data.Payload.Evaluation}}{{end}}
+      {{- if eq .data.Topic "Node"}}{{template "nomad-node" .data.Payload.Node}}{{end}}
+    {{- end}}
+  {{- end}}
 {{- end}}
+
 {{- define "slack-message"}}{{template "text" .}}{{- end}}
