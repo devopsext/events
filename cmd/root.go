@@ -100,6 +100,12 @@ var pubsubInputOptions = input.PubSubInputOptions{
 	Subscription: envGet("PUBSUB_IN_SUBSCRIPTION", "").(string),
 }
 
+var nomadInputOptions = input.NomadInputOptions{
+	Address: envGet("NOMAD_ADDRESS", "").(string),
+	Token:   envGet("NOMAD_TOKEN", "").(string),
+	Topics:  strings.Split(envGet("NOMAD_TOPICS", "Deployment,Evaluation,Job,Node").(string), ","), //Deployment,Evaluation,Allocation,Job,Node"
+}
+
 var vcInputOptions = input.VCenterInputOptions{
 	URL:           envGet("VCENTER_IN_URL", "").(string),
 	InsecureSSL:   envGet("VCENTER_IN_INSECURE", false).(bool),
@@ -501,10 +507,12 @@ func Execute() {
 			processors.Add(processor.NewVCenterProcessor(&outputs, observability))
 			processors.Add(processor.NewObserviumEventProcessor(&outputs, observability))
 			processors.Add(processor.NewTeamcityProcessor(&outputs, observability))
+			processors.Add(processor.NewNomadProcessor(&outputs, observability))
 			inputs := common.NewInputs()
 			inputs.Add(input.NewHttpInput(httpInputOptions, processors, observability))
 			inputs.Add(input.NewPubSubInput(pubsubInputOptions, processors, observability))
 			inputs.Add(input.NewVCenterInput(vcInputOptions, processors, observability))
+			inputs.Add(input.NewNomadInput(nomadInputOptions, processors, observability))
 
 			outputs.Add(output.NewCollectorOutput(&mainWG, collectorOutputOptions, textTemplateOptions, observability))
 			outputs.Add(output.NewKafkaOutput(&mainWG, kafkaOutputOptions, textTemplateOptions, observability))
@@ -579,6 +587,10 @@ func Execute() {
 	flags.StringVar(&vcInputOptions.RootCA, "vcenter-in-root-ca-cert", vcInputOptions.RootCA, "VCenter RootCA cert filename")
 	flags.StringVar(&vcInputOptions.CheckpointDir, "vcenter-checkpoint-dir", vcInputOptions.CheckpointDir, "VCenter checkpoint dir")
 	flags.IntVar(&vcInputOptions.DelayMS, "vcenter-in-delay-ms", vcInputOptions.DelayMS, "VCenter poll delay ms")
+
+	flags.StringVar(&nomadInputOptions.Address, "nomad-url", nomadInputOptions.Address, "Nomad url")
+	flags.StringVar(&nomadInputOptions.Token, "nomad-token", nomadInputOptions.Token, "Nomad token")
+	flags.StringSliceVar(&nomadInputOptions.Topics, "nomad-topics", nomadInputOptions.Topics, "Nomad topics")
 
 	flags.StringVar(&kafkaOutputOptions.Brokers, "kafka-out-brokers", kafkaOutputOptions.Brokers, "Kafka brokers")
 	flags.StringVar(&kafkaOutputOptions.Topic, "kafka-out-topic", kafkaOutputOptions.Topic, "Kafka topic")
