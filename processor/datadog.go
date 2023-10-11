@@ -6,11 +6,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
+)
+
+// TODO: move to config
+const (
+	prometheusAPIURL = "http://prometheus.example.com/api/v1/query"
+	queryTemplate    = "avg(sre_availability{product='%s'}) by (cluster, service) < 99" // Example query: change this to your own query
 )
 
 type DataDogProcessor struct {
@@ -28,15 +35,16 @@ type DataDogEvent struct {
 }
 
 type DataDogAlert struct {
-	ID         string `json:"id"`
-	Metric     string `json:"metric"`
-	Priority   string `json:"priority"`
-	Query      string `json:"query"`
-	Scope      string `json:"scope,omitempty"`
-	Status     string `json:"status"`
-	Title      string `json:"title"`
-	Transition string `json:"transition"`
-	Type       string `json:"type"`
+	ID         string   `json:"id"`
+	Metric     string   `json:"metric"`
+	Priority   string   `json:"priority"`
+	Query      string   `json:"query"`
+	Scope      string   `json:"scope,omitempty"`
+	Status     string   `json:"status"`
+	Title      string   `json:"title"`
+	Transition string   `json:"transition"`
+	Type       string   `json:"type"`
+	Services   []string `json:"services,omitempty"`
 }
 
 type DataDogIncident struct {
@@ -77,6 +85,17 @@ type DataDogRequest struct {
 
 type DataDogResponse struct {
 	Message string
+}
+
+type PromQueryResponse struct {
+	Status string `json:"status"`
+	Data   struct {
+		ResultType string `json:"resultType"`
+		Result     []struct {
+			Metric map[string]string `json:"metric"`
+			Value  []json.RawMessage `json:"value"`
+		} `json:"result"`
+	} `json:"data"`
 }
 
 func DataDogProcessorType() string {
@@ -151,6 +170,18 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	t := time.UnixMilli(datadog.LastUpdated)
+
+	scopes := strings.Split(datadog.Alert.Scope, ",")
+	for _, scope := range scopes {
+		tag := strings.Split(scope, ":")
+		if len(tag) == 2 {
+			if tag[0] == "product" {
+				datadog.Alert.Services = p.getAffectedServicesByProduct(tag[1])
+				break
+			}
+		}
+	}
+
 	p.send(span, channel, datadog, &t)
 
 	response := &DataDogResponse{
@@ -183,4 +214,55 @@ func NewDataDogProcessor(outputs *common.Outputs, observability *common.Observab
 		requests: observability.Metrics().Counter("requests", "Count of all datadog processor requests", []string{"channel"}, "datadog", "processor"),
 		errors:   observability.Metrics().Counter("errors", "Count of all datadog processor errors", []string{"channel"}, "datadog", "processor"),
 	}
+}
+
+func (p *DataDogProcessor) getAffectedServicesByProduct(product string) []string {
+	res := make([]string, 0)
+	product = strings.ToUpper(product)
+
+	u, err := url.Parse(prometheusAPIURL)
+	if err != nil {
+		p.logger.Error("Failed to parse Prometheus API URL: %s", err)
+		return res
+	}
+
+	q := u.Query()
+	q.Set("query", fmt.Sprintf(queryTemplate, product))
+	u.RawQuery = q.Encode()
+
+	resp, err := http.Get(u.String())
+	if err != nil {
+		p.logger.Error("Failed to fetch from Prometheus API: %s", err)
+		return res
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		p.logger.Error("Received non-200 response: %d %s", resp.StatusCode, resp.Status)
+		return res
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		p.logger.Error("Failed to read response body: %s", err)
+		return res
+	}
+
+	var response PromQueryResponse
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+		p.logger.Error("Failed to unmarshal response: %s", err)
+		return res
+	}
+
+	if response.Status != "success" {
+		p.logger.Error("Unsuccessful query: %s", response.Status)
+		return res
+	}
+
+	for _, result := range response.Data.Result {
+		res = append(res, fmt.Sprintf("%s:%s", result.Metric["cluster"], result.Metric["service"]))
+		p.logger.Debug("Metric: %v\n", result.Metric)
+	}
+
+	return res
 }
