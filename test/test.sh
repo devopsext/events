@@ -3,12 +3,12 @@
 #curl -sk -X POST -H "Content-type: application/json" -H "X-Gitlab-Event: Job Hook" -d @gitlab-job.json "http://localhost:80/gitlab"
 #curl -sk -X POST -H "Content-type: application/json" -H "X-Gitlab-Event: Pipeline Hook" -d @gitlab-pipeline.json "http://localhost:80/gitlab"
 
-#curl -sk -X POST -H "Content-type: application/json" -d @k8s.json "http://localhost:80/k8s"
+curl -sk -X POST -H "Content-type: application/json" -d @k8s.json "http://localhost:8081/k8s"
 
 #curl -sk -X POST -H "Content-type: application/json" -d @alertmanager.json "http://localhost:80/alertmanager"
 #curl -sk -X POST -H "Content-type: application/json" -d @zabbix.json "http://localhost:80/zabbix"
 
-curl -sk -X POST -H "Content-type: application/json" -d @datadog-triggered.json "http://localhost:8081/datadog"
+#curl -sk -X POST -H "Content-type: application/json" -d @datadog-triggered.json "http://localhost:8081/datadog"
 #curl -sk -X POST -H "Content-type: application/json" -d @datadog-recovered.json "http://localhost:8081/datadog"
 
 #curl -sk -X POST -H "Content-type: application/json" -d @site24x7.json "http://localhost:80/site24x7"

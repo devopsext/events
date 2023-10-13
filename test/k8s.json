@@ -16,7 +16,7 @@
     "namespace": "nodegroup",
     "operation": "CREATE",
     "userInfo": {
-      "username": "some-user",
+      "username": "eks:vpc-resource-controller",
       "uid": "380bb127-e96f-11e8-ae7d-0050568a9a8e",
       "groups": [
         "system:serviceaccounts",
