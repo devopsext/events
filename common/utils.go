@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/devopsext/utils"
@@ -40,4 +41,16 @@ func DeDotMap(in map[string]string) map[string]string {
 		ret[nKey] = value
 	}
 	return ret
+}
+
+func InterfaceContains(items interface{}, item interface{}) bool {
+	v := reflect.ValueOf(items)
+	if v.Kind() == reflect.Map {
+		for _, key := range v.MapKeys() {
+			if key.Interface() == item {
+				return true
+			}
+		}
+	}
+	return false
 }
