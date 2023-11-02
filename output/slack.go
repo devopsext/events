@@ -198,7 +198,8 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 		return
 	}
 
-	if utils.Contains(event.Via, s.Name()) {
+	if common.InterfaceContains(event.Via, s.Name()) {
+		s.logger.Debug("Event has been sent already")
 		return
 	}
 
@@ -246,6 +247,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		if event.Data == nil {
 			s.logger.SpanError(span, "Event data is empty")
+			return
+		}
+
+		if common.InterfaceContains(event.Via, s.Name()) {
+			s.logger.Debug("Event has been sent already")
 			return
 		}
 
