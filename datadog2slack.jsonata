@@ -1,6 +1,6 @@
 {
-    "Title": datadog.event.title,
-    "Message": "*" & $fromMillis(datadog.date) & "*: " &datadog.alert.status & " <" & datadog.link & "|Datadog Monitor Link>",
+    "Title": "*" & datadog.alert.title & "*",
+    "Message": "Date: *" & $fromMillis(datadog.date, '[D01]-[M01]-[Y0001] [H01]:[m01]:[s01] [z]') & "*\nPriority: *" &datadog.alert.priority  & "*\nScope: *" &datadog.alert.scope & "*\n*<" & datadog.link & "|Link to the event>*\n*Services:*\n" & $reduce(datadog.alert.services, function($acc, $val) {$acc & '\n' & $val}),
     "ImageURL": image,
     "Channel": slack.channel,
     "ParentTS": slack.thread,
