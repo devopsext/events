@@ -16,5 +16,6 @@
   {{- if eq .type "GoogleEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "AWSEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
   {{- if eq .type "NomadEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "ZabbixEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
 {{- end}}
 {{- define "slack-selector"}}{{template "rules" .}}{{end}}

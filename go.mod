@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/VictoriaMetrics/metricsql v0.65.0
 	github.com/devopsext/sre v0.1.6
-	github.com/devopsext/tools v0.9.13
+	github.com/devopsext/tools v0.9.17
 	github.com/devopsext/utils v0.2.1
 	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/grafana-tools/sdk v0.0.0-20220919052116-6562121319fc

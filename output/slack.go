@@ -276,7 +276,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		if len(chans) == 0 {
-			s.logger.SpanError(span, "slack no channels")
+			s.logger.SpanError(span, fmt.Sprintf("slack no channels for %s", event.Type))
 			return
 		}
 
@@ -346,7 +346,13 @@ func (s *SlackOutput) Send(event *common.Event) {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				m := prepareSlackMessage(token, channel, "", message)
+				//m := prepareSlackMessage(token, channel, "", message)
+				m := vendors.SlackMessage{
+					Token:   token,
+					Channel: channel,
+					Title:   "",
+					Message: message,
+				}
 				bytes, err := s.sendMessage(span.GetContext(), m)
 				if err != nil {
 					s.errors.Inc(channel)

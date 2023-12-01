@@ -16,3 +16,5 @@ events
 checkpoint/
 vcenter_ca.crt
 test/vcenter/new
+/go.work
+/go.work.sum

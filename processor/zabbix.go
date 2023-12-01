@@ -1,8 +1,8 @@
 package processor
 
 import (
+	"encoding/json"
 	"errors"
-	"github.com/buger/jsonparser"
 	"io"
 	"net/http"
 	"strings"
@@ -21,23 +21,23 @@ type ZabbixProcessor struct {
 }
 
 type ZabbixEvent struct {
-	AlertURL           string
-	Environment        string
-	EventDate          string
-	EventID            string
-	EventName          string
-	EventNSeverity     string
-	EventOpData        string
-	Status             string
-	EventTags          string
-	EventTime          string
-	EventType          string
-	HostName           string
-	ItemID             string
-	ItemLastValue      string
-	TriggerDescription string
-	TriggerExpression  string
-	TriggerName        string
+	AlertURL           string `json:"AlertURL,omitempty"`
+	Environment        string `json:"Environment,omitempty"`
+	EventDate          string `json:"EventDate,omitempty"`
+	EventID            string `json:"EventID,omitempty"`
+	EventName          string `json:"EventName,omitempty"`
+	EventNSeverity     string `json:"EventNSeverity,omitempty"`
+	EventOpData        string `json:"EventOpData,omitempty"`
+	Status             string `json:"Status,omitempty"`
+	EventTags          string `json:"EventTags,omitempty"`
+	EventTime          string `json:"EventTime,omitempty"`
+	EventType          string `json:"EventType,omitempty"`
+	HostName           string `json:"HostName,omitempty"`
+	ItemID             string `json:"ItemID,omitempty"`
+	ItemLastValue      string `json:"ItemLastValue,omitempty"`
+	TriggerDescription string `json:"TriggerDescription,omitempty"`
+	TriggerExpression  string `json:"TriggerExpression,omitempty"`
+	TriggerName        string `json:"TriggerName,omitempty"`
 }
 
 func ZabbixProcessorType() string {
@@ -105,68 +105,15 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	var request ZabbixEvent
 
-	paths := [][]string{
-		{"AlertURL"},
-		{"Environment"},
-		{"EventDate"},
-		{"EventID"},
-		{"EventName"},
-		{"EventNSeverity"},
-		{"EventOpData"},
-		{"Status"},
-		{"EventTags"},
-		{"EventTime"},
-		{"EventType"},
-		{"HostName"},
-		{"ItemID"},
-		{"ItemLastValue"},
-		{"TriggerDescription"},
-		{"TriggerExpression"},
-		{"TriggerName"},
+	err := json.Unmarshal(body, &request)
+	if err != nil {
+		p.errors.Inc(channel)
+		p.logger.SpanError(span, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return err
 	}
-	var EventDate, EventTime string
-	jsonparser.EachKey(body, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
-		u, _ := jsonparser.ParseString(value)
-		v := string(u)
-		switch idx {
-		case 0:
-			request.AlertURL = v
-		case 1:
-			request.Environment = v
-		case 2:
-			request.EventDate = v
-		case 3:
-			request.EventID = v
-		case 4:
-			request.EventName = v
-		case 5:
-			request.EventNSeverity = v
-		case 6:
-			request.EventOpData = v
-		case 7:
-			request.Status = v
-		case 8:
-			request.EventTags = v
-		case 9:
-			request.EventTime = v
-		case 10:
-			request.EventType = v
-		case 11:
-			request.HostName = v
-		case 12:
-			request.ItemID = v
-		case 13:
-			request.ItemLastValue = v
-		case 14:
-			request.TriggerDescription = v
-		case 15:
-			request.TriggerExpression = v
-		case 16:
-			request.TriggerName = v
-		}
-	}, paths...)
 
-	EventDateTime, err := time.Parse(time.RFC3339Nano, strings.ReplaceAll(EventDate, ".", "-")+"T"+EventTime+"Z")
+	EventDateTime, err := time.Parse(time.RFC3339Nano, strings.ReplaceAll(request.EventDate, ".", "-")+"T"+request.EventTime+"Z")
 	if err != nil {
 		p.send(span, channel, request, nil)
 		return nil
