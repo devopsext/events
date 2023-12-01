@@ -4,6 +4,10 @@
     {{- printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
   {{- end}}
 
+  {{- if eq .type "UnleashEvent"}}
+    {{- printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
+  {{- end}}
+
   {{- if eq .type "TeamcityEvent" -}}
       {{ $tagSet = (concat (splitList "," .data.target) (list .data.build_name .data.build_event)) -}}
   {{- end -}}
