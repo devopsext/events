@@ -280,6 +280,17 @@
 {{- end}}
 
 {{- define "text"}}
+  {{- if eq .type "ZabbixEvent"}}
+    {{- if .data.EventNSeverity }} {{- if (.data.EventNSeverity | regexMatch ".*(3|4|5).*") }}
+      {{- printf "ZabbixEvent "}}
+      {{- if .data.Status}}{{- printf "%s\n" .data.Status }}{{- else}}{{- printf "\n"}}{{- end}}
+      {{- if .data.TriggerName}}{{- printf "TriggerName: %s\n" .data.TriggerName}}{{- end}}
+      {{- if .data.TriggerExpression}}{{- printf "TriggerExpression: %s\n" .data.TriggerExpression}}{{- end}}
+      {{- if .data.EventOpData}}{{- printf "EventOpData: %s\n" .data.EventOpData}}{{- end}}
+      {{- if .data.TriggerDescription}}{{- printf "TriggerDescription: %s\n" .data.TriggerDescription}}{{- end}}
+      {{- if .data.AlertURL}}{{- printf "<%s|AlertURL>\n" .data.AlertURL}}{{- end}}
+    {{- end}}{{- end}}
+  {{- end }}
   {{- if eq .type "KubeEvent"}}
     {{template "kube-event" .data}}
   {{- end}}
