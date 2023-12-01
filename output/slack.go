@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devopsext/events/processor"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -345,8 +346,29 @@ func (s *SlackOutput) Send(event *common.Event) {
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
+			case "ZabbixEvent":
+
+				color := "#888888"
+				if event.Data.(processor.ZabbixEvent).Status == "RESOLVED" {
+					color = "#008800"
+				} else if event.Data.(processor.ZabbixEvent).Status == "PROBLEM" {
+					color = "#880000"
+				}
+				m := vendors.SlackMessage{
+					Token:      token,
+					Channel:    channel,
+					Title:      "Zabbix Event",
+					Message:    message,
+					QuoteColor: color,
+				}
+
+				bytes, err := s.sendMessage(span.GetContext(), m)
+				if err != nil {
+					s.errors.Inc(channel)
+				} else {
+					s.sendGlobally(span.GetContext(), event, bytes)
+				}
 			default:
-				//m := prepareSlackMessage(token, channel, "", message)
 				m := vendors.SlackMessage{
 					Token:   token,
 					Channel: channel,
@@ -362,33 +384,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 			}
 		}
 	}()
-}
-
-func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
-	if utils.IsEmpty(title) && !utils.IsEmpty(message) {
-		delim := "\n"
-		lines := strings.Split(message, delim)
-		for i, line := range lines {
-			if !utils.IsEmpty(line) {
-				title = strings.ReplaceAll(line, "*", "") // no stars in title
-				message = "no message"
-				if i < len(lines) {
-					message = strings.Join(lines[i+1:], delim)
-				}
-				break
-			}
-		}
-		if utils.IsEmpty(title) {
-			title = "no title"
-		}
-	}
-
-	return vendors.SlackMessage{
-		Token:   token,
-		Channel: channel,
-		Message: message,
-		Title:   title,
-	}
 }
 
 func NewSlackOutput(wg *sync.WaitGroup,
