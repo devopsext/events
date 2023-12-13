@@ -348,12 +348,23 @@ func (s *SlackOutput) Send(event *common.Event) {
 				}
 			case "ZabbixEvent":
 
+				jData, err := json.Marshal(event.Data)
+				if err != nil {
+					break
+				}
+				var data processor.ZabbixEvent
+				err = json.Unmarshal(jData, &data)
+				if err != nil {
+					break
+				}
 				color := "#888888"
-				if event.Data.(processor.ZabbixEvent).Status == "RESOLVED" {
+				switch data.Status {
+				case "RESOLVED", "OK":
 					color = "#008800"
-				} else if event.Data.(processor.ZabbixEvent).Status == "PROBLEM" {
+				case "PROBLEM", "ERROR", "CRITICAL":
 					color = "#880000"
 				}
+
 				m := vendors.SlackMessage{
 					Token:      token,
 					Channel:    channel,
@@ -361,7 +372,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 					Message:    message,
 					QuoteColor: color,
 				}
-
 				bytes, err := s.sendMessage(span.GetContext(), m)
 				if err != nil {
 					s.errors.Inc(channel)
