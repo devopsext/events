@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devopsext/events/processor"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -198,7 +199,8 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 		return
 	}
 
-	if utils.Contains(event.Via, s.Name()) {
+	if common.InterfaceContains(event.Via, s.Name()) {
+		s.logger.Debug("Event has been sent already")
 		return
 	}
 
@@ -249,6 +251,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
+		if common.InterfaceContains(event.Via, s.Name()) {
+			s.logger.Debug("Event has been sent already")
+			return
+		}
+
 		jsonMap, err := event.JsonMap()
 		if err != nil {
 			s.logger.SpanError(span, err)
@@ -270,7 +277,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		if len(chans) == 0 {
-			s.logger.SpanError(span, "slack no channels")
+			s.logger.SpanError(span, fmt.Sprintf("slack no channels for %s", event.Type))
 			return
 		}
 
@@ -339,8 +346,45 @@ func (s *SlackOutput) Send(event *common.Event) {
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
+			case "ZabbixEvent":
+
+				jData, err := json.Marshal(event.Data)
+				if err != nil {
+					break
+				}
+				var data processor.ZabbixEvent
+				err = json.Unmarshal(jData, &data)
+				if err != nil {
+					break
+				}
+				color := "#888888"
+				switch data.Status {
+				case "RESOLVED", "OK":
+					color = "#008800"
+				case "PROBLEM", "ERROR", "CRITICAL":
+					color = "#880000"
+				}
+
+				m := vendors.SlackMessage{
+					Token:      token,
+					Channel:    channel,
+					Title:      "Zabbix Event",
+					Message:    message,
+					QuoteColor: color,
+				}
+				bytes, err := s.sendMessage(span.GetContext(), m)
+				if err != nil {
+					s.errors.Inc(channel)
+				} else {
+					s.sendGlobally(span.GetContext(), event, bytes)
+				}
 			default:
-				m := prepareSlackMessage(token, channel, "", message)
+				m := vendors.SlackMessage{
+					Token:   token,
+					Channel: channel,
+					Title:   "",
+					Message: message,
+				}
 				bytes, err := s.sendMessage(span.GetContext(), m)
 				if err != nil {
 					s.errors.Inc(channel)
@@ -350,33 +394,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 			}
 		}
 	}()
-}
-
-func prepareSlackMessage(token string, channel string, title string, message string) vendors.SlackMessage {
-	if utils.IsEmpty(title) && !utils.IsEmpty(message) {
-		delim := "\n"
-		lines := strings.Split(message, delim)
-		for i, line := range lines {
-			if !utils.IsEmpty(line) {
-				title = strings.ReplaceAll(line, "*", "") // no stars in title
-				message = "no message"
-				if i < len(lines) {
-					message = strings.Join(lines[i+1:], delim)
-				}
-				break
-			}
-		}
-		if utils.IsEmpty(title) {
-			title = "no title"
-		}
-	}
-
-	return vendors.SlackMessage{
-		Token:   token,
-		Channel: channel,
-		Message: message,
-		Title:   title,
-	}
 }
 
 func NewSlackOutput(wg *sync.WaitGroup,
