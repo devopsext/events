@@ -33,6 +33,7 @@ function stdGenerateCertificates() {
   DNS.1 = ${SERVICE}
   DNS.2 = ${SERVICE}.${NAMESPACE}
   DNS.3 = ${SERVICE}.${NAMESPACE}.svc
+  DNS.4 = ${SERVICE}.${NAMESPACE}.svc.cluster.local
 EOF
 
   local __out=""
@@ -46,7 +47,7 @@ EOF
     echo "'openssl genrsa' output:\n$__out"
   fi
 
-  openssl req -new -key "${KEY_FILE}" -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -out "${tmpdir}/${SERVICE}.csr" -config "${tmpdir}/csr.conf" >__openSsl.out 2>&1
+  openssl req -new -key "${KEY_FILE}" -subj "/CN=${SERVICE}.${NAMESPACE}.svc.cluster.local" -out "${tmpdir}/${SERVICE}.csr" -config "${tmpdir}/csr.conf" >__openSsl.out 2>&1
   __out=$(cat __openSsl.out)
   if [[ ! "$?" -eq 0 ]]; then
     echo "$__out"

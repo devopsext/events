@@ -225,7 +225,7 @@
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
-    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
+    {{- if not (.data.user.name | regexMatch "(system|eks).*")}}
       {{- if .data.object}}
         {{- if eq .data.kind "Namespace"}}{{template "k8s-header" .}}{{template "k8s-namespace" .data.object}}{{end}}
         {{- if eq .data.kind "Node"}}{{template "k8s-header" .}}{{template "k8s-node" .data.object}}{{end}}

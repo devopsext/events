@@ -16,3 +16,4 @@ events
 checkpoint/
 vcenter_ca.crt
 test/vcenter/new
+__debug*
