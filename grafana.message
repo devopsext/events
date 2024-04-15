@@ -23,6 +23,13 @@
       {{- printf "%s" .data.message}}
   {{- end}}
 
+  {{- if eq .type "UnleashEvent"}}
+    {{- printf "%s at %s %s on %s" .data.createdBy .data.createdAt .data.type .data.featureName}}
+    {{- if .data.data}}
+      {{ toJSON .data.data}}
+    {{- end}}
+  {{- end}}
+
   {{- if eq .type "WinEvent"}}{{- printf "[%s]%s: %s %s" .data.tags.LevelText (upper .data.tags.host) .data.tags.EventRecordID .data.tags.Message }}{{- end}}
 
   {{- if eq .type "ObserviumEvent"}}
