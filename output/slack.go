@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/devopsext/events/processor"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/devopsext/events/processor"
 
 	sreCommon "github.com/devopsext/sre/common"
 	toolsRender "github.com/devopsext/tools/render"
@@ -31,6 +32,7 @@ type SlackOutputOptions struct {
 	ChannelSelector string
 	AlertExpression string
 	Forward         string
+	Insecure        bool
 }
 
 type SlackOutput struct {
@@ -51,16 +53,6 @@ func (s *SlackOutput) Name() string {
 	return "Slack"
 }
 
-// assume that url is => https://slack.com/api/files.upload?token=%s&channels=%s
-/*func (s *SlackOutput) getChannel(URL string) string {
-
-	u, err := url.Parse(URL)
-	if err != nil {
-		return ""
-	}
-	return u.Query().Get("channels")
-}*/
-
 func waitDDImage(url string, timeout int) bool {
 	if timeout <= 0 {
 		timeout = 3
@@ -75,31 +67,20 @@ func waitDDImage(url string, timeout int) bool {
 	return false
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage) ([]byte, error) {
-
+func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, msg vendors.SlackMessageOptions) ([]byte, error) {
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	// check if dd return 1x1 image
-	// moved to template by using urlWait
+	s.logger.Debug("%+v", msg)
 
-	/*if !utils.IsEmpty(m.ImageURL) && strings.Contains(m.ImageURL, "datadoghq") {
-		if !waitDDImage(m.ImageURL, 3) {
-			s.logger.SpanDebug(span, "Can't get image from datadoghq: %s", m.ImageURL)
-			m.ImageURL = "https://via.placeholder.com/452x185.png?text=No%20chart%20image"
-		}
-	}*/
-
-	s.logger.Debug("%+v", m)
-
-	msg := strings.TrimSpace(m.Message)
-	if utils.IsEmpty(msg) {
+	message := strings.TrimSpace(msg.Text)
+	if utils.IsEmpty(message) {
 		err := errors.New("no slack message")
 		s.logger.SpanDebug(span, err.Error())
 		return nil, err
 	}
 
-	b, err := s.slack.SendCustomMessage(m)
+	b, err := s.slack.SendMessage(msg)
 	if err != nil {
 		s.logger.SpanError(span, err)
 		return nil, err
@@ -109,31 +90,35 @@ func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, m vendors
 	return b, nil
 }
 
-func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, m vendors.SlackMessage, err error) error {
-	m.FileContent = err.Error()
-	_, e := s.sendMessage(spanCtx, m)
+func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, channel string, err error) error {
+	fileOpts := vendors.SlackFileOptions{
+		Channel: channel,
+		Title:   "Error",
+		Text:    "Error occurred during processing",
+		Name:    "error.txt",
+		Content: err.Error(),
+		Type:    "text",
+	}
+	_, e := s.slack.SendFile(fileOpts)
 	return e
 }
 
-func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, token, channel, message, fileName, title string, image []byte) ([]byte, error) {
-
+func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, channel, message, fileName, title string, image []byte) ([]byte, error) {
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
-	m := vendors.SlackMessage{
-		Token:       token,
-		Channel:     channel,
-		Message:     message,
-		FileName:    fileName,
-		Title:       title,
-		FileContent: string(image),
+	fileOpts := vendors.SlackFileOptions{
+		Channel: channel,
+		Text:    message,
+		Name:    fileName,
+		Title:   title,
+		Content: string(image),
 	}
 
-	return s.slack.SendCustomFile(m)
+	return s.slack.SendFile(fileOpts)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, token, channel, message string, alert template.Alert) ([]byte, error) {
-
+func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, channel, message string, alert template.Alert) ([]byte, error) {
 	span := s.tracer.StartChildSpan(spanCtx)
 	defer span.Finish()
 
@@ -181,20 +166,23 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 	}
 
 	if s.grafana == nil {
-		return s.sendMessage(span.GetContext(), vendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query})
+		msgOptions := vendors.SlackMessageOptions{
+			Channel: channel,
+			Title:   query,
+			Text:    message,
+		}
+		return s.sendMessage(span.GetContext(), msgOptions)
 	}
 
 	image, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		s.sendErrorMessage(span.GetContext(),
-			vendors.SlackMessage{Token: token, Channel: channel, Message: message, Title: query}, err)
+		s.sendErrorMessage(span.GetContext(), channel, err)
 		return nil, nil
 	}
-	return s.sendImage(span.GetContext(), token, channel, message, fileName, query, image)
+	return s.sendImage(span.GetContext(), channel, message, fileName, query, image)
 }
 
 func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
-
 	if utils.IsEmpty(s.options.Forward) {
 		return
 	}
@@ -233,7 +221,6 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 }
 
 func (s *SlackOutput) Send(event *common.Event) {
-
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -263,7 +250,6 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		channel := s.options.Channel
-		token := s.options.Token
 		var chans []string
 		if s.selector != nil {
 			b, err := s.selector.RenderObject(jsonMap)
@@ -273,7 +259,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 				chans = strings.Split(string(b), "\n")
 			}
 		} else {
-			chans = append(chans, fmt.Sprintf("%s=%s", token, channel))
+			chans = append(chans, channel)
 		}
 
 		if len(chans) == 0 {
@@ -296,58 +282,56 @@ func (s *SlackOutput) Send(event *common.Event) {
 		s.logger.SpanDebug(span, "Slack message => %s", message)
 
 		for _, ch := range chans {
-
 			ch = strings.TrimSpace(ch)
-			chTuple := strings.SplitN(ch, "=", 2)
-			if len(chTuple) != 2 {
-				continue
-			}
 
-			if chTuple[0] != "" {
-				token = chTuple[0]
-			}
-
-			if chTuple[1] != "" {
-				channel = chTuple[1]
-			}
-
-			s.requests.Inc(channel)
+			s.requests.Inc(ch)
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				m := vendors.SlackMessage{
-					Token:   token,
-					Channel: channel,
-					Message: message,
+				msgOptions := vendors.SlackMessageOptions{
+					Channel: ch,
 					Title:   "AlertmanagerEvent",
+					Text:    message,
 				}
-				// TODO: improve sendAlertmanagerImage to be compatible with slack output
-				//bytes, err := s.sendAlertmanagerImage(span.GetContext(), token, channel, message, event.Data.(template.Alert))
-				bytes, err := s.sendMessage(span.GetContext(), m)
+				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
 				if err != nil {
-					s.errors.Inc(channel)
-					//s.sendErrorMessage(span.GetContext(), m, err)
+					s.errors.Inc(ch)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			case "DataDogEvent":
-				var m vendors.SlackMessage
-				err = json.Unmarshal([]byte(message), &m)
+				var slackMsg struct {
+					Text        string `json:"text"`
+					Title       string `json:"title"`
+					ImageURL    string `json:"image_url,omitempty"`
+					Attachments string `json:"attachments,omitempty"`
+					Blocks      string `json:"blocks,omitempty"`
+					Thread      string `json:"thread,omitempty"`
+				}
+
+				err = json.Unmarshal([]byte(message), &slackMsg)
 				if err != nil {
-					s.errors.Inc(channel)
+					s.errors.Inc(ch)
 					s.logger.SpanError(span, err)
 					return
 				}
-				m.Token = token
-				m.Channel = channel
-				bytes, err := s.sendMessage(span.GetContext(), m)
+
+				msgOptions := vendors.SlackMessageOptions{
+					Channel:     ch,
+					Title:       slackMsg.Title,
+					Text:        slackMsg.Text,
+					Thread:      slackMsg.Thread,
+					Attachments: slackMsg.Attachments,
+					Blocks:      slackMsg.Blocks,
+				}
+
+				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
 				if err != nil {
-					s.errors.Inc(channel)
+					s.errors.Inc(ch)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			case "ZabbixEvent":
-
 				jData, err := json.Marshal(event.Data)
 				if err != nil {
 					break
@@ -357,6 +341,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 				if err != nil {
 					break
 				}
+
 				color := "#888888"
 				switch data.Status {
 				case "RESOLVED", "OK":
@@ -365,29 +350,31 @@ func (s *SlackOutput) Send(event *common.Event) {
 					color = "#880000"
 				}
 
-				m := vendors.SlackMessage{
-					Token:      token,
-					Channel:    channel,
-					Title:      "Zabbix Event",
-					Message:    message,
-					QuoteColor: color,
+				// Create attachment with color
+				attachment := fmt.Sprintf(`[{"color": "%s", "text": "%s"}]`, color, message)
+
+				msgOptions := vendors.SlackMessageOptions{
+					Channel:     ch,
+					Title:       "Zabbix Event",
+					Text:        message,
+					Attachments: attachment,
 				}
-				bytes, err := s.sendMessage(span.GetContext(), m)
+
+				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
 				if err != nil {
-					s.errors.Inc(channel)
+					s.errors.Inc(ch)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
 			default:
-				m := vendors.SlackMessage{
-					Token:   token,
-					Channel: channel,
+				msgOptions := vendors.SlackMessageOptions{
+					Channel: ch,
 					Title:   "",
-					Message: message,
+					Text:    message,
 				}
-				bytes, err := s.sendMessage(span.GetContext(), m)
+				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
 				if err != nil {
-					s.errors.Inc(channel)
+					s.errors.Inc(ch)
 				} else {
 					s.sendGlobally(span.GetContext(), event, bytes)
 				}
@@ -409,13 +396,13 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
-	slack, err := vendors.NewSlack(vendors.SlackOptions{
-		Timeout: options.Timeout,
-	})
-	if err != nil {
-		logger.Error(err)
-		return nil
+	slackOpts := vendors.SlackOptions{
+		Timeout:  options.Timeout,
+		Token:    options.Token,
+		Insecure: options.Insecure,
 	}
+
+	slack := vendors.NewSlack(slackOpts)
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "slack-message",
