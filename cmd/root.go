@@ -161,6 +161,7 @@ var slackOutputOptions = output.SlackOutputOptions{
 	Token:           envGet("SLACK_OUT_TOKEN", "").(string),
 	Channel:         envGet("SLACK_OUT_CHANNEL", "").(string),
 	Forward:         envGet("SLACK_OUT_FORWARD", "").(string),
+	Insecure:        envGet("SLACK_OUT_INSECURE", false).(bool),
 }
 
 var workchatOutputOptions = output.WorkchatOutputOptions{
@@ -621,6 +622,7 @@ func Execute() {
 	flags.StringVar(&slackOutputOptions.Token, "slack-out-token", slackOutputOptions.Token, "Slack token")
 	flags.StringVar(&slackOutputOptions.Channel, "slack-out-channel", slackOutputOptions.Channel, "Slack channel")
 	flags.StringVar(&slackOutputOptions.Forward, "slack-out-forward", slackOutputOptions.Forward, "Slack forward regex pattern")
+	flags.BoolVar(&slackOutputOptions.Insecure, "slack-out-insecure", slackOutputOptions.Insecure, "Slack insecure skip verify")
 
 	flags.StringVar(&workchatOutputOptions.URL, "workchat-out-url", workchatOutputOptions.URL, "Workchat URL")
 	flags.StringVar(&workchatOutputOptions.Message, "workchat-out-message", workchatOutputOptions.Message, "Workchat message template")
