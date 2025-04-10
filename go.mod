@@ -4,8 +4,6 @@ go 1.23
 
 toolchain go1.23.0
 
-replace github.com/devopsext/tools => ./../tools_dshaparenko
-
 require (
 	cloud.google.com/go/pubsub v1.33.0
 	github.com/IBM/sarama v1.41.2
@@ -43,7 +41,6 @@ require (
 	cloud.google.com/go/compute v1.23.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.2 // indirect
-	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/DataDog/datadog-api-client-go v1.7.0 // indirect
 	github.com/DataDog/datadog-go v4.7.0+incompatible // indirect
@@ -61,8 +58,6 @@ require (
 	github.com/eapache/go-resiliency v1.4.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
-	github.com/go-asn1-ber/asn1-ber v1.5.7 // indirect
-	github.com/go-ldap/ldap/v3 v3.4.10 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
