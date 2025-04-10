@@ -336,11 +336,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		return nil
 	}
 
-	telegram, err := vendors.NewTelegram(options.TelegramOptions)
-	if err != nil {
-		logger.Error(err)
-		return nil
-	}
+	telegram := vendors.NewTelegram(options.TelegramOptions)
 
 	messageOpts := toolsRender.TemplateOptions{
 		Name:       "telegram-message",

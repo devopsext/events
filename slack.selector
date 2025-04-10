@@ -1,21 +1,39 @@
-{{- define "r"}}{{printf "%s\n" (getEnv .)}}{{end}}
 {{- define "render"}}{{printf "%s\n" (getEnv .)}}{{end}}
 {{- define "rules"}}
-  {{- if eq .type "K8sEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "KubeEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "GitlabEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "AlertmanagerEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if and (eq .type "KubeEvent") (eq .data.Type "Error")}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_ALERTS"}}{{end}}
+  {{- if and (eq .type "KubeEvent") (ne .data.Type "Error")}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "GitlabEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "TeamcityEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
   {{- if eq .type "DataDogEvent"}}
     {{- if (.data.alert.title | regexMatch ".*TEST.*")}}
-      {{- template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}
+      {{- template "render" "EVENTS_SLACK_OUT_CHANNEL_TEST"}}
+    {{- else}}
+      {{- if  (eq .data.alert.transition "No data")}}
+        {{- template "render" "EVENTS_SLACK_OUT_CHANNEL_ALERTS"}}
+      {{- else}}
+        {{- template "render" "EVENTS_SLACK_OUT_CHANNEL_ANOMALY"}}
+      {{- end}}
     {{- end}}
   {{- end}}
-  {{- if eq .type "Site24x7Event"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "TeamcityEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "CloudflareEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "GoogleEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "AWSEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_SRE"}}{{end}}
-  {{- if eq .type "NomadEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
-  {{- if eq .type "ZabbixEvent"}}{{template "r" "EVENTS_SLACK_OUT_BOT_TEST"}}{{end}}
+  {{- if eq .type "Site24x7Event"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "CloudflareEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "GoogleEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "AWSEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "VCenterEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "ZabbixEvent"}}
+    {{- if eq .data.EventNSeverity "5"}}
+      {{template "render" "EVENTS_SLACK_OUT_CHANNEL_TEST"}}
+      {{template "render" "EVENTS_SLACK_OUT_CHANNEL_ZABBIX"}}
+    {{- else}}
+      {{- if eq .data.EventNSeverity "4"}}
+        {{template "render" "EVENTS_SLACK_OUT_CHANNEL_ZABBIX"}}
+      {{- end}}
+      {{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}
+    {{- end}}
+  {{end}}
+  {{- if and (eq .type "ObserviumEvent") (ne .data.ALERT_STATE "ALERT REMINDER")}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if eq .type "NomadEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
 {{- end}}
 {{- define "slack-selector"}}{{template "rules" .}}{{end}}
