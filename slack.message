@@ -139,24 +139,30 @@
       {{- $gProjectID := atoi (index (split "@" $gProjectIDRef) 0)}}
       {{- $gURL := getEnv "EVENTS_GITLAB_URL"}}
       {{- $gToken := getEnv "EVENTS_GITLAB_TOKEN"}}
-      {{- $gQuery := printf "DATADOG_TRANSITION=Triggered,DATADOG_ID=%s,SLACK_CHANNEL,SLACK_THREAD" .data.alert.id}}
-      {{- $vars := gitlabPipelineVars $gURL $gToken $gProjectID $gQuery 10 }}
-      {{- $sChannel := jsonata $vars "$[(key='SLACK_CHANNEL')].value" }}
-      {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
-      {{- $slack = dict "channel" $sChannel "thread" $sThread }}
-    {{- else}}
+      {{- $gQuery := printf "DATADOG_TRANSITION=Triggered,DATADOG_KEY=%s,SLACK_CHANNEL,SLACK_THREAD" .data.key}}
+      {{- $vars := gitlabPipelineVars $gURL $gToken $gProjectID $gQuery 50 }}
+      {{- if $vars}}
+        {{- $sChannel := jsonata $vars "$[(key='SLACK_CHANNEL')].value" }}
+        {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
+        {{- $slack = dict "channel" $sChannel "thread" $sThread }}
+        {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
+      {{- end}}
+    {{- end}}
+
+    {{- if not $slack}}
       {{- $slack = dict "channel" "" "thread" "" }}
     {{- end}}
 
     {{- $image := "https://via.placeholder.com/452x185.png?text=No%20chart%20image"}}
-    {{- range (list .data.snapshot .data.snapshot .data.snapshot)}}
+    {{- range (list .data.snapshot .data.snapshot .data.snapshot .data.snapshot .data.snapshot)}}
       {{- $png := printf "%s?%s" . (randAlphaNum 6) }}
-      {{- if urlWait $png 1 2 199 }}
+      {{- if urlWait $png 2 2 199 }}
         {{- $image = $png}}
         {{- break }}
       {{- end}}
-    {{- end}} 
-    {{- logInfo "Datadog image => %s" $image }}
+    {{- end}}
+    {{- logInfo "Slack => %s" (toJSON $slack) }}
+    {{- logInfo "Datadog => %s" (toJSON .data) }}
     {{- jsonata (dict "datadog" .data "image" $image "slack" $slack) "datadog2slack.jsonata"}}
   {{- end}}
 {{- end}}
