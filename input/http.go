@@ -30,6 +30,7 @@ type HttpInputOptions struct {
 	GoogleURL         string
 	AWSURL            string
 	ZabbixURL         string
+	UnleashURL        string
 	CustomJsonURL     string
 	VCenterURL        string
 	ObserviumEventURL string
@@ -226,6 +227,7 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 	h.setProcessor(m, h.options.GoogleURL, processor.GoogleProcessorType())
 	h.setProcessor(m, h.options.AWSURL, processor.AWSProcessorType())
 	h.setProcessor(m, h.options.ZabbixURL, processor.ZabbixProcessorType())
+	h.setProcessor(m, h.options.UnleashURL, processor.UnleashProcessorType())
 	h.setProcessor(m, h.options.VCenterURL, processor.VCenterProcessorType())
 	h.setProcessor(m, h.options.CustomJsonURL, processor.CustomJsonProcessorType())
 	h.setProcessor(m, h.options.TeamcityURL, processor.TeamcityProcessorType())
