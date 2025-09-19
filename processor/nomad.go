@@ -1,10 +1,11 @@
 package processor
 
 import (
+	"time"
+
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	nomad "github.com/hashicorp/nomad/api"
-	"time"
 )
 
 const channel = "nomad"
@@ -22,7 +23,7 @@ func (p *NomadProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+	p.requests.Inc()
 	p.outputs.Send(e)
 	return nil
 }
@@ -55,17 +56,17 @@ func NewNomadProcessor(outputs *common.Outputs, observability *common.Observabil
 		logger:  observability.Logs(),
 		tracer:  observability.Traces(),
 		requests: observability.Metrics().Counter(
+			"nomad",
 			"requests",
 			"Count of all nomad processor requests",
-			[]string{"channel"},
-			channel,
+			map[string]string{},
 			"processor",
 		),
 		errors: observability.Metrics().Counter(
+			"nomad",
 			"errors",
 			"Count of all nomad processor errors",
-			[]string{"channel"},
-			channel,
+			map[string]string{},
 			"processor",
 		),
 	}

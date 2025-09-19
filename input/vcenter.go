@@ -384,8 +384,8 @@ func NewVCenterInput(options VCenterInputOptions, processors *common.Processors,
 		tracer:       observability.Traces(),
 		logger:       observability.Logs(),
 		meter:        meter,
-		requests:     meter.Counter("requests", "Count of all vc input requests", []string{"url"}, "vcenter", "input"),
-		errors:       meter.Counter("errors", "Count of all vc input errors", []string{"url"}, "vcenter", "input"),
+		requests:     meter.Counter("vcenter", "requests", "Count of all vc input requests", map[string]string{}, "input"),
+		errors:       meter.Counter("vcenter", "errors", "Count of all vc input errors", map[string]string{}, "input"),
 		ceAttributes: ceAttributes,
 	}
 }
@@ -584,11 +584,11 @@ func (vc *VCenterInput) processEvents(vcBaseEvents []vctypes.BaseEvent) (*vcLast
 			vc.logger.Debug("VC processor is not found for %s", curevent.Type)
 			return nil, errInvalidProcessor
 		}
-		vc.requests.Inc(curevent.Channel)
+		vc.requests.Inc()
 		err = p.HandleEvent(curevent)
 		if err != nil {
 			vc.logger.Debug("some problems with %v", err)
-			vc.errors.Inc(curevent.Channel)
+			vc.errors.Inc()
 		}
 
 		last = &vcLastEvent{

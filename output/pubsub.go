@@ -99,12 +99,12 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 				continue
 			}
 
-			ps.requests.Inc(topic)
+			ps.requests.Inc()
 
 			t := ps.client.Topic(topic)
 			serverID, err := t.Publish(ps.ctx, &pubsub.Message{Data: []byte(message)}).Get(ps.ctx)
 			if err != nil {
-				ps.errors.Inc(topic)
+				ps.errors.Inc()
 				ps.logger.SpanError(span, err)
 				continue
 			}
@@ -167,7 +167,7 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all pubsub requests", []string{"topic"}, "pubsub", "output"),
-		errors:   observability.Metrics().Counter("errors", "Count of all pubsub errors", []string{"topic"}, "pubsub", "output"),
+		requests: observability.Metrics().Counter("pubsub", "requests", "Count of all pubsub requests", map[string]string{}, "output"),
+		errors:   observability.Metrics().Counter("pubsub", "errors", "Count of all pubsub errors", map[string]string{}, "output"),
 	}
 }

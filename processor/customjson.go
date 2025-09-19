@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
@@ -43,8 +42,8 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 	span := p.tracer.StartChildSpan(r.Header)
 	defer span.Finish()
 
-	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+	// channel := strings.TrimLeft(r.URL.Path, "/")
+	p.requests.Inc()
 
 	var body []byte
 	if r.Body != nil {
@@ -54,7 +53,7 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -81,21 +80,21 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if !utils.IsEmpty(errorString) {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New(errorString)
 		p.logger.SpanError(span, errorString)
 		http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
@@ -110,7 +109,7 @@ func NewCustomJsonProcessor(outputs *common.Outputs, observability *common.Obser
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all customjson processor requests", []string{"channel"}, "customjson", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all customjson processor errors", []string{"channel"}, "customjson", "processor"),
+		requests: observability.Metrics().Counter("customjson", "requests", "Count of all customjson processor requests", map[string]string{}, "processor"),
+		errors:   observability.Metrics().Counter("customjson", "errors", "Count of all customjson processor errors", map[string]string{}, "processor"),
 	}
 }

@@ -14,12 +14,14 @@ import (
 )
 
 type DataDogOutputOptions struct {
+	Name               string
 	Message            string
 	AttributesSelector string
 }
 
 type DataDogOutput struct {
 	wg             *sync.WaitGroup
+	name           *toolsRender.TextTemplate
 	message        *toolsRender.TextTemplate
 	attributes     *toolsRender.TextTemplate
 	options        DataDogOutputOptions
@@ -96,6 +98,18 @@ func (d *DataDogOutput) Send(event *common.Event) {
 			return
 		}
 
+		a, err := d.name.RenderObject(jsonObject)
+		if err != nil {
+			d.logger.SpanError(span, err)
+			return
+		}
+
+		name := strings.TrimSpace(string(a))
+		if utils.IsEmpty(a) {
+			d.logger.SpanDebug(span, "DataDog name is empty")
+			return
+		}
+
 		b, err := d.message.RenderObject(jsonObject)
 		if err != nil {
 			d.logger.SpanError(span, err)
@@ -109,15 +123,15 @@ func (d *DataDogOutput) Send(event *common.Event) {
 		}
 
 		d.requests.Inc()
-		d.logger.SpanDebug(span, "DataDog message => %s", message)
+		d.logger.SpanDebug(span, "DataDog message => %s%s", name, message)
 
 		attributes, err := d.getAttributes(jsonObject, span)
 		if err != nil {
 			d.logger.SpanError(span, err)
 		}
-		d.logger.Debug("Message: %s, Attributes: %s, Time: %s", message, strings.Join(utils.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
+		d.logger.Debug("Name: %s, Message: %s, Attributes: %s, Time: %s", name, message, strings.Join(utils.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
 
-		err = d.datadogEventer.At(message, attributes, event.Time)
+		err = d.datadogEventer.At(name, message, attributes, event.Time)
 		if err != nil {
 			d.errors.Inc()
 		}
@@ -133,6 +147,17 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 	logger := observability.Logs()
 	if datadogEventer == nil {
 		logger.Debug("DataDog eventer is not defined. Skipped")
+		return nil
+	}
+
+	nameOpts := toolsRender.TemplateOptions{
+		Name:       "datadog-name",
+		Content:    common.Content(options.Name),
+		TimeFormat: templateOptions.TimeFormat,
+	}
+	name, err := toolsRender.NewTextTemplate(nameOpts, observability)
+	if err != nil {
+		logger.Error(err)
 		return nil
 	}
 
@@ -159,13 +184,14 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 
 	return &DataDogOutput{
 		wg:             wg,
+		name:           name,
 		message:        message,
 		attributes:     attributes,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),
-		requests:       observability.Metrics().Counter("requests", "Count of all datadog requests", []string{}, "datadog", "output"),
-		errors:         observability.Metrics().Counter("errors", "Count of all datadog errors", []string{}, "datadog", "output"),
+		requests:       observability.Metrics().Counter("datadog", "requests", "Count of all datadog requests", map[string]string{}, "output"),
+		errors:         observability.Metrics().Counter("datadog", "errors", "Count of all datadog errors", map[string]string{}, "output"),
 		datadogEventer: datadogEventer,
 	}
 }

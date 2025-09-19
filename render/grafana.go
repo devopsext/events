@@ -254,7 +254,7 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 			return nil, "", err
 		}
 
-		g.counter.Inc(title)
+		g.counter.Inc()
 
 		_, err = c.DeleteDashboard(ctx, *status.Slug)
 		if err != nil {
@@ -280,6 +280,6 @@ func NewGrafanaRender(options GrafanaRenderOptions, observability *common.Observ
 		options: options,
 		logger:  logger,
 		tracer:  observability.Traces(),
-		counter: observability.Metrics().Counter("requests", "Count of all grafana outputs", []string{"title"}, "grafana"),
+		counter: observability.Metrics().Counter("grafana", "requests", "Count of all grafana outputs", map[string]string{}),
 	}
 }

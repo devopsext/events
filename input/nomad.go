@@ -2,13 +2,14 @@ package input
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/processor"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
 	nomad "github.com/hashicorp/nomad/api"
-	"sync"
-	"time"
 )
 
 type NomadInputOptions struct {
@@ -117,7 +118,7 @@ func NewNomadInput(options NomadInputOptions, processors *common.Processors, obs
 		eventer:    observability.Events(),
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		requests:   meter.Counter("requests", "Count of all nomad input requests", []string{"subscription"}, "nomad", "input"),
-		errors:     meter.Counter("errors", "Count of all nomad input errors", []string{"subscription"}, "nomad", "input"),
+		requests:   meter.Counter("nomad", "requests", "Count of all nomad input requests", map[string]string{}, "input"),
+		errors:     meter.Counter("nomad", "errors", "Count of all nomad input errors", map[string]string{}, "input"),
 	}
 }

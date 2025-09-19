@@ -16,6 +16,7 @@ import (
 )
 
 type GrafanaOutputOptions struct {
+	Name               string
 	Message            string
 	AttributesSelector string
 }
@@ -117,14 +118,14 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 		}
 		g.logger.SpanDebug(span, "Grafana attributes => %s", attributes)
 
-		g.rateLimiterIn.Inc(event.Channel)
+		g.rateLimiterIn.Inc()
 		r := g.rateLimiter.Reserve()
 		// TODO increment another counter events_grafana_output_ratelimiter_wait_time_total by r.Delay*time.Millisecond
 		time.Sleep(r.Delay())
-		g.rateLimiterOut.Inc(event.Channel)
+		g.rateLimiterOut.Inc()
 
 		g.requests.Inc()
-		err = g.grafanaEventer.Interval(message, attributes, event.Time, event.Time)
+		err = g.grafanaEventer.Interval(message, message, attributes, event.Time, event.Time)
 		if err != nil {
 			g.errors.Inc()
 		}
@@ -172,10 +173,10 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),
-		requests:       observability.Metrics().Counter("requests", "Count of all grafana requests", []string{}, "grafana", "output"),
-		errors:         observability.Metrics().Counter("errors", "Count of all grafana errors", []string{}, "grafana", "output"),
-		rateLimiterIn:  observability.Metrics().Counter("rl_in", "Count of all grafana requests before waiting", []string{"channel"}, "grafana", "output"),
-		rateLimiterOut: observability.Metrics().Counter("rl_out", "Count of all grafana requests after waiting", []string{"channel"}, "grafana", "output"),
+		requests:       observability.Metrics().Counter("grafana", "requests", "Count of all grafana requests", map[string]string{}, "output"),
+		errors:         observability.Metrics().Counter("grafana", "errors", "Count of all grafana errors", map[string]string{}, "output"),
+		rateLimiterIn:  observability.Metrics().Counter("grafana", "rl_in", "Count of all grafana requests before waiting", map[string]string{}, "output"),
+		rateLimiterOut: observability.Metrics().Counter("grafana", "rl_out", "Count of all grafana requests after waiting", map[string]string{}, "output"),
 		grafanaEventer: grafanaEventer,
 	}
 }

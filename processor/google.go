@@ -119,7 +119,7 @@ func (p *GoogleProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+	p.requests.Inc()
 	p.outputs.Send(e)
 	return nil
 }
@@ -130,7 +130,7 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	defer span.Finish()
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+	p.requests.Inc()
 
 	var body []byte
 	if r.Body != nil {
@@ -140,7 +140,7 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -151,7 +151,7 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	var request GoogleRequest
 	if err := json.Unmarshal(body, &request); err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
@@ -170,14 +170,14 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
@@ -191,7 +191,7 @@ func NewGoogleProcessor(outputs *common.Outputs, observability *common.Observabi
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all google processor requests", []string{"channel"}, "google", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all google processor errors", []string{"channel"}, "google", "processor"),
+		requests: observability.Metrics().Counter("google", "requests", "Count of all google processor requests", map[string]string{}, "processor"),
+		errors:   observability.Metrics().Counter("google", "errors", "Count of all google processor errors", map[string]string{}, "processor"),
 	}
 }

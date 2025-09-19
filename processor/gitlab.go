@@ -61,7 +61,7 @@ func (p *GitlabProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+	p.requests.Inc()
 	p.outputs.Send(e)
 	return nil
 }
@@ -72,7 +72,7 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	defer span.Finish()
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+	p.requests.Inc()
 
 	var body []byte
 	if r.Body != nil {
@@ -82,7 +82,7 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -98,7 +98,7 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 		gitlab.MergeRequestEvents, gitlab.WikiPageEvents, gitlab.PipelineEvents, gitlab.BuildEvents, gitlab.JobEvents, gitlab.SystemHookEvents}
 	payload, err := p.hook.Parse(r, events...)
 	if err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
@@ -145,14 +145,14 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
@@ -174,7 +174,7 @@ func NewGitlabProcessor(outputs *common.Outputs, observability *common.Observabi
 		logger:   logger,
 		tracer:   observability.Traces(),
 		hook:     hook,
-		requests: observability.Metrics().Counter("requests", "Count of all gitlab processor requests", []string{"channel"}, "gitlab", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all gitlab processor errors", []string{"channel"}, "gitlab", "processor"),
+		requests: observability.Metrics().Counter("gitlab", "requests", "Count of all gitlab processor requests", map[string]string{}, "processor"),
+		errors:   observability.Metrics().Counter("gitlab", "errors", "Count of all gitlab processor errors", map[string]string{}, "processor"),
 	}
 }

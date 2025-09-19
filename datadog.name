@@ -1,0 +1,48 @@
+{{- define "k8s-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- printf "%s: %s / %s %s: %s by %s" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
+{{- end}}
+{{- define "alertmanager-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- printf "%s: %s\n%s: %s" (toUpper .data.status) .data.labels.alertname .channel $t}}
+{{- end}}
+{{- define "alertmanager-body"}}
+  {{- if eq .status "firing"}}{{- printf "\nStartsAt: %s" (timeFormat .startsAt "02.01.06 15:04:05") }}{{end}}
+  {{- if eq .status "resolved"}}{{- printf "\nendsAt: %s" (timeFormat .endsAt "02.01.06 15:04:05") }}{{end}}
+{{- end}}
+{{- define "gitlab-header"}}
+  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+  {{- if .data.project}}{{- printf "%s: %s / %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project.namespace .data.project.name .data.object_attributes.ref .channel $t .data.user.username}}
+  {{- else}}{{- printf "%s: %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
+{{- end}}
+{{- define "text"}}
+  {{- if eq .type "K8sEvent"}}
+    {{- $pass := false}}
+    {{- $text := ""}}
+    {{- if and (eq .data.operation "Update") (regexMatch "(system|eks|kube-admin).*" .data.user.name)}}
+        {{- if (regexMatch "(Deployment|DaemonSet|StatefulSet|Node|Ingress)" .data.kind )}}{{- $pass = false}}{{- else}}{{- $pass = true}}{{- end}}
+    {{- else}}{{- $pass = true}}
+    {{- end}}
+    {{- if (.data.object)}}
+      {{template "k8s-header" .}}
+    {{- end}}
+    {{- if (gt (len $text) 0)}}
+      {{printf "%s" $text}}
+    {{- end}}
+  {{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}
+    {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
+  {{- end}}
+  {{- if eq .type "GitlabEvent"}}
+    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+    {{- if .data.builds}}
+      {{- range .data.builds}}
+        {{- if and .runner (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+      {{- end}}
+    {{- else}}
+      {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+    {{- end}}
+    {{- if $ok}}{{template "gitlab-header" .}}{{- end}}
+  {{- end}}
+{{- end}}
+{{- define "datadog-name"}}{{template "text" .}}{{- end}}

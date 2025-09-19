@@ -80,10 +80,10 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProc
 			span.SetTag("path", path)
 			defer span.Finish()
 
-			h.requests.Inc(path)
+			h.requests.Inc()
 			err := p.HandleHttpRequest(w, r)
 			if err != nil {
-				h.errors.Inc(path)
+				h.errors.Inc()
 			}
 		})
 	}
@@ -241,7 +241,7 @@ func NewHttpInput(options HttpInputOptions, processors *common.Processors, obser
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
 		meter:      meter,
-		requests:   meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
-		errors:     meter.Counter("errors", "Count of all http input errors", []string{"url"}, "http", "input"),
+		requests:   meter.Counter("http", "requests", "Count of all http input requests", map[string]string{}, "input"),
+		errors:     meter.Counter("http", "errors", "Count of all http input errors", map[string]string{}, "input"),
 	}
 }

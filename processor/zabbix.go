@@ -73,7 +73,7 @@ func (p *ZabbixProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+	p.requests.Inc()
 	p.outputs.Send(e)
 	return nil
 }
@@ -84,7 +84,7 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	defer span.Finish()
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+	p.requests.Inc()
 
 	var body []byte
 	if r.Body != nil {
@@ -94,7 +94,7 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -107,7 +107,7 @@ func (p *ZabbixProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	err := json.Unmarshal(body, &request)
 	if err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
@@ -128,7 +128,7 @@ func NewZabbixProcessor(outputs *common.Outputs, observability *common.Observabi
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all zabbix processor requests", []string{"channel"}, "zabbix", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all zabbix processor errors", []string{"channel"}, "zabbix", "processor"),
+		requests: observability.Metrics().Counter("zabbix", "requests", "Count of all zabbix processor requests", map[string]string{}, "processor"),
+		errors:   observability.Metrics().Counter("zabbix", "errors", "Count of all zabbix processor errors", map[string]string{}, "processor"),
 	}
 }

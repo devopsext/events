@@ -334,19 +334,19 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 				continue
 			}
 
-			thread := w.getThread(URL)
-			w.requests.Inc(thread)
+			// thread := w.getThread(URL)
+			w.requests.Inc()
 
 			switch event.Type {
 			case "AlertmanagerEvent":
 				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					w.errors.Inc(thread)
+					w.errors.Inc()
 					w.sendErrorMessage(span.GetContext(), URL, message, err)
 				}
 			default:
 				err := w.sendMessage(span.GetContext(), URL, message)
 				if err != nil {
-					w.errors.Inc(thread)
+					w.errors.Inc()
 				}
 			}
 		}
@@ -395,7 +395,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		options:  options,
 		tracer:   observability.Traces(),
 		logger:   logger,
-		requests: observability.Metrics().Counter("requests", "Count of all workchar requests", []string{"thread"}, "workchat", "output"),
-		errors:   observability.Metrics().Counter("errors", "Count of all workchar errors", []string{"thread"}, "workchat", "output"),
+		requests: observability.Metrics().Counter("workchat", "requests", "Count of all workchar requests", map[string]string{}, "output"),
+		errors:   observability.Metrics().Counter("workchat", "errors", "Count of all workchar errors", map[string]string{}, "output"),
 	}
 }

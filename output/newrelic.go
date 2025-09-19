@@ -13,12 +13,14 @@ import (
 )
 
 type NewRelicOutputOptions struct {
+	Name               string
 	Message            string
 	AttributesSelector string
 }
 
 type NewRelicOutput struct {
 	wg              *sync.WaitGroup
+	name            *toolsRender.TextTemplate
 	message         *toolsRender.TextTemplate
 	attributes      *toolsRender.TextTemplate
 	options         NewRelicOutputOptions
@@ -112,7 +114,7 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			r.logger.SpanError(span, err)
 		}
 
-		err = r.newrelicEventer.At(message, attributes, event.Time)
+		err = r.newrelicEventer.At(message, "", attributes, event.Time)
 		if err != nil {
 			r.errors.Inc()
 		}
@@ -159,8 +161,8 @@ func NewNewRelicOutput(wg *sync.WaitGroup,
 		options:         options,
 		logger:          logger,
 		tracer:          observability.Traces(),
-		requests:        observability.Metrics().Counter("requests", "Count of all newrelic requests", []string{}, "newrelic", "output"),
-		errors:          observability.Metrics().Counter("errors", "Count of all newrelic errors", []string{}, "newrelic", "output"),
+		requests:        observability.Metrics().Counter("newrelic", "requests", "Count of all newrelic requests", map[string]string{}, "output"),
+		errors:          observability.Metrics().Counter("newrelic", "errors", "Count of all newrelic errors", map[string]string{}, "output"),
 		newrelicEventer: newrelicEventer,
 	}
 }

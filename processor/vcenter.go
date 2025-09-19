@@ -397,7 +397,7 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 
 	if e == nil {
-		p.errors.Inc("vcenter: Event is not defined")
+		p.errors.Inc()
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
@@ -405,13 +405,13 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 	jsonString := e.Data.(string)
 	subject, err := jsonparser.GetString([]byte(jsonString), "subject")
 	if err != nil {
-		p.errors.Inc("vcenter: No Subject")
+		p.errors.Inc()
 		return err
 	}
 
 	chainId, err := jsonparser.GetInt([]byte(jsonString), "data", "ChainId")
 	if err != nil {
-		p.errors.Inc("vcenter: No ChainId")
+		p.errors.Inc()
 		return err
 	}
 
@@ -425,12 +425,12 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 		ChainId: strconv.FormatInt(chainId, 10),
 	}
 
-	p.requests.Inc(vce.Subject)
+	p.requests.Inc()
 	err = vce.parse([]byte(jsonString))
 
 	if err != ErrorEventDefinitelySkip {
 		if err != nil {
-			p.errors.Inc("vcenter: Cannot parse")
+			p.errors.Inc()
 			p.logger.Debug(err)
 			return err
 		}
@@ -455,7 +455,7 @@ func NewVCenterProcessor(outputs *common.Outputs, observability *common.Observab
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all vcenter processor requests", []string{"channel"}, "vcenter", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all vcenter processor errors", []string{"error"}, "vcenter", "processor"),
+		requests: observability.Metrics().Counter("vcenter", "requests", "Count of all vcenter processor requests", map[string]string{}, "processor"),
+		errors:   observability.Metrics().Counter("vcenter", "errors", "Count of all vcenter processor errors", map[string]string{}, "processor"),
 	}
 }

@@ -32,14 +32,23 @@
 {{- end}}
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
-    {{printf "{\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\"}" .type .data.kind .data.location}}
+    {{- $severity := ""}}
+    {{- if eq .data.operation "Delete"}}{{- $severity = "warning"}}{{- else }}{{- $severity = "info"}}{{- end}}
+    {{printf "{\"alert_type\":\"%s\",\"aggregation_key\":\"%s\",\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\",\"operation\":\"%s\"}" $severity .channel .type .data.kind .data.location .data.operation}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
     {{printf "{\"type\":\"%s\",\"source_type_name\":\"%s\",\"alert\":\"%s\"}" .type .channel .data.labels.alertname}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
     {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
-    {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}
+    {{- if .data.builds}}
+      {{- range .data.builds}}
+        {{- if and .runner (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+      {{- end}}
+    {{- else}}
+      {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+    {{- end}}
+    {{- if $ok}}
         {
             "source_type_name":"gitlab",
             {{- if .data.project}}{{printf "\"namespace\":\"%s\",\"project\":\"%s\"" .data.project.namespace .data.project.name}}

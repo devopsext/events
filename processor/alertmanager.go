@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"io"
 	"net/http"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
@@ -66,7 +67,7 @@ func (p *AlertmanagerProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+	p.requests.Inc()
 	p.outputs.Send(e)
 	return nil
 }
@@ -77,7 +78,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	defer span.Finish()
 
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+	p.requests.Inc()
 
 	var body []byte
 	if r.Body != nil {
@@ -87,7 +88,7 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New("empty body")
 		p.logger.SpanError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -114,21 +115,21 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		p.logger.SpanError(span, "Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if !utils.IsEmpty(errorString) {
-		p.errors.Inc(channel)
+		p.errors.Inc()
 		err := errors.New(errorString)
 		p.logger.SpanError(span, errorString)
 		http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
@@ -143,7 +144,7 @@ func NewAlertmanagerProcessor(outputs *common.Outputs, observability *common.Obs
 		outputs:  outputs,
 		tracer:   observability.Traces(),
 		logger:   observability.Logs(),
-		requests: observability.Metrics().Counter("requests", "Count of all alertmanager processor requests", []string{"channel"}, "alertmanager", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all alertmanager processor errors", []string{"channel"}, "alertmanager", "processor"),
+		requests: observability.Metrics().Counter("alertmanager", "requests", "Count of all alertmanager processor requests", map[string]string{}, "processor"),
+		errors:   observability.Metrics().Counter("alertmanager", "errors", "Count of all alertmanager processor errors", map[string]string{}, "processor"),
 	}
 }

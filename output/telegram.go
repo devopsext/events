@@ -296,9 +296,9 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			IDToken := arr[0]
 			chatID := arr[1]
-			botID := t.getBotID(IDToken)
+			// botID := t.getBotID(IDToken)
 
-			t.requests.Inc(botID, chatID)
+			t.requests.Inc()
 
 			switch event.Type {
 			case "AlertmanagerEvent":
@@ -306,7 +306,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 				//bytes, err := t.sendAlertmanagerImage(span.GetContext(), IDToken, chatID, message, event.Data.(template.Alert))
 				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
 				if err != nil {
-					t.errors.Inc(botID, chatID)
+					t.errors.Inc()
 					t.sendErrorMessage(span.GetContext(), IDToken, chatID, message, err)
 				} else {
 					t.sendGlobally(span.GetContext(), event, bytes)
@@ -314,7 +314,7 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			default:
 				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
 				if err != nil {
-					t.errors.Inc(botID, chatID)
+					t.errors.Inc()
 				} else {
 					t.sendGlobally(span.GetContext(), event, bytes)
 				}
@@ -370,7 +370,7 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		outputs:     outputs,
 		logger:      logger,
 		tracer:      observability.Traces(),
-		requests:    observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
-		errors:      observability.Metrics().Counter("errors", "Count of all telegram errors", []string{"bot_id", "chat_id"}, "telegram", "output"),
+		requests:    observability.Metrics().Counter("telegram", "requests", "Count of all telegram requests", map[string]string{}, "output"),
+		errors:      observability.Metrics().Counter("telegram", "errors", "Count of all telegram errors", map[string]string{}, "output"),
 	}
 }

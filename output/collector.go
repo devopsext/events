@@ -57,12 +57,12 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			return
 		}
 
-		c.requests.Inc(c.options.Address)
+		c.requests.Inc()
 		c.logger.SpanDebug(span, "Collector message => %s", message)
 
 		_, err = c.connection.Write(b)
 		if err != nil {
-			c.errors.Inc(c.options.Address)
+			c.errors.Inc()
 			c.logger.SpanError(span, err)
 		}
 	}()
@@ -124,7 +124,7 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
 		connection: connection,
 		tracer:     observability.Traces(),
 		logger:     logger,
-		requests:   observability.Metrics().Counter("requests", "Count of all collector requests", []string{"address"}, "collector", "output"),
-		errors:     observability.Metrics().Counter("errors", "Count of all collector errors", []string{"address"}, "collector", "output"),
+		requests:   observability.Metrics().Counter("collector", "requests", "Count of all collector requests", map[string]string{}, "output"),
+		errors:     observability.Metrics().Counter("collector", "errors", "Count of all collector errors", map[string]string{}, "output"),
 	}
 }

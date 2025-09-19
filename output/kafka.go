@@ -68,7 +68,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			return
 		}
 
-		k.requests.Inc(k.options.Topic)
+		k.requests.Inc()
 		k.logger.SpanDebug(span, "Kafka  message => %s", message)
 
 		(*k.producer).Input() <- &sarama.ProducerMessage{
@@ -77,7 +77,7 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		}
 
 		for err = range (*k.producer).Errors() {
-			k.errors.Inc(k.options.Topic)
+			k.errors.Inc()
 		}
 	}()
 }
@@ -150,7 +150,7 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all kafka requests", []string{"topic"}, "kafka", "output"),
-		errors:   observability.Metrics().Counter("errors", "Count of all kafka errors", []string{"topic"}, "kafka", "output"),
+		requests: observability.Metrics().Counter("kafka", "requests", "Count of all kafka requests", map[string]string{}, "output"),
+		errors:   observability.Metrics().Counter("kafka", "errors", "Count of all kafka errors", map[string]string{}, "output"),
 	}
 }
