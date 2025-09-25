@@ -1,20 +1,43 @@
+{{- define "k8s-object-counts"}}
+  {{- if eq .operation "Update"}}
+    {{- if ne .object.old.spec.replicas .object.new.spec.replicas}}
+      {{- printf "\nReplicas: %.0f => %.0f" .object.old.spec.replicas .object.new.spec.replicas}}
+    {{- end }}
+  {{- else if eq .operation "Create"}}
+    {{- printf "\nReplicas: %.0f" .object.new.spec.replicas}}
+  {{- else if eq .operation "Delete"}}
+    {{- printf "\nReplicas: %.0f" .object.old.spec.replicas}}
+  {{- end }}
+  {{template "k8s-pod" .}}
+{{- end}}
 {{- define "k8s-patch"}}
-  {{- $text := printf "\nChanges:\n"}}
+  {{- $text := ""}}
   {{- range .}}
-    {{- if not (regexMatch "^/meta.*" .path)}}
-      {{- $text = printf "%s%s %s: %v\n" $text .op .path .value}}
+    {{- if not (regexMatch "^(/meta|.*metadata).*" .path)}}
+      {{- $value := ""}}
+      {{- if (regexMatch ".*/env/.*/value" .path)}}
+        {{- $value = "MASKED"}}
+      {{- else}}
+        {{- $value = .value}}
+      {{- end}}
+      {{- $text = printf "%s%s %s: %v\n" $text .op .path $value}}
     {{- end}}
   {{- end}}
-  {{- printf "%s" $text}}
+  {{- if gt (len $text) 0}}
+    {{printf "Changes:\n%s" $text}}
+  {{- end}}
 {{- end}}
 {{- define "k8s-namespace"}}{{- end}}
 {{- define "k8s-node"}}{{- end}}
-{{- define "k8s-replicaset"}}{{- end}}
-{{- define "k8s-statefulset"}}
-  {{- printf "\nReplicas => %.0f\nSelector => %s" .spec.replicas .spec.selector}}
-  {{- template "k8s-pod" .}}
+{{- define "k8s-replicaset"}}
+  {{template "k8s-object-counts" .}}
 {{- end}}
-{{- define "k8s-daemonset"}}{{- end}}
+{{- define "k8s-statefulset"}}
+  {{template "k8s-object-counts" .}}
+{{- end}}
+{{- define "k8s-daemonset"}}
+  {{template "k8s-object-counts" .}}
+{{- end}}
 {{- define "k8s-secret"}}{{- end}}
 {{- define "k8s-ingress"}}{{- end}}
 {{- define "k8s-cronjob"}}{{- end}}
@@ -22,27 +45,29 @@
 {{- define "k8s-configmap"}}{{- end}}
 {{- define "k8s-role"}}{{- end}}
 {{- define "k8s-deployment"}}
-  {{- if ne .old.spec.replicas .new.spec.replicas}}
-    {{- printf "\nReplicas: %.0f => %.0f" .old.spec.replicas .new.spec.replicas}}
-  {{- end }}
+  {{template "k8s-object-counts" .}}
 {{- end}}
 {{- define "k8s-service"}}
-  {{- printf "\n%s => %s" .spec.type .spec.clusterIP}}
-  {{- range .spec.ports}}
+  {{- printf "\n%s => %s" .object.new.spec.type .object.new.spec.clusterIP}}
+  {{- range .object.new.spec.ports}}
     {{- printf "\n%s %.0f => %.0f" .protocol .port .targetPort}}
   {{- end}}
   {{- printf "\nSelector => %s" .spec.selector}}
 {{- end}}
 {{- define "k8s-pod"}}
   {{- $oldImages := ""}}{{- $newImages := ""}}
-  {{- range .old.spec.template.spec.containers}}
+  {{- range .object.old.spec.template.spec.containers}}
     {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
   {{- end}}
-  {{- range .new.spec.template.spec.containers}}
+  {{- range .object.new.spec.template.spec.containers}}
     {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
   {{- end}}
-  {{- if ne $oldImages $newImages }}
+  {{- if and (ne $oldImages $newImages) (eq .operation "Update") }}
     {{- printf "\nImages:\n%s%s" $oldImages $newImages}}
+  {{- else if eq .operation "Create"}}
+    {{- printf "\nImages:\n%s" $newImages}}
+  {{- else if eq .operation "Delete"}}
+    {{- printf "\nImages:\n%s" $oldImages}}
   {{- end}}
 {{- end}}
 {{- define "alertmanager-header"}}
@@ -66,22 +91,24 @@
         {{- if (regexMatch "(Deployment|DaemonSet|StatefulSet|Node|Ingress)" .data.kind )}}{{- $pass = false}}{{- else}}{{- $pass = true}}{{- end}}
     {{- else}}{{- $pass = true}}
     {{- end}}
-    {{- if and (.data.object) (eq $pass true)}}
-      {{- if eq .data.kind "Namespace"}}{{template "k8s-namespace" .data.object}}{{end}}
-      {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-replicaset" .data.object}}{{end}}
-      {{- if eq .data.kind "Secret"}}{{template "k8s-secret" .data.object}}{{end}}
-      {{- if eq .data.kind "CronJob"}}{{template "k8s-cronjob" .data.object}}{{end}}
-      {{- if eq .data.kind "Job"}}{{template "k8s-job" .data.object}}{{end}}
-      {{- if eq .data.kind "ConfigMap"}}{{template "k8s-configmap" .data.object}}{{end}}
-      {{- if eq .data.kind "Role"}}{{template "k8s-role" .data.object}}{{end}}
-      {{- if eq .data.kind "Service"}}{{template "k8s-service" .data.object}}{{end}}
-      {{- if eq .data.kind "Pod"}}{{template "k8s-pod" .data.object}}{{end}}
-      {{- if eq .data.kind "Ingress"}}{{template "k8s-ingress" .data.object}}{{end}}
-      {{- if eq .data.kind "DaemonSet"}}{{template "k8s-daemonset" .data.object}}{{end}}
-      {{- if eq .data.kind "Deployment"}}{{template "k8s-deployment" .data.object |}}{{end}}
-      {{- if eq .data.kind "StatefulSet"}}{{template "k8s-statefulset" .data.object}}{{end}}
-      {{- if eq .data.kind "Node"}}{{template "k8s-node" .data.object}}{{end}}
-      {{template "k8s-patch" .data.patch}}
+    {{- if .data.object}}
+      {{- if eq .data.kind "Namespace"}}{{template "k8s-namespace" .data}}{{end}}
+      {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-replicaset" .data}}{{end}}
+      {{- if eq .data.kind "Secret"}}{{template "k8s-secret" .data}}{{end}}
+      {{- if eq .data.kind "CronJob"}}{{template "k8s-cronjob" .data}}{{end}}
+      {{- if eq .data.kind "Job"}}{{template "k8s-job" .data}}{{end}}
+      {{- if eq .data.kind "ConfigMap"}}{{template "k8s-configmap" .data}}{{end}}
+      {{- if eq .data.kind "Role"}}{{template "k8s-role" .data}}{{end}}
+      {{- if eq .data.kind "Service"}}{{template "k8s-service" .data}}{{end}}
+      {{- if eq .data.kind "Pod"}}{{template "k8s-pod" .data}}{{end}}
+      {{- if eq .data.kind "Ingress"}}{{template "k8s-ingress" .data}}{{end}}
+      {{- if eq .data.kind "DaemonSet"}}{{template "k8s-daemonset" .data}}{{end}}
+      {{- if eq .data.kind "Deployment"}}{{template "k8s-deployment" .data |}}{{end}}
+      {{- if eq .data.kind "StatefulSet"}}{{template "k8s-statefulset" .data}}{{end}}
+      {{- if eq .data.kind "Node"}}{{template "k8s-node" .data}}{{end}}
+      {{- if (eq .data.operation "Update")}}
+        {{template "k8s-patch" .data.patch}}
+      {{- end}}
     {{- end}}
     {{- if (gt (len $text) 0)}}
       {{printf "%s" $text}}

@@ -616,35 +616,38 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 		req := ar.Request
 
-		switch req.Kind.Kind {
-		case "Namespace":
-			p.processNamespace(span, channel, req)
-		case "Node":
-			p.processNode(span, channel, req)
-		case "ReplicaSet":
-			p.processReplicaSet(span, channel, req)
-		case "StatefulSet":
-			p.processStatefulSet(span, channel, req)
-		case "DaemonSet":
-			p.processDaemonSet(span, channel, req)
-		case "Secret":
-			p.processSecret(span, channel, req)
-		case "Ingress":
-			p.processIngress(span, channel, req)
-		case "Job":
-			p.processJob(span, channel, req)
-		case "CronJob":
-			p.processCronJob(span, channel, req)
-		case "ConfigMap":
-			p.processConfigMap(span, channel, req)
-		case "Role":
-			p.processRole(span, channel, req)
-		case "Deployment":
-			p.processDeployment(span, channel, req)
-		case "Service":
-			p.processService(span, channel, req)
-		case "Pod":
-			p.processPod(span, channel, req)
+		// Do not process DryRun requests - we only want real changes, also removes event duplicates (dryRun goes first)
+		if !*req.DryRun {
+			switch req.Kind.Kind {
+			case "Namespace":
+				p.processNamespace(span, channel, req)
+			case "Node":
+				p.processNode(span, channel, req)
+			case "ReplicaSet":
+				p.processReplicaSet(span, channel, req)
+			case "StatefulSet":
+				p.processStatefulSet(span, channel, req)
+			case "DaemonSet":
+				p.processDaemonSet(span, channel, req)
+			case "Secret":
+				p.processSecret(span, channel, req)
+			case "Ingress":
+				p.processIngress(span, channel, req)
+			case "Job":
+				p.processJob(span, channel, req)
+			case "CronJob":
+				p.processCronJob(span, channel, req)
+			case "ConfigMap":
+				p.processConfigMap(span, channel, req)
+			case "Role":
+				p.processRole(span, channel, req)
+			case "Deployment":
+				p.processDeployment(span, channel, req)
+			case "Service":
+				p.processService(span, channel, req)
+			case "Pod":
+				p.processPod(span, channel, req)
+			}
 		}
 
 		admissionResponse = &admv1beta1.AdmissionResponse{

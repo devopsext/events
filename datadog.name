@@ -1,6 +1,26 @@
 {{- define "k8s-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "%s: %s / %s %s: %s by %s" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
+  {{- $op := .data.operation}}
+  {{- if eq .data.operation "Update"}}
+
+    {{- $oldImages := ""}}{{- $newImages := ""}}
+    {{- range .data.object.old.spec.template.spec.containers}}
+      {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+    {{- end}}
+    {{- range .data.object.new.spec.template.spec.containers}}
+      {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+    {{- end}}
+    {{- if ne $oldImages $newImages}}
+      {{- $op = "Release"}}
+    {{- end}}
+    {{- if ne .data.object.old.spec.replicas .object.new.spec.replicas}}
+      {{- if ne $op "Release"}}
+        {{- $op = "Scale"}}
+      {{- end}}
+    {{- end}}
+
+  {{- end}}
+  {{- printf "%s: %s / %s %s: %s by %s" (toUpper $op) .data.kind .data.location .channel $t .data.user.name}}
 {{- end}}
 {{- define "alertmanager-header"}}
   {{- $t := timeFormat .time "02.01.06 15:04:05"}}

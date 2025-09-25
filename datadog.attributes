@@ -33,8 +33,32 @@
 {{- define "text"}}
   {{- if eq .type "K8sEvent"}}
     {{- $severity := ""}}
-    {{- if eq .data.operation "Delete"}}{{- $severity = "warning"}}{{- else }}{{- $severity = "info"}}{{- end}}
-    {{printf "{\"alert_type\":\"%s\",\"aggregation_key\":\"%s\",\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\",\"operation\":\"%s\"}" $severity .channel .type .data.kind .data.location .data.operation}}
+    {{- $op := .data.operation}}
+    {{- if eq .data.operation "Delete"}}
+      {{- $severity = "warning"}}
+    {{- else if eq .data.operation "Update"}}
+
+      {{- $oldImages := ""}}{{- $newImages := ""}}
+    {{- range .data.object.old.spec.template.spec.containers}}
+      {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+    {{- end}}
+    {{- range .data.object.new.spec.template.spec.containers}}
+      {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+    {{- end}}
+    {{- if ne $oldImages $newImages}}
+      {{- $op = "Release"}}
+      {{- $severity = "warning"}}
+    {{- end}}
+    {{- if ne .data.object.old.spec.replicas .object.new.spec.replicas}}
+      {{- if ne $op "Release"}}
+        {{- $op = "Scale"}}
+      {{- end}}
+    {{- end}}
+
+    {{- else }}
+    {{- $severity = "info"}}
+    {{- end}}
+    {{printf "{\"alert_type\":\"%s\",\"aggregation_key\":\"%s\",\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\",\"operation\":\"%s\"}" $severity .channel .type .data.kind .data.location $op}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
     {{printf "{\"type\":\"%s\",\"source_type_name\":\"%s\",\"alert\":\"%s\"}" .type .channel .data.labels.alertname}}
