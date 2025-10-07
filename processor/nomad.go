@@ -61,6 +61,7 @@ func NewNomadProcessor(outputs *common.Outputs, observability *common.Observabil
 			"Count of all nomad processor requests",
 			map[string]string{},
 			"processor",
+			"nomad",
 		),
 		errors: observability.Metrics().Counter(
 			"nomad",
@@ -68,6 +69,7 @@ func NewNomadProcessor(outputs *common.Outputs, observability *common.Observabil
 			"Count of all nomad processor errors",
 			map[string]string{},
 			"processor",
+			"nomad",
 		),
 	}
 }

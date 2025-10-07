@@ -108,7 +108,7 @@ func NewPubSubInput(options PubSubInputOptions, processors *common.Processors, o
 		eventer:    observability.Events(),
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		requests:   meter.Counter("pubsub", "requests", "Count of all pubsub input requests", map[string]string{}, "input"),
-		errors:     meter.Counter("pubsub", "errors", "Count of all pubsub input errors", map[string]string{}, "input"),
+		requests:   meter.Counter("pubsub", "requests", "Count of all pubsub input requests", map[string]string{}, "input", "pubsub"),
+		errors:     meter.Counter("pubsub", "errors", "Count of all pubsub input errors", map[string]string{}, "input", "pubsub"),
 	}
 }

@@ -455,7 +455,7 @@ func NewVCenterProcessor(outputs *common.Outputs, observability *common.Observab
 		outputs:  outputs,
 		logger:   observability.Logs(),
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("vcenter", "requests", "Count of all vcenter processor requests", map[string]string{}, "processor"),
-		errors:   observability.Metrics().Counter("vcenter", "errors", "Count of all vcenter processor errors", map[string]string{}, "processor"),
+		requests: observability.Metrics().Counter("vcenter", "requests", "Count of all vcenter processor requests", map[string]string{}, "processor", "vcenter"),
+		errors:   observability.Metrics().Counter("vcenter", "errors", "Count of all vcenter processor errors", map[string]string{}, "processor", "vcenter"),
 	}
 }

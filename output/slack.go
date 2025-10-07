@@ -435,7 +435,7 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		outputs:  outputs,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("slack", "requests", "Count of all slack requests", map[string]string{}, "output"),
-		errors:   observability.Metrics().Counter("slack", "errors", "Count of all slack errors", map[string]string{}, "output"),
+		requests: observability.Metrics().Counter("slack", "requests", "Count of all slack requests", map[string]string{}, "output", "slack"),
+		errors:   observability.Metrics().Counter("slack", "errors", "Count of all slack errors", map[string]string{}, "output", "slack"),
 	}
 }

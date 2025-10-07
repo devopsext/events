@@ -190,8 +190,8 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 		options:        options,
 		logger:         logger,
 		tracer:         observability.Traces(),
-		requests:       observability.Metrics().Counter("datadog", "requests", "Count of all datadog requests", map[string]string{}, "output"),
-		errors:         observability.Metrics().Counter("datadog", "errors", "Count of all datadog errors", map[string]string{}, "output"),
+		requests:       observability.Metrics().Counter("datadog", "requests", "Count of all datadog requests", map[string]string{}, "output", "datadog"),
+		errors:         observability.Metrics().Counter("datadog", "errors", "Count of all datadog errors", map[string]string{}, "output", "datadog"),
 		datadogEventer: datadogEventer,
 	}
 }

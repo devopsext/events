@@ -695,7 +695,7 @@ func NewK8sProcessor(outputs *common.Outputs, observability *common.Observabilit
 		logger:  observability.Logs(),
 		tracer:  observability.Traces(),
 		//	counter: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
-		requests: observability.Metrics().Counter("k8s", "requests", "Count of all k8s processor requests", map[string]string{}, "processor"),
-		errors:   observability.Metrics().Counter("k8s", "errors", "Count of all k8s processor errors", map[string]string{}, "processor"),
+		requests: observability.Metrics().Counter("k8s", "requests", "Count of all k8s processor requests", map[string]string{}, "processor", "k8s"),
+		errors:   observability.Metrics().Counter("k8s", "errors", "Count of all k8s processor errors", map[string]string{}, "processor", "k8s"),
 	}
 }

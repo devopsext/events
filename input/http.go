@@ -241,7 +241,7 @@ func NewHttpInput(options HttpInputOptions, processors *common.Processors, obser
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
 		meter:      meter,
-		requests:   meter.Counter("http", "requests", "Count of all http input requests", map[string]string{}, "input"),
-		errors:     meter.Counter("http", "errors", "Count of all http input errors", map[string]string{}, "input"),
+		requests:   meter.Counter("http", "requests", "Count of all http input requests", map[string]string{}, "input", "http"),
+		errors:     meter.Counter("http", "errors", "Count of all http input errors", map[string]string{}, "input", "http"),
 	}
 }

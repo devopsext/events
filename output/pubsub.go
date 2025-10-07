@@ -167,7 +167,7 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		options:  options,
 		logger:   logger,
 		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("pubsub", "requests", "Count of all pubsub requests", map[string]string{}, "output"),
-		errors:   observability.Metrics().Counter("pubsub", "errors", "Count of all pubsub errors", map[string]string{}, "output"),
+		requests: observability.Metrics().Counter("pubsub", "requests", "Count of all pubsub requests", map[string]string{}, "output", "pubsub"),
+		errors:   observability.Metrics().Counter("pubsub", "errors", "Count of all pubsub errors", map[string]string{}, "output", "pubsub"),
 	}
 }

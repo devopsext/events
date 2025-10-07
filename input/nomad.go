@@ -118,7 +118,7 @@ func NewNomadInput(options NomadInputOptions, processors *common.Processors, obs
 		eventer:    observability.Events(),
 		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		requests:   meter.Counter("nomad", "requests", "Count of all nomad input requests", map[string]string{}, "input"),
-		errors:     meter.Counter("nomad", "errors", "Count of all nomad input errors", map[string]string{}, "input"),
+		requests:   meter.Counter("nomad", "requests", "Count of all nomad input requests", map[string]string{}, "input", "nomad"),
+		errors:     meter.Counter("nomad", "errors", "Count of all nomad input errors", map[string]string{}, "input", "nomad"),
 	}
 }

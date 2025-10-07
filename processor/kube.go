@@ -186,6 +186,7 @@ func NewKubeProcessor(outputs *common.Outputs, observability *common.Observabili
 			"Count of all kube processor requests",
 			map[string]string{},
 			"processor",
+			"kube",
 		),
 		errors: observability.Metrics().Counter(
 			"kube",
@@ -193,6 +194,7 @@ func NewKubeProcessor(outputs *common.Outputs, observability *common.Observabili
 			"Count of all kube processor errors",
 			map[string]string{},
 			"processor",
+			"kube",
 		),
 	}
 }
