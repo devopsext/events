@@ -11,6 +11,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 
+	argov1a "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
@@ -20,7 +21,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta "k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	netv1beta1 "k8s.io/api/networking/v1beta1"
+	netv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtimek8s "k8s.io/apimachinery/pkg/runtime"
@@ -289,9 +290,9 @@ func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, 
 
 func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
 
-	var old *netv1beta1.Ingress
-	var new *netv1beta1.Ingress
-	res := make(map[string]netv1beta1.Ingress)
+	var old *netv1.Ingress
+	var new *netv1.Ingress
+	res := make(map[string]netv1.Ingress)
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
@@ -551,6 +552,34 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
+func (p *K8sProcessor) processArgoApplication(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+	var old *argov1a.Application
+	var new *argov1a.Application
+	res := make(map[string]*argov1a.Application)
+
+	if ar.OldObject.Raw != nil {
+		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
+			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+		}
+		if old != nil {
+			res["old"] = old
+		}
+	}
+
+	if ar.Object.Raw != nil {
+		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
+			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+		}
+		if new != nil {
+			res["new"] = new
+		}
+	}
+	patch, _ := jsondiff.CompareJSON(ar.OldObject.Raw, ar.Object.Raw)
+	name := new.Name
+	namespace := new.Spec.Destination.Namespace
+	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+}
+
 func (p *K8sProcessor) HandleEvent(e *common.Event) error {
 
 	if e == nil {
@@ -647,6 +676,8 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 				p.processService(span, channel, req)
 			case "Pod":
 				p.processPod(span, channel, req)
+			case "Application":
+				p.processArgoApplication(span, channel, req)
 			}
 		}
 

@@ -13,8 +13,10 @@
 {{- define "k8s-patch"}}
   {{- $text := ""}}
   {{- range .}}
-    {{- if not (regexMatch "^(/meta|.*metadata).*" .path)}}
-      {{- $value := ""}}
+    {{- $value := ""}}
+    {{- if regexMatch "/spec/template/metadata/annotations.*restartedAt.*" .path}}
+        {{- $value = printf "%v restarted at %s\n" $value .value}}
+    {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt).*" .path)}}
       {{- if (regexMatch ".*/env/.*/value" .path)}}
         {{- $value = "MASKED"}}
       {{- else}}
