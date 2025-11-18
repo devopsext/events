@@ -11,19 +11,96 @@
   {{- end}}
 {{- end}}
 
+
+{{- define "vcenterbody"}}
+  {{- if .data.ChainId}}{{- printf "ChainId: %s\n" .data.ChainId}}{{- end}}
+  {{- if .data.VmName}}{{- printf "%s\n" .data.VmName}}{{- end}}
+  {{- if .data.OrigESXiHostName}}{{- printf "%s " .data.OrigESXiHostName}}{{- end}}
+  {{- printf "->"}}
+  {{- if .data.DestESXiHostName}}{{- printf " %s" .data.DestESXiHostName}}{{- end}}
+  {{- printf "\n"}}
+  {{- if .data.Message}}{{- printf "%s\n" .data.Message}}{{- end}}
+{{- end}}
+
 {{- define "text"}}
+
+  {{- if eq .type "ZabbixEvent"}}
+    {{- if .data.EventNSeverity }} {{- if (.data.EventNSeverity | regexMatch ".*(3|4|5).*") }}
+      {{- printf "ZabbixEvent "}}
+      {{- if .data.Status}}{{- printf "%s\n" .data.Status }}{{- else}}{{- printf "\n"}}{{- end}}
+      {{- if .data.TriggerName}}{{- printf "TriggerName: %s\n" .data.TriggerName}}{{- end}}
+      {{- if .data.TriggerExpression}}{{- printf "TriggerExpression: %s\n" .data.TriggerExpression}}{{- end}}
+      {{- if .data.EventOpData}}{{- printf "EventOpData: %s\n" .data.EventOpData}}{{- end}}
+      {{- if .data.TriggerDescription}}{{- printf "TriggerDescription: %s\n" .data.TriggerDescription}}{{- end}}
+      {{- if .data.AlertURL}}{{- printf "<a href=\"%s\">AlertURL</a>\n" .data.AlertURL}}{{- end}}
+    {{- end}}{{- end}}
+  {{- end }}
+
+  {{- if eq .type "VCenterEvent"}}
+    {{- if .data.Subject}}
+      {{- if not (.data.Subject | regexMatch ".*(TaskEvent|esx.problem.vmsyslogd.remote.failure|esx.problem.vmfs.heartbeat.timedout|esx.problem.vmfs.heartbeat.recovered).*")}}
+        {{- template "vcenterbody" .}}
+      {{- end}}
+    {{- else}}
+      {{- template "vcenterbody" .}}
+    {{- end}}
+  {{- end }}
+
   {{- if eq .type "K8sEvent"}}
-    {{- if not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)")}}
-      {{- printf "%s\n%s / %s" (upper .data.operation) .data.kind .data.location}}
+    {{- if or (not (regexMatch .data.kind "StatefulSet|Deployment|DaemonSet|ReplicaSet")) (and (regexMatch .data.kind "StatefulSet|Deployment|DaemonSet|ReplicaSet") (not (regexMatch .data.user.name ".*argocd-application-controller"))) }}
+      {{- /* k8s-patch template, equal to one in datadog.message */}}
+      {{- $patch := ""}}
+      {{- range .data.patch}}
+        {{- if regexMatch "/spec/template/metadata/annotations.*restartedAt.*" .path}}
+          {{- $patch = printf "%v restarted at %s\n" $patch .value}}
+        {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt|.*/health/.*|/status/(summary|conditions|health|history|operationState|sync|resources/[0-9]+/.*)|/operation|/spec/syncPolicy/automated|/spec/destination/).*" .path)}}
+          {{- $value := ""}}
+          {{- if (regexMatch ".*/env/.*" .path)}}
+            {{- $value = "MASKED"}}
+          {{- else}}
+            {{- $value = .value}}
+          {{- end}}
+          {{- $patch = printf "%v%s %s: %v\n" $patch .op .path $value}}
+        {{- end}}
+      {{- end}}
+
+      {{- $op := .data.operation}}
+      {{- if eq .data.operation "Update"}}
+
+        {{- $oldImages := ""}}{{- $newImages := ""}}
+        {{- if regexMatch .data.kind "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod"}}
+          {{- range .data.object.old.spec.template.spec.containers}}
+            {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+          {{- end}}
+          {{- range .data.object.new.spec.template.spec.containers}}
+            {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+          {{- end}}
+        {{- else if eq .data.kind "Application"}}
+          {{- $oldImages = printf "%s:%s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+          {{- $newImages = printf "%s:%s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+        {{- end}}
+        {{- if ne $oldImages $newImages}}
+          {{- $op = "Release"}}
+        {{- end}}
+        {{- if ne .data.object.old.spec.replicas .data.object.new.spec.replicas}}
+          {{- if ne $op "Release"}}
+            {{- $op = "Scale"}}
+          {{- end}}
+        {{- end}}
+
+      {{- end}}
+      {{- if or (and (eq .data.operation "Update") (gt (len $patch) 0)) (ne .data.operation "Update")}}
+        {{- if and (eq .data.operation "Update") (gt (len $patch) 0)}}{{- $patch = printf "\nChanges: %v" $patch}}{{- end}}
+        {{- printf "%s: %s / %s / %s by %s %s" (toUpper $op) .data.kind .data.location .channel .data.user.name $patch}}
+      {{- end}}
     {{- end}}
   {{- end}}
-  {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s\n%s" (upper .data.status) .data.labels.alertname}}{{- end}}
 
   {{- if and (eq .type "KubeEvent") (ne .data.reason "DNSConfigForming")}}
-      {{- printf "%s" .data.message}}
+      {{- printf "%s\nLocation: %s\nSource: %s" .data.message .data.location .data.source}}
   {{- end}}
 
-  {{- if eq .type "WinEvent"}}{{- printf "[%s]%s: %s %s" .data.tags.LevelText (upper .data.tags.host) .data.tags.EventRecordID .data.tags.Message }}{{- end}}
+  {{- if eq .type "AlertmanagerEvent"}}{{- printf "%s\n%s" (upper .data.status) .data.labels.alertname}}{{- end}}
 
   {{- if eq .type "ObserviumEvent"}}
     {{- if not (eq .data.ALERT_STATE "ALERT REMINDER") }}
@@ -31,22 +108,37 @@
     {{- end }}
   {{- end}}
 
-  {{- if eq .type "GitlabEvent"}}
-    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+ {{- if eq .type "GitlabEvent" }}
+    {{- $gitlab_owner := "Exness" }}
+    {{- $job_name := env "EVENTS_GITLAB_JOB_NAMES" }}
+    {{- $env := env "EVENTS_GITLAB_RUNNERS" }}
+    {{- $ok := false}}
     {{- if .data.builds}}
       {{- range .data.builds}}
-        {{- if and (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+        {{- if and .runner (or (.runner.description | regexMatch $env) (not (contains "exness.io" .data.repository.git_http_url))) (not (empty .finished_at)) }}
+          {{ $ok = true }}
+        {{- end }}
       {{- end}}
     {{- else}}
-      {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+      {{- if and .data.runner (or (.data.runner.description | regexMatch $env) (not (contains "exness.io" .data.repository.git_http_url))) (.data.build_name | regexMatch $job_name) (eq .data.build_status "success") (not (empty .data.build_finished_at)) }}
+        {{ $ok = true }}
+      {{- end}}
     {{- end}}
+    {{- if and (not (contains "exness.io" .data.repository.git_http_url)) (eq .data.build_status "success") }}
+      {{ $gitlab_owner = "GaTech" }}
+      {{ $ok = true }}
+    {{- end }}
     {{- if $ok}}
-      {{- if .data.project}}{{- printf "%s\n<a href=\"%s\">%s / %s@%s</a>" (upper .data.object_kind) .data.commit.url .data.project.namespace .data.project.name .data.object_attributes.ref}}
-      {{- else}}{{- printf "%s\n<a href=\"%s/-/commit/%s\">%s@%s</a>" (upper .data.object_kind) .data.repository.homepage .data.commit.sha .data.project_name .data.ref}}{{end}}
+      {{- if .data.project}}{{- printf "%s(%s) - %s\n<a href=\"%s\">%s / %s@%s</a>" (upper .data.object_kind) .data.build_name $gitlab_owner .data.commit.url .data.project.namespace .data.project.name .data.object_attributes.ref}}
+      {{- else}}{{- printf "%s(%s) - %s\n<a href=\"%s/-/commit/%s\">%s@%s</a>" (upper .data.object_kind) .data.build_name $gitlab_owner .data.repository.homepage .data.commit.sha .data.project_name .data.ref}}{{end}}
     {{- end}}
   {{- end}}
 
   {{- if eq .type "TeamcityEvent"}}{{- printf "%s %s %s" .data.build_name .data.build_event .data.build_result}}{{- end}}
+  {{- if eq .type "DataDogEvent"}}{{- .data.text_only_msg}}{{- end}}
+  {{- if eq .type "Site24x7Event"}}{{- .data.INCIDENT_REASON}}{{- end}}
+  {{- if eq .type "CloudflareEvent"}}{{- .data.text}}{{- end}}
+  {{- if eq .type "GoogleEvent"}}{{- .data.incident.summary}}{{- end}}
 
   {{- if eq .type "AWSEvent"}}
     {{- template "object" (list .data.detail.requestParameters "(networkInterfaceId)")}}
@@ -55,16 +147,14 @@
     {{- template "object" (list .data.detail "(CommonName|DaysToExpiry|eventName|EC2InstnaceId|Cause|stoppedReason|taskArn|userAgent)")}}
     {{- template "object" (list .data "(detail-type)")}}
   {{- end}}
-  {{- if eq .type "vcenterEvent"}}
-    {{- if .data.Subject}}
-    {{- if (.data.Subject | regexMatch "(com.vmware.vc.sdrs.*|Vm.*)")}}
-    {{- if not (.data.Subject | regexMatch "VmAcquiredTicketEvent")}}
-      {{- printf "%s\n" .data.VmName }}
-      {{- printf "%s -> %s\n" .data.OrigESXiHostName  .data.DestESXiHostName  }}
-    {{- end}}
-    {{- end}}
+
+  {{- if eq .type "WinEvent"}}{{- printf "[%s]%s: %s %s" .data.tags.LevelText (upper .data.tags.host) .data.tags.EventRecordID .data.tags.Message }}{{- end}}
+
+  {{- if eq .type "NomadEvent"}}
+    {{- if ne .data.Type "AllocationUpdated" }}
+      {{- printf "Nomad Event: %s" .data.Type}}
     {{- end}}
   {{- end}}
-{{- end}}
 
+{{- end}}
 {{- define "grafana-message"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}

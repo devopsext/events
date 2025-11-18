@@ -13,11 +13,11 @@
 {{- define "k8s-patch"}}
   {{- $text := ""}}
   {{- range .}}
-    {{- $value := ""}}
+      {{- $value := ""}}
     {{- if regexMatch "/spec/template/metadata/annotations.*restartedAt.*" .path}}
-        {{- $value = printf "%v restarted at %s\n" $value .value}}
-    {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt).*" .path)}}
-      {{- if (regexMatch ".*/env/.*/value" .path)}}
+      {{- $text = printf "%v restarted at %s\n" $text .value}}
+    {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt|.*/health/.*|/status/(summary|conditions|health|history|operationState|sync|resources/.*)|/operation|/spec/syncPolicy/automated|/spec/destination/).*" .path)}}
+      {{- if (regexMatch ".*/env/.*" .path)}}
         {{- $value = "MASKED"}}
       {{- else}}
         {{- $value = .value}}
@@ -56,19 +56,25 @@
   {{- end}}
   {{- printf "\nSelector => %s" .spec.selector}}
 {{- end}}
-{{- define "k8s-pod"}}
+{{- define "k8s-pod"}}{{- end}}
+{{- define "k8s-image"}}
   {{- $oldImages := ""}}{{- $newImages := ""}}
-  {{- range .object.old.spec.template.spec.containers}}
-    {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+  {{- if regexMatch "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod" .data.kind}}
+    {{- range .data.object.old.spec.template.spec.containers}}
+      {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+    {{- end}}
+    {{- range .data.object.new.spec.template.spec.containers}}
+      {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+    {{- end}}
+  {{- else if eq .data.kind "Application"}}
+    {{- $oldImages = printf "%s: %s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+    {{- $newImages = printf "%s: %s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
   {{- end}}
-  {{- range .object.new.spec.template.spec.containers}}
-    {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
-  {{- end}}
-  {{- if and (ne $oldImages $newImages) (eq .operation "Update") }}
-    {{- printf "\nImages:\n%s%s" $oldImages $newImages}}
-  {{- else if eq .operation "Create"}}
+  {{- if and (ne $oldImages $newImages) (eq .data.operation "Update")}}
+    {{- printf "\nImages:\nOld:\n%sNew:\n%s" $oldImages $newImages}}
+  {{- else if eq .data.operation "Create"}}
     {{- printf "\nImages:\n%s" $newImages}}
-  {{- else if eq .operation "Delete"}}
+  {{- else if eq .data.operation "Delete"}}
     {{- printf "\nImages:\n%s" $oldImages}}
   {{- end}}
 {{- end}}
@@ -86,6 +92,9 @@
   {{- else}}{{- printf "%s: %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
 {{- end}}
 {{- define "text"}}
+  {{- if eq .type "KubeEvent"}}
+    {{- printf "%s" .data.message}}
+  {{- end}}
   {{- if eq .type "K8sEvent"}}
     {{- $pass := false}}
     {{- $text := ""}}
@@ -108,7 +117,8 @@
       {{- if eq .data.kind "Deployment"}}{{template "k8s-deployment" .data |}}{{end}}
       {{- if eq .data.kind "StatefulSet"}}{{template "k8s-statefulset" .data}}{{end}}
       {{- if eq .data.kind "Node"}}{{template "k8s-node" .data}}{{end}}
-      {{- if (eq .data.operation "Update")}}
+      {{template "k8s-image" .}}
+      {{- if or (eq .data.operation "Update") (eq .data.operation "Release")}}
         {{template "k8s-patch" .data.patch}}
       {{- end}}
     {{- end}}

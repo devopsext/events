@@ -20,17 +20,75 @@
 
 {{- define "k8s-header"}}
   {{- $l := (printf "%s / %s" .data.kind .data.location)}}
-  {{- template "header" (dict "o" (toUpper .data.operation) "l" $l "c" .channel "t" .time "u" .data.user.name)}}
+  {{- $op := .data.operation}}
+  {{- if eq .data.operation "Update"}}
+
+    {{- $oldImages := ""}}{{- $newImages := ""}}
+    {{- if regexMatch .data.kind "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod"}}
+      {{- range .data.object.old.spec.template.spec.containers}}
+        {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+      {{- end}}
+      {{- range .data.object.new.spec.template.spec.containers}}
+        {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+      {{- end}}
+    {{- else if eq .data.kind "Application"}}
+      {{- $oldImages = printf "%s:%s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+      {{- $newImages = printf "%s:%s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+    {{- end}}
+    {{- if ne $oldImages $newImages}}
+      {{- $op = "Release"}}
+    {{- end}}
+    {{- if ne .data.object.old.spec.replicas .data.object.new.spec.replicas}}
+      {{- if ne $op "Release"}}
+        {{- $op = "Scale"}}
+      {{- end}}
+    {{- end}}
+  {{- end}}
+  {{- template "header" (dict "o" (toUpper $op) "l" $l "c" .channel "t" .time "u" .data.user.name)}}
+{{- end}}
+{{- define "k8s-object-counts"}}
+  {{- if eq .operation "Update"}}
+    {{- if ne .object.old.spec.replicas .object.new.spec.replicas}}
+      {{- printf "\nReplicas: %.0f => %.0f" .object.old.spec.replicas .object.new.spec.replicas}}
+    {{- end }}
+  {{- else if eq .operation "Create"}}
+    {{- printf "\nReplicas: %.0f" .object.new.spec.replicas}}
+  {{- else if eq .operation "Delete"}}
+    {{- printf "\nReplicas: %.0f" .object.old.spec.replicas}}
+  {{- end }}
+  {{template "k8s-pod" .}}
+{{- end}}
+{{- define "k8s-patch"}}
+  {{- $text := ""}}
+  {{- range .}}
+      {{- $value := ""}}
+    {{- if regexMatch "/spec/template/metadata/annotations.*restartedAt.*" .path}}
+      {{- $text = printf "%v restarted at %s\n" $text .value}}
+    {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt|.*/health/.*|/status/(summary|conditions|health|history|operationState|sync|resources/.*)|/operation|/spec/syncPolicy/automated|/spec/destination/).*" .path)}}
+      {{- if (regexMatch ".*/env/.*" .path)}}
+        {{- $value = "MASKED"}}
+      {{- else}}
+        {{- $value = .value}}
+      {{- end}}
+      {{- $text = printf "%s%s %s: %v\n" $text .op .path $value}}
+    {{- end}}
+  {{- end}}
+  {{- if gt (len $text) 0}}
+    {{printf "Changes:\n%s" $text}}
+  {{- end}}
 {{- end}}
 
 {{- define "k8s-namespace"}}{{- end}}
 {{- define "k8s-node"}}{{- end}}
-{{- define "k8s-replicaset"}}{{- end}}
-{{- define "k8s-statefulset"}}
-  {{- printf "\n*Replicas* => %.0f\n*Selector* => %s" .spec.replicas .spec.selector}}
-  {{- template "k8s-pod" .spec.template}}
+{{- define "k8s-replicaset"}}
+  {{template "k8s-object-counts" .}}
 {{- end}}
-{{- define "k8s-daemonset"}}{{- end}}
+{{- define "k8s-statefulset"}}
+  {{template "k8s-object-counts" .}}
+{{- end}}
+{{- define "k8s-daemonset"}}
+  {{template "k8s-object-counts" .}}
+{{- end}}
 {{- define "k8s-secret"}}{{- end}}
 {{- define "k8s-ingress"}}{{- end}}
 {{- define "k8s-cronjob"}}{{- end}}
@@ -38,27 +96,40 @@
 {{- define "k8s-configmap"}}{{- end}}
 {{- define "k8s-role"}}{{- end}}
 {{- define "k8s-deployment"}}
-  {{- printf "\n*Replicas* => %.0f\n*Selector* => %s" .spec.replicas .spec.selector}}
-  {{- template "k8s-pod" .spec.template}}
+  {{template "k8s-object-counts" .}}
 {{- end}}
 {{- define "k8s-service"}}
-  {{- printf "\n*%s* => %s" .spec.type .spec.clusterIP}}
-  {{- range .spec.ports}}
-    {{- printf "\n*%s* %.0f => %.0f" .protocol .port .targetPort}}
+  {{- printf "\n%s => %s" .object.new.spec.type .object.new.spec.clusterIP}}
+  {{- range .object.new.spec.ports}}
+    {{- printf "\n%s %.0f => %.0f" .protocol .port .targetPort}}
   {{- end}}
-  {{- printf "\n*Selector* => %s" .spec.selector}}
+  {{- printf "\nSelector => %s" .spec.selector}}
 {{- end}}
-{{- define "k8s-pod"}}
-  {{- range .spec.containers}}
-    {{- printf "\n*%s* => %s" .name .image}}
-    {{- range .ports}}
-      {{- printf " [%s: %.0f]" .protocol .containerPort}}
-    {{- end}}   
+{{- define "k8s-pod"}}{{- end}}
+{{- define "k8s-image"}}
+  {{- $oldImages := ""}}{{- $newImages := ""}}
+  {{- if regexMatch "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod" .data.kind}}
+    {{- range .data.object.old.spec.template.spec.containers}}
+      {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+    {{- end}}
+    {{- range .data.object.new.spec.template.spec.containers}}
+      {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+    {{- end}}
+  {{- else if eq .data.kind "Application"}}
+    {{- $oldImages = printf "%s: %s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+    {{- $newImages = printf "%s: %s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+  {{- end}}
+  {{- if and (ne $oldImages $newImages) (eq .data.operation "Update")}}
+    {{- printf "\nImages:\nOld:\n%sNew:\n%s" $oldImages $newImages}}
+  {{- else if eq .data.operation "Create"}}
+    {{- printf "\nImages:\n%s" $newImages}}
+  {{- else if eq .data.operation "Delete"}}
+    {{- printf "\nImages:\n%s" $oldImages}}
   {{- end}}
 {{- end}}
 
 {{- define "kube-event"}}
-  {{- printf "%s: %s\n" .type .message}}
+  {{- printf "Kube %s: %s\n" .type .message}}
   {{- printf "Reason: %s\n" .reason}}
   {{- printf "Source: %s\n" .source}}
   {{- printf "Location: %s" .location}}
@@ -121,6 +192,7 @@
   {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}
   {{- if and (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}
     {{- template "gitlab-header" .}}
+    {{- printf ":gitlab:\n"}}
     {{- template "gitlab-commit" (dict "repository" .data.repository "commit" .data.commit)}}
     {{- printf "\n*%s/%s* => %s" .data.build_stage .data.build_name .data.runner.description}}
     {{- printf "\n%s/-/jobs/%.0f" .data.repository.homepage .data.build_id}}
@@ -139,63 +211,142 @@
       {{- $gProjectID := atoi (index (split "@" $gProjectIDRef) 0)}}
       {{- $gURL := getEnv "EVENTS_GITLAB_URL"}}
       {{- $gToken := getEnv "EVENTS_GITLAB_TOKEN"}}
-      {{- $gQuery := printf "DATADOG_TRANSITION=Triggered,DATADOG_ID=%s,SLACK_CHANNEL,SLACK_THREAD" .data.alert.id}}
-      {{- $vars := gitlabPipelineVars $gURL $gToken $gProjectID $gQuery 10 }}
-      {{- $sChannel := jsonata $vars "$[(key='SLACK_CHANNEL')].value" }}
-      {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
-      {{- $slack = dict "channel" $sChannel "thread" $sThread }}
-    {{- else}}
+      {{- $gQuery := printf "DATADOG_TRANSITION=Triggered,DATADOG_KEY=%s,SLACK_CHANNEL,SLACK_THREAD" .data.key}}
+      {{- $vars := gitlabPipelineVars $gURL $gToken $gProjectID $gQuery 50 }}
+      {{- if $vars}}
+        {{- $sChannel := jsonata $vars "$[(key='SLACK_CHANNEL')].value" }}
+        {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
+        {{- $slack = dict "channel" $sChannel "thread" $sThread }}
+        {{- $sThread := jsonata $vars "$[(key='SLACK_THREAD')].value" }}
+      {{- end}}
+    {{- end}}
+
+    {{- if not $slack}}
       {{- $slack = dict "channel" "" "thread" "" }}
     {{- end}}
 
     {{- $image := "https://via.placeholder.com/452x185.png?text=No%20chart%20image"}}
-    {{- range (list .data.snapshot .data.snapshot .data.snapshot)}}
+    {{- range (list .data.snapshot .data.snapshot .data.snapshot .data.snapshot .data.snapshot)}}
       {{- $png := printf "%s?%s" . (randAlphaNum 6) }}
-      {{- if urlWait $png 1 2 199 }}
+      {{- if urlWait $png 2 2 199 }}
         {{- $image = $png}}
         {{- break }}
       {{- end}}
-    {{- end}} 
-    {{- logInfo "Datadog image => %s" $image }}
-    {{- jsonata (dict "datadog" .data "image" $image "slack" $slack) "datadog2slack.jsonata"}}
+    {{- end}}
+    {{- logInfo "Slack => %s" (toJSON $slack) }}
+    {{- logInfo "Datadog => %s" (toJSON .data) }}
+    {{- jsonata (dict "datadog" .data "image" $image "slack" $slack) "/datadog2slack.jsonata"}}
   {{- end}}
 {{- end}}
+
 
 {{- define "site24x7"}}
   {{printf "Site24x7 Event\n"}}
-  {{- printf "%s is %s from %s\n" .data.MONITORNAME .data.STATUS .data.FAILED_LOCATIONS}}
-  {{- printf "%s" .data.MONITOR_DASHBOARD_LINK}}
-{{- end}}
-
-{{- define "cloudflare"}}
-  {{- printf "Cloudflare Event\n"}}
-  {{ toJSON .data}}
-{{- end}}
-
-{{- define "google"}}
-  {{- if .data.incident}}
-    {{ toJSON .data}}
+  {{- printf "*%s:* %s\n*Status:* %s\n" .data.MONITORTYPE .data.MONITORNAME .data.STATUS}}
+  {{- if .data.FAILED_LOCATIONS}}
+    {{- printf ">*Monitoring point(s):* %s\n" .data.FAILED_LOCATIONS}}
   {{- end}}
+  {{- printf ">*Reason:* %s\n" .data.INCIDENT_REASON}}
+  {{- printf ">*Monitored URL:* %s\n" .data.MONITORURL}}
+  {{- printf ">*Timestamp:* %s\n" .data.INCIDENT_TIME}}
+  {{- printf "><%s|site24x7 dashboard>" .data.MONITOR_DASHBOARD_LINK}}
 {{- end}}
 
 {{- define "teamcity"}}
+  {{- printf "TeamcityEvent\n"}}
   {{- printf "*Build:* %s %s\n" .build_name .build_event}}
   {{- printf "*Target:*  %s\n" .target}}
   {{- printf "*Triggered by:* %s\n" .triggered_by}}
   {{- printf "*Status:* <%s|%s>" .build_status_url .build_result}}
 {{- end}}
 
-{{- define "aws-ec2"}}
-  {{- $instanceId := .data.detail.requestParameters.instanceId}}
-  {{- if .data.detail.requestParameters.tagSet.items}}
-    {{- if ne (len .data.detail.requestParameters.tagSet.items) 0}}
-      {{- $m := index .data.detail.requestParameters.tagSet.items 0}}
-      {{- $instanceId = get $m "value"}}
+{{- define "zabbix"}}
+  {{- $sev := ""}}
+  {{- if eq .data.Status "PROBLEM"}}
+    {{- if eq .data.EventNSeverity "3"}}{{- $sev = "Average severity " }}{{- end}}
+    {{- if eq .data.EventNSeverity "4"}}{{- $sev = ":eyes: High severity " }}{{- end}}
+    {{- if eq .data.EventNSeverity "5"}}{{- $sev = ":exclamation: *DISASTER* severity " }}{{- end}}
+  {{- end}}
+  {{- printf "%sEvent - %s\n" $sev .data.Status}}
+  {{- printf "*%s: %s*\n" .data.HostName .data.EventName}}
+  {{- if .data.TriggerDescription}}{{- printf "Description: %s\n" .data.TriggerDescription}}{{end -}}
+  {{- printf "<%s|AlertURL>\n" .data.AlertURL}}
+{{- end}}
+
+{{- define "vcenter"}}
+  {{- if and .data.Subject (ne .data.Subject "")}}
+    {{- printf "VCenterEvent event %s\n" .data.Subject }}
+  {{- else}}
+    {{- if and .data.DebugSubject (ne .data.DebugSubject " ")}}
+      {{- printf "VCenterEvent event %s\n" .data.DebugSubject}}
+    {{- else}}
+      {{- printf "VCenterEvent event unknown\n"}}
     {{- end}}
   {{- end}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source $instanceId)}}
-  {{- $u := index (split ":" .data.detail.userIdentity.principalId) 0}}
-  {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" $u)}}
+  {{- printf "%s" .data.RAWString}}
+{{- end}}
+
+{{- define "cloudflare"}}
+  Cloudflare Event
+  ---
+  {{toPrettyJson .data | js }}
+  ---
+{{- end}}
+
+{{- define "google"}}
+  {{- if .data.incident}}
+    Google Incident Event
+    ---
+    {{toPrettyJson .data | js }}
+    ---
+  {{- end}}
+{{- end}}
+
+{{- define "observium"}}
+Observium Event
+---
+{{toPrettyJson .data | js }}
+---
+{{- end}}
+
+{{- define "aws-ec2-header"}}
+  {{- $instanceId:="unknown"}}
+  {{- $user:="unknown"}}
+  {{- $location:="unknown"}}
+  {{- $eventName:="unknown"}}
+{{/* have we any data at all? */}}
+  {{- if .data.detail}}
+{{/* select event name */}}
+    {{- if .data.detail.eventName}}
+      {{- $eventName = .data.detail.eventName}}
+    {{- end}}
+{{/* select user */}}
+    {{- if .data.detail.userIdentity}}{{- if .data.detail.userIdentity.type}}{{- if (.data.detail.userIdentity.type | regexMatch "(AssumedRole|WebIdentityUser)")}}
+      {{- if .data.detail.userIdentity.principalId}}
+        {{- $user = index (split ":" .data.detail.userIdentity.principalId) 0}}
+      {{- end}}
+    {{- end}}{{- end}}{{- end}}
+{{/* select instanceId */}}
+    {{- if .data.detail.requestParameters}}
+{{/* first try (general) */}}
+      {{- if .data.detail.requestParameters.instanceId}}
+        {{- $instanceId = .data.detail.requestParameters.instanceId}}
+      {{- end}}
+{{/* second try to set instanceId (accurate) */}}
+      {{- if .data.detail.requestParameters.tagSet}}{{- if .data.detail.requestParameters.tagSet.items}}
+        {{- if ne (len .data.detail.requestParameters.tagSet.items) 0}}
+          {{- $m := index .data.detail.requestParameters.tagSet.items 0}}
+          {{- $instanceId = get $m "value"}}
+        {{- end}}
+      {{- end}}{{- end}}
+    {{- end}}
+  {{- end}}
+{{/* print header */}}
+  {{- template "header" (dict "o" $eventName "l" $location "c" .channel "t" .time "u" $user)}}
+{{- end}}
+
+{{- define "aws-ec2"}}
+  {{- template "aws-ec2-header" .}}
   {{- template "object" (list .data.detail.requestParameters "(networkInterfaceId)")}}
   {{- template "object" (list .data.detail.responseElements "(device|volumeId)")}}
   {{- template "object" (list .data.detail.userIdentity "(accessKeyId|arn)")}}
@@ -204,7 +355,7 @@
 
 {{- define "aws-ecs"}}
   {{- $cluster := index (split "/" .data.detail.clusterArn) 1}}
-  {{- $l := (printf "%s / %s / %s / %s" .data.region .data.source $cluster .data.detail.group)}}
+  {{- $l := (printf "%s / %s / %s / %s" .data.region .data.source (ifDef $cluster "unknown") .data.detail.group)}}
   {{- template "header" (dict "o" .data.detail.lastStatus "l" $l "c" .channel "t" .time "u" .data.detail.startedBy)}}
   {{- range .data.detail.containers}}
     {{- printf "\n*%s* => %s" .name .image}}
@@ -214,7 +365,7 @@
 {{- end}}
 
 {{- define "aws-rds"}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source .data.detail.SourceIdentifier)}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source (ifDef .data.detail.SourceIdentifier "unknown"))}}
   {{- template "header" (dict "o" (index .data "detail-type") "l" $l "c" .channel "t" .time)}}
   {{- template "object" (list .data.detail.userIdentity "(arn)")}}
   {{- template "object" (list .data.detail "(EventID|Message|userAgent)")}}
@@ -224,14 +375,14 @@
   {{- $target := "unknown"}}
   {{- if .data.detail.requestParameters.targetGroupArn}}{{$target = index (split "/" .data.detail.requestParameters.targetGroupArn) 1}}{{end}}
   {{- if .data.detail.requestParameters.loadBalancerName}}{{$target = .data.detail.requestParameters.loadBalancerName}}{{end}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source $target)}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source (ifDef $target "unknown"))}}
   {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" .data.detail.userIdentity.accessKeyId)}}
   {{- template "object" (list .data.detail.userIdentity "(arn)")}}
   {{- template "object" (list .data.detail "(userAgent)")}}
 {{- end}}
 
 {{- define "aws-route53"}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source .data.detail.requestParameters.hostedZoneId)}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source (ifDef .data.detail.requestParameters.hostedZoneId "unknown"))}}
   {{- template "header" (dict "o" .data.detail.eventName "l" $l "c" .channel "t" .time "u" .data.detail.userIdentity.accessKeyId)}}
   {{- range .data.detail.requestParameters.changeBatch.changes}}
     {{- printf "\n*%s* => %s" .action .resourceRecordSet.name}}
@@ -241,7 +392,7 @@
 {{- end}}
 
 {{- define "aws-autoscaling"}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source .data.detail.AutoScalingGroupName)}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source (ifDef .data.detail.AutoScalingGroupName "unknown"))}}
   {{- template "header" (dict "o" (index .data "detail-type") "l" $l "c" .channel "t" .time)}}
   {{- template "object" (list .data.detail.userIdentity "(arn)")}}
   {{- template "object" (list .data.detail "(EC2InstnaceId|Cause|userAgent)")}}
@@ -251,7 +402,7 @@
   {{- $name := "unknown"}}
   {{- if .data.detail.requestParameters.certificateArn}}{{$name = index (split "/" .data.detail.requestParameters.certificateArn) 1}}{{end}}
   {{- if .data.detail.CommonName}}{{$name = .data.detail.CommonName}}{{end}}
-  {{- $l := (printf "%s / %s / %s" .data.region .data.source $name)}}
+  {{- $l := (printf "%s / %s / %s" .data.region .data.source (ifDef $name "unknown"))}}
   {{- $o := (index .data "detail-type")}}
   {{- if .data.detail.eventName}}{{$o = .data.detail.eventName}}{{end}}
   {{- template "header" (dict "o" $o "l" $l "c" .channel "t" .time "u" .data.detail.userIdentity.accessKeyId)}}
@@ -268,51 +419,104 @@
 {{- end}}
 
 {{- define "nomad-deployment"}}
-  {{- printf "%s is %s" .ID .Status}}
+  {{- printf "%s is %s" .JobID .Status}}
 {{- end}}
 
 {{- define "nomad-job"}}
-  {{- printf "%s is %s" .ID .Status}}
+  {{- printf "%s is %s" .Name .Status}}
 {{- end}}
 
 {{- define "nomad-node"}}
   {{- printf "%s is %s" .Name .Status}}
 {{- end}}
 
-{{- define "zabbix"}}
-  {{- printf "ZabbixEvent on %s\n" .data.Environment}}
-  {{- printf "HostName: %s\n" .data.HostName}}
-  {{- printf "Status: %s\t" .data.Status}}
-    {{- if eq .data.EventNSeverity "3"}}{{- printf " / average\n" }}{{- end}}
-    {{- if eq .data.EventNSeverity "4"}}{{- printf " / high\n" }}{{- end}}
-    {{- if eq .data.EventNSeverity "5"}}{{- printf " / disaster\n" }}{{- end}}
-  {{- if .data.TriggerDescription}}{{- printf "TriggerDescription: %s\n" .data.TriggerDescription}}{{end -}}
-  {{- printf "AlertURL: %s\n" .data.AlertURL}}
-{{- end}}
-
 {{- define "text"}}
-  {{- if eq .type "ZabbixEvent"}}{{- if .data}}{{template "zabbix" .}}{{end}}{{- end}}
   {{- if eq .type "KubeEvent"}}
     {{template "kube-event" .data}}
   {{- end}}
   {{- if eq .type "K8sEvent"}}
-    {{- if not (.data.user.name | regexMatch "(system|eks).*")}}
+    {{- $header := ""}}{{- $image := ""}}{{- $patch := ""}}
+    {{- if or (not (regexMatch "StatefulSet|DaemonSet|ReplicaSet" .data.kind )) (and (regexMatch "StatefulSet|DaemonSet|ReplicaSet" .data.kind ) (not (regexMatch ".*argocd-application-controller" .data.user.name ))) }}
       {{- if .data.object}}
-        {{- if eq .data.kind "Namespace"}}{{template "k8s-header" .}}{{template "k8s-namespace" .data.object}}{{end}}
-        {{- if eq .data.kind "Node"}}{{template "k8s-header" .}}{{template "k8s-node" .data.object}}{{end}}
-        {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-header" .}}{{template "k8s-replicaset" .data.object}}{{end}}
-        {{- if eq .data.kind "StatefulSet"}}{{template "k8s-header" .}}{{template "k8s-statefulset" .data.object}}{{end}}
-        {{- if eq .data.kind "DaemonSet"}}{{template "k8s-header" .}}{{template "k8s-daemonset" .data.object}}{{end}}
-        {{- if eq .data.kind "Secret"}}{{template "k8s-header" .}}{{template "k8s-secret" .data.object}}{{end}}
-        {{- if eq .data.kind "Ingress"}}{{template "k8s-header" .}}{{template "k8s-ingress" .data.object}}{{end}}
-        {{- if eq .data.kind "CronJob"}}{{template "k8s-header" .}}{{template "k8s-cronjob" .data.object}}{{end}}
-        {{- if eq .data.kind "Job"}}{{template "k8s-header" .}}{{template "k8s-job" .data.object}}{{end}}
-        {{- if eq .data.kind "ConfigMap"}}{{template "k8s-header" .}}{{template "k8s-configmap" .data.object}}{{end}}
-        {{- if eq .data.kind "Role"}}{{template "k8s-header" .}}{{template "k8s-role" .data.object}}{{end}}
-        {{- if eq .data.kind "Deployment"}}{{template "k8s-header" .}}{{template "k8s-deployment" .data.object}}{{end}}
-        {{- if eq .data.kind "Service"}}{{template "k8s-header" .}}{{template "k8s-service" .data.object}}{{end}}
-        {{- if eq .data.kind "Pod"}}{{template "k8s-header" .}}{{template "k8s-pod" .data.object}}{{end}}
-      {{- else}}{{template "k8s-header" .}}{{end}}
+
+        {{- /* Header */}}
+        {{- $l := (printf "%s / %s" .data.kind .data.location)}}
+        {{- $op := .data.operation}}
+        {{- if eq .data.operation "Update"}}
+
+          {{- $oldImages := ""}}{{- $newImages := ""}}
+          {{- if regexMatch .data.kind "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod"}}
+            {{- range .data.object.old.spec.template.spec.containers}}
+              {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+            {{- end}}
+            {{- range .data.object.new.spec.template.spec.containers}}
+              {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+            {{- end}}
+          {{- else if eq .data.kind "Application"}}
+            {{- $oldImages = printf "%s:%s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+            {{- $newImages = printf "%s:%s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+          {{- end}}
+          {{- if ne $oldImages $newImages}}
+            {{- $op = "Release"}}
+          {{- end}}
+          {{- if ne .data.object.old.spec.replicas .data.object.new.spec.replicas}}
+            {{- if ne $op "Release"}}
+              {{- $op = "Scale"}}
+            {{- end}}
+          {{- end}}
+        {{- end}}
+
+        {{- $t := timeFormat .time "02.01.06 15:04:05"}}
+        {{- $by := ""}}
+        {{- if .data.user.name}}{{- $by = printf "\nby _%s_" .data.user.name}}{{end}}
+        {{- $header = printf "*%s*: %s\n*%s*: %s%s\n" (toUpper $op) $l .channel $t $by}}
+
+        {{- /* Images */}}
+        {{- $oldImages := ""}}{{- $newImages := ""}}
+        {{- if regexMatch "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod" .data.kind}}
+          {{- range .data.object.old.spec.template.spec.containers}}
+            {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+          {{- end}}
+          {{- range .data.object.new.spec.template.spec.containers}}
+            {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+          {{- end}}
+        {{- else if eq .data.kind "Application"}}
+          {{- $oldImages = printf "%s: %s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+          {{- $newImages = printf "%s: %s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+        {{- end}}
+        {{- if and (ne $oldImages $newImages) (eq .data.operation "Update")}}
+          {{- $image = printf "\nImages:\nOld:\n%sNew:\n%s" $oldImages $newImages}}
+        {{- else if eq .data.operation "Create"}}
+          {{- $image = printf "\nImages:\n%s" $newImages}}
+        {{- else if eq .data.operation "Delete"}}
+          {{- $image = printf "\nImages:\n%s" $oldImages}}
+        {{- end}}
+
+        {{- /* Patch */}}
+        {{- if or (eq .data.operation "Update") (eq .data.operation "Release")}}
+          {{- $text := ""}}
+          {{- range .data.patch}}
+              {{- $value := ""}}
+            {{- if regexMatch "/spec/template/metadata/annotations.*restartedAt.*" .path}}
+              {{- $text = printf "%v restarted at %s\n" $text .value}}
+            {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt|.*/health/.*|/status/(summary|conditions|health|history|operationState|sync|resources/.*)|/operation|/spec/syncPolicy/automated|/spec/destination/).*" .path)}}
+              {{- if (regexMatch ".*/env/.*" .path)}}
+                {{- $value = "MASKED"}}
+              {{- else}}
+                {{- $value = .value}}
+              {{- end}}
+              {{- $text = printf "%s%s %s: %v\n" $text .op .path $value}}
+            {{- end}}
+          {{- end}}
+          {{- if gt (len $text) 0}}
+            {{- $patch = printf "Changes:\n%s" $text}}
+          {{- end}}
+        {{- end}}
+
+      {{- end}}
+    {{- end}}
+    {{- if and (gt (len $header) 0) (or (gt (len $image) 0) (gt (len $patch) 0))}}
+    {{printf "%v%v%v" $header $image $patch}}
     {{- end}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
@@ -322,20 +526,65 @@
     {{- if eq .data.object_kind "pipeline"}}{{template "gitlab-pipeline" .}}{{end}}
     {{- if eq .data.object_kind "build"}}{{template "gitlab-build" .}}{{end}}
   {{- end}}
+  {{- if eq .type "TeamcityEvent"}}{{- if .data}}{{template "teamcity" .data}}{{end}}{{- end}}
   {{- if eq .type "DataDogEvent"}}{{- if .data.event}}{{template "datadog" .}}{{end}}{{- end}}
-  {{- if eq .type "Site24x7Event"}}{{- if .data }}{{template "site24x7" .}}{{end}}{{- end}}
+  {{- if eq .type "Site24x7Event"}}{{- if .data}}{{template "site24x7" .}}{{end}}{{- end}}
+  {{- if eq .type "VCenterEvent"}}{{- if .data}}{{template "vcenter" .}}{{end}}{{- end}}
+  {{- if eq .type "ZabbixEvent"}}{{- if .data}}{{template "zabbix" .}}{{end}}{{- end}}
   {{- if eq .type "CloudflareEvent"}}{{- if .data}}{{template "cloudflare" .}}{{end}}{{- end}}
   {{- if eq .type "GoogleEvent"}}{{- if .data}}{{template "google" .}}{{end}}{{- end}}
+  {{- if eq .type "ObserviumEvent"}}{{- if .data}}{{template "observium" .}}{{end}}{{- end}}
+
   {{- if eq .type "AWSEvent"}}
     {{- if .data.detail}}
-      {{- if eq .data.source "aws.acm-pca"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.cloudfront"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.directconnect"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.s3"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.eks"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.msk"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.elasticache"}}{{toJSON .data}}{{end}}
-      {{- if eq .data.source "aws.dynamodb"}}{{toJSON .data}}{{end}}
+      {{- if eq .data.source "aws.acm-pca"}}
+      AWS Event - ACM PCA
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.cloudfront"}}
+      AWS Event - Cloudfront
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.directconnect"}}
+      AWS Event - DirectConnect
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.s3"}}
+      AWS Event - S3
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.eks"}}
+      AWS Event - EKS
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.msk"}}
+      AWS Event - MSK
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.elasticache"}}
+      AWS Event - ElastiCache
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
+      {{- if eq .data.source "aws.dynamodb"}}
+      AWS Event - DynamoDB
+        ---
+        {{toPrettyJson .data | js }}
+        ---
+      {{end}}
 
       {{- if eq .data.source "aws.ec2"}}{{template "aws-ec2" .}}{{end}}
       {{- if eq .data.source "aws.ecs"}}{{template "aws-ecs" .}}{{end}}
@@ -346,10 +595,10 @@
       {{- if eq .data.source "aws.acm"}}{{template "aws-acm" .}}{{end}}
     {{- end}}
   {{- end}}
-  {{- if eq .type "TeamcityEvent"}}{{- if .data}}{{template "teamcity" .data}}{{end}}{{- end}}
+
   {{- if eq .type "NomadEvent"}}
     {{- if ne .data.Type "AllocationUpdated" }}
-      {{- printf "Nomad Event %s\n" .data.Type}}
+      {{- printf "Nomad Event: %s/%s\n" .data.Topic .data.Type}}
       {{- if eq .data.Topic "Allocation"}}{{template "nomad-allocation" .data.Payload.Allocation}}{{end}}
       {{- if eq .data.Topic "Job"}}{{template "nomad-job" .data.Payload.Job}}{{end}}
       {{- if eq .data.Topic "Deployment"}}{{template "nomad-deployment" .data.Payload.Deployment}}{{end}}
@@ -357,6 +606,6 @@
       {{- if eq .data.Topic "Node"}}{{template "nomad-node" .data.Payload.Node}}{{end}}
     {{- end}}
   {{- end}}
-{{- end}}
 
+{{- end}}
 {{- define "slack-message"}}{{template "text" .}}{{- end}}

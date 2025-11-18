@@ -10,7 +10,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/VictoriaMetrics/metricsql v0.65.0
 	github.com/argoproj/argo-cd/v3 v3.1.0
-	github.com/devopsext/sre v0.7.0
+	github.com/devopsext/sre v0.7.1
 	github.com/devopsext/tools v0.18.6
 	github.com/devopsext/utils v0.4.8
 	github.com/go-playground/webhooks/v6 v6.4.0
@@ -259,5 +259,3 @@ replace gopkg.in/DataDog/dd-trace-go.v1 => github.com/devopsext/dd-trace-go v1.3
 // replace github.com/devopsext/tools => ../tools/
 
 // replace github.com/devopsext/sre => ../sre/
-
-replace github.com/devopsext/sre => github.com/Husteln/sre v0.7.1-test.1

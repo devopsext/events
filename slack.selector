@@ -1,8 +1,8 @@
 {{- define "render"}}{{printf "%s\n" (getEnv .)}}{{end}}
 {{- define "rules"}}
   {{- if eq .type "K8sEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
-  {{- if and (eq .type "KubeEvent") (eq .data.Type "Error")}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_ALERTS"}}{{end}}
-  {{- if and (eq .type "KubeEvent") (ne .data.Type "Error")}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
+  {{- if and (eq .type "KubeEvent") (eq .data.Type "Error")}}{{/* template "render" "EVENTS_SLACK_OUT_CHANNEL_ALERTS" */}}{{end}}
+  {{- if and (eq .type "KubeEvent") (ne .data.Type "Error")}}{{/* template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS" */}}{{end}}
   {{- if eq .type "GitlabEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
   {{- if eq .type "TeamcityEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
   {{- if eq .type "AlertmanagerEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
@@ -22,17 +22,11 @@
   {{- if eq .type "GoogleEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
   {{- if eq .type "AWSEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
   {{- if eq .type "VCenterEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
-  {{- if eq .type "ZabbixEvent"}}
-    {{- if eq .data.EventNSeverity "5"}}
-      {{template "render" "EVENTS_SLACK_OUT_CHANNEL_TEST"}}
+  {{- if eq .type "ZabbixEvent" -}}
+    {{- if or (eq .data.EventNSeverity "5") (eq .data.EventNSeverity "4") -}}
       {{template "render" "EVENTS_SLACK_OUT_CHANNEL_ZABBIX"}}
-    {{- else}}
-      {{- if eq .data.EventNSeverity "4"}}
-        {{template "render" "EVENTS_SLACK_OUT_CHANNEL_ZABBIX"}}
-      {{- end}}
-      {{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}
-    {{- end}}
-  {{end}}
+    {{- end -}}
+  {{- end -}}
   {{- if and (eq .type "ObserviumEvent") (ne .data.ALERT_STATE "ALERT REMINDER")}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
   {{- if eq .type "NomadEvent"}}{{template "render" "EVENTS_SLACK_OUT_CHANNEL_EVENTS"}}{{end}}
 {{- end}}

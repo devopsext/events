@@ -1,32 +1,124 @@
-{{- define "text"}}
+{{- define "grafana-attributes" -}}
+  {{- if .data  -}}
+    {{- $defaultTagSet := (list .channel .type) -}}
+    {{- $tagSet := list -}}
+    {{- $tagMap := dict -}}
 
-  {{- if eq .type "GitlabEvent"}}
-    {{- printf "{\"%s\":\"\",\"%s\":\"\"}" .type .channel}}
-  {{- end}}
+    {{- if eq .type "GitlabEvent" -}}
+      {{- if not (contains "exness.io" .data.repository.git_http_url) -}}
+        {{- $gitlab_owner := "gatech" -}}
+        {{- $tagSet = list $gitlab_owner -}}
+      {{- end -}}
+    {{- end -}}
 
-  {{- if eq .type "TeamcityEvent" -}}
-      {{ $tagSet = (concat (splitList "," .data.target) (list .data.build_name .data.build_event)) -}}
+    {{- if eq .type "K8sEvent" -}}
+      {{- if or (not (regexMatch "StatefulSet|DaemonSet|ReplicaSet" .data.kind )) (and (regexMatch "StatefulSet|DaemonSet|ReplicaSet" .data.kind ) (not (regexMatch ".*argocd-application-controller" .data.user.name ))) }}
+        {{- $severity := ""}}
+        {{- $op := .data.operation}}
+        {{- if eq .data.operation "Delete"}}
+          {{- $severity = "warning"}}
+        {{- else if eq .data.operation "Update"}}
+
+        {{- $oldImages := ""}}{{- $newImages := ""}}
+        {{- if regexMatch "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod" .data.kind }}
+          {{- range .data.object.old.spec.template.spec.containers}}
+            {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+          {{- end}}
+          {{- range .data.object.new.spec.template.spec.containers}}
+            {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+          {{- end}}
+        {{- else if eq .data.kind "Application"}}
+          {{- range $element := .data.object.old.status.summary.images}}
+            {{- $oldImages = printf "%s%s\n" $oldImages $element}}
+          {{- end}}
+          {{- range $element := .data.object.new.status.summary.images}}
+            {{- $newImages = printf "%s%s\n" $newImages $element}}
+          {{- end}}
+        {{- end}}
+        {{- if ne $oldImages $newImages}}
+          {{- $op = "Release"}}
+          {{- $severity = "warning"}}
+        {{- end}}
+        {{- if ne .data.object.old.spec.replicas .data.object.new.spec.replicas}}
+          {{- if ne $op "Release"}}
+            {{- $op = "Scale"}}
+          {{- end}}
+        {{- end}}
+
+        {{- else }}
+          {{- $severity = "info"}}
+        {{- end}}
+
+        {{ $tagSet = (list $severity) -}}
+        {{ $tagSet = (list $op) -}}
+      {{- end}}
+    {{- end -}}
+
+    {{- if eq .type "TeamcityEvent" -}}
+        {{ $tagSet = (concat (splitList "," .data.target) (list .data.build_name .data.build_event)) -}}
+    {{- end -}}
+
+    {{- if eq .type "WinEvent" -}}
+      {{ $tagSet = (list .data.tags.host .data.tags.city .data.tags.mt .data.tags.provider) -}}
+    {{- end -}}
+
+    {{ if eq .type "ObserviumEvent"  -}}
+      {{ $tagSet = (list .data.DEVICE_HOSTNAME .data.DEVICE_LOCATION) -}}
+    {{- end -}}
+
+    {{- if eq .type "AWSEvent" -}}
+      {{ $tagSet = (list .data.source .data.region .data.account) -}}
+    {{- end -}}
+
+    {{- if eq .type "KubeEvent" -}}
+      {{ $tagSet = (list .data.reason .data.type .data.location) -}}
+        {{- if .data.object}}
+            {{- $tagSet = append $tagSet .data.object.kind -}}
+            {{- $tagSet = append $tagSet .data.object.namespace -}}
+        {{- end -}}
+    {{- end -}}
+
+    {{- if eq .type "NomadEvent"}}
+      {{- if ne .data.Type "AllocationUpdated" }}
+        {{- $tagSet = (list .data.Topic .data.Type) -}}
+        {{- if eq .data.Topic "Allocation"}}{{$tagSet = append $tagSet .data.Payload.Allocation.Name -}}{{- end -}}
+        {{- if eq .data.Topic "Job"}}{{$tagSet = append $tagSet .data.Payload.Job.Name -}}{{- end -}}
+        {{- if eq .data.Topic "Deployment"}}{{$tagSet = append $tagSet .data.Payload.Deployment.JobID -}}{{- end -}}
+        {{- if eq .data.Topic "Evaluation"}}{{$tagSet = append $tagSet .data.Payload.Evaluation.JobID -}}{{- end -}}
+        {{- if eq .data.Topic "Node"}}{{$tagSet = append $tagSet .data.Payload.Node.Name -}}{{- end -}}
+      {{- end}}
+    {{- end}}
+
+    {{- if eq .type "ZabbixEvent" -}}
+      {{- $defaultTagSet = (list .type) -}}
+      {{- $Severity := "NotClassified"}}
+      {{- if eq .data.EventNSeverity "1" -}}{{- $Severity = "Information"  -}}{{- end -}}
+      {{- if eq .data.EventNSeverity "2" -}}{{- $Severity = "Warning"  -}}{{- end -}}
+      {{- if eq .data.EventNSeverity "3" -}}{{- $Severity = "Average"  -}}{{- end -}}
+      {{- if eq .data.EventNSeverity "4" -}}{{- $Severity = "High"  -}}{{- end -}}
+      {{- if eq .data.EventNSeverity "5" -}}{{- $Severity = "Disaster"  -}}{{- end -}}
+      {{- $tagSet = (list .data.HostName  .data.Environment $Severity) -}}
+    {{- end -}}
+
+    {{- if eq .type "VCenterEvent"}}
+      {{- $tagSet = (list .data.DestESXiHostName .data.OrigESXiHostName .data.VmName .data.AlarmName .data.Subject .data.DebugSubject .data.DestLocation ) -}}
+
+      {{- if and (not (.data.Subject | regexMatch "(TaskEvent|VmAcquiredTicketEvent)")) (.data.Subject | regexMatch "(com.vmware.vc.sdrs.*|Vm.*)") -}}
+        {{- $tagMap = (dict "VCenterDebug" "false") -}}
+      {{- else -}}
+        {{- $tagMap = (dict "VCenterDebug" "true") -}}
+      {{- end -}}
+    {{- end -}}
+
+    {{/* Now let's merge and groom everything and make a shiny new JSON */}}
+    {{- $grafanaTags := dict -}}
+
+    {{/* Go through the tagList, drop "" keys with compact() and " " with condition,  */}}
+    {{/* then fill the tags dictionary with keys from the list and empty values */}}
+    {{- range (compact (concat $tagSet $defaultTagSet)) -}}
+      {{- if not (eq . " ") -}}{{-  $_ := set $grafanaTags . "" -}}{{- end -}}
+    {{- end  -}}
+    {{- toRawJson (merge $grafanaTags $tagMap) -}}
+
   {{- end -}}
-
-  {{- if eq .type "WinEvent"}}{{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .data.tags.host .data.tags.city .data.tags.mt .data.tags.provider }}{{- end}}
-
-  {{- if eq .type "ObserviumEvent"}}
-  {{- printf "{\"%s\":\"\", \"%s\":\"\", \"%s\":\"\", \"%s\":\"\" }" .type .channel .data.DEVICE_HOSTNAME .data.DEVICE_LOCATION }}
-  {{- end}}
-
-  {{- if eq .type "AWSEvent"}}
-    {{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .type .channel .data.source .data.region .data.account}}
-  {{- end}}
-  {{- if eq .type "KubeEvent"}}
-    {{- printf "{\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\",\"%s\":\"\"}" .type .channel .data.reason .data.type .data.location}}
-  {{- end}}
-  {{- if eq .type "vcenterEvent"}}
-    {{printf "{"}}
-    {{printf "\"%s\":\"\"," .type}}
-    {{printf "\"%s\":\"\"," .data.Subject }}
-    {{printf "\"%s\":\"\"," .data.DestLocation}}
-    {{printf "\"%s\":\"\"" "test"}}
-    {{printf "}"}}
-  {{- end}}
-{{- end}}
-{{- define "grafana-attributes"}}{{- if .data}}{{template "text" .}}{{end}}{{- end}}
+{{- end -}}
