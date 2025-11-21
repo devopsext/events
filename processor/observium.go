@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,11 +14,9 @@ import (
 )
 
 type ObserviumEventProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type ObserviumRequest struct {
@@ -43,7 +41,7 @@ func (p *ObserviumEventProcessor) EventType() string {
 	return common.AsEventType(ObserviumEventProcessorType())
 }
 
-func (p *ObserviumEventProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
+func (p *ObserviumEventProcessor) send(channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
@@ -55,10 +53,7 @@ func (p *ObserviumEventProcessor) send(span sreCommon.TracerSpan, channel string
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
@@ -68,18 +63,30 @@ func (p *ObserviumEventProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("observium", "requests", "Count of all observium processor requests", labels, "processor")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *ObserviumEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("observium", "requests", "Count of all observium processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("observium", "errors", "Count of all observium processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -89,27 +96,27 @@ func (p *ObserviumEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *ht
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc()
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var observiumEvent ObserviumRequest
 	if err := json.Unmarshal(body, &observiumEvent); err != nil {
-		p.errors.Inc()
+		errors.Inc()
 		p.logger.Error("Error decoding incoming message: %s", body)
-		p.logger.SpanError(span, err)
+		p.logger.Error(err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
 
 	t := time.Unix(observiumEvent.AlertUnixTime, 0)
 
-	p.send(span, channel, observiumEvent, &t)
+	p.send(channel, observiumEvent, &t)
 
 	response := &ObserviumResponse{
 		Message: "OK",
@@ -117,15 +124,15 @@ func (p *ObserviumEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *ht
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -135,10 +142,7 @@ func (p *ObserviumEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *ht
 func NewObserviumEventProcessor(outputs *common.Outputs, observability *common.Observability) *ObserviumEventProcessor {
 
 	return &ObserviumEventProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("observium", "requests", "Count of all Observium processor requests", map[string]string{}, "processor"),
-		errors:   observability.Metrics().Counter("observium", "errors", "Count of all Observium processor errors", map[string]string{}, "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
 	}
 }

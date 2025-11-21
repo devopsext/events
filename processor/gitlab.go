@@ -3,7 +3,7 @@ package processor
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,12 +16,10 @@ import (
 )
 
 type GitlabProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
-	hook     *gitlab.Webhook
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
+	hook    *gitlab.Webhook
 }
 
 type GitlabResponse struct {
@@ -36,7 +34,7 @@ func (p *GitlabProcessor) EventType() string {
 	return common.AsEventType(GitlabProcessorType())
 }
 
-func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
+func (p *GitlabProcessor) send(channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
@@ -48,10 +46,7 @@ func (p *GitlabProcessor) send(span sreCommon.TracerSpan, channel string, o inte
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
@@ -61,18 +56,30 @@ func (p *GitlabProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("gitlab", "requests", "Count of all gitlab processor requests", labels, "processor")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("gitlab", "requests", "Count of all gitlab processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("gitlab", "errors", "Count of all gitlab processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -82,14 +89,14 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc()
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	r.Body.Close()
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
@@ -98,45 +105,45 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 		gitlab.MergeRequestEvents, gitlab.WikiPageEvents, gitlab.PipelineEvents, gitlab.BuildEvents, gitlab.JobEvents, gitlab.SystemHookEvents}
 	payload, err := p.hook.Parse(r, events...)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
 	switch pl := payload.(type) {
 	case gitlab.PushEventPayload:
-		p.send(span, channel, payload.(gitlab.PushEventPayload), nil)
+		p.send(channel, payload.(gitlab.PushEventPayload), nil)
 	case gitlab.TagEventPayload:
-		p.send(span, channel, payload.(gitlab.TagEventPayload), nil)
+		p.send(channel, payload.(gitlab.TagEventPayload), nil)
 	case gitlab.IssueEventPayload:
 		event := payload.(gitlab.IssueEventPayload)
-		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
+		p.send(channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.ConfidentialIssueEventPayload:
 		event := payload.(gitlab.ConfidentialIssueEventPayload)
-		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
+		p.send(channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.CommentEventPayload:
 		event := payload.(gitlab.CommentEventPayload)
-		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
+		p.send(channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.MergeRequestEventPayload:
 		event := payload.(gitlab.MergeRequestEventPayload)
-		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
+		p.send(channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.WikiPageEventPayload:
 		event := payload.(gitlab.WikiPageEventPayload)
-		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
+		p.send(channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.PipelineEventPayload:
 		event := payload.(gitlab.PipelineEventPayload)
-		p.send(span, channel, event, &event.ObjectAttributes.CreatedAt.Time)
+		p.send(channel, event, &event.ObjectAttributes.CreatedAt.Time)
 	case gitlab.BuildEventPayload:
 		event := payload.(gitlab.BuildEventPayload)
-		p.send(span, channel, event, &event.BuildStartedAt.Time)
+		p.send(channel, event, &event.BuildStartedAt.Time)
 	case gitlab.JobEventPayload:
 		event := payload.(gitlab.JobEventPayload)
-		p.send(span, channel, event, &event.BuildStartedAt.Time)
+		p.send(channel, event, &event.BuildStartedAt.Time)
 	case gitlab.SystemHookPayload:
-		p.send(span, channel, payload.(gitlab.SystemHookPayload), nil)
+		p.send(channel, payload.(gitlab.SystemHookPayload), nil)
 	default:
-		p.logger.SpanDebug(span, "Not supported %s", pl)
+		p.logger.Debug("Not supported %s", pl)
 	}
 
 	response := &GitlabResponse{
@@ -145,15 +152,15 @@ func (p *GitlabProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -170,11 +177,9 @@ func NewGitlabProcessor(outputs *common.Outputs, observability *common.Observabi
 	}
 
 	return &GitlabProcessor{
-		outputs:  outputs,
-		logger:   logger,
-		tracer:   observability.Traces(),
-		hook:     hook,
-		requests: observability.Metrics().Counter("gitlab", "requests", "Count of all gitlab processor requests", map[string]string{}, "processor"),
-		errors:   observability.Metrics().Counter("gitlab", "errors", "Count of all gitlab processor errors", map[string]string{}, "processor"),
+		outputs: outputs,
+		logger:  logger,
+		hook:    hook,
+		meter:   observability.Metrics(),
 	}
 }

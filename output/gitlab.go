@@ -25,17 +25,15 @@ type GitlabOutput struct {
 	projects  *toolsRender.TextTemplate
 	variables *toolsRender.TextTemplate
 	options   GitlabOutputOptions
-	tracer    sreCommon.Tracer
 	logger    sreCommon.Logger
-	requests  sreCommon.Counter
-	errors    sreCommon.Counter
+	meter     sreCommon.Meter
 }
 
 func (g *GitlabOutput) Name() string {
 	return "Gitlab"
 }
 
-func (g *GitlabOutput) getVariables(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
+func (g *GitlabOutput) getVariables(o interface{}) (map[string]string, error) {
 
 	attrs := make(map[string]string)
 	if g.variables == nil {
@@ -52,7 +50,7 @@ func (g *GitlabOutput) getVariables(o interface{}, span sreCommon.TracerSpan) (m
 		return attrs, nil
 	}
 
-	g.logger.SpanDebug(span, "Gitlab raw variables => %s", m)
+	g.logger.Debug("Gitlab raw variables => %s", m)
 
 	var object map[string]interface{}
 
@@ -95,17 +93,14 @@ func (g *GitlabOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := g.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			g.logger.SpanError(span, "Event data is empty")
+			g.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 			return
 		}
 
@@ -113,20 +108,20 @@ func (g *GitlabOutput) Send(event *common.Event) {
 		if g.projects != nil {
 			b, err := g.projects.RenderObject(jsonObject)
 			if err != nil {
-				g.logger.SpanDebug(span, err)
+				g.logger.Debug(err)
 			} else {
 				projects = string(b)
 			}
 		}
 
 		if utils.IsEmpty(projects) {
-			g.logger.SpanDebug(span, "Gitlab projects are not found")
+			g.logger.Debug("Gitlab projects are not found")
 			return
 		}
 
-		variables, err := g.getVariables(jsonObject, span)
+		variables, err := g.getVariables(jsonObject)
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 		}
 
 		arr := strings.Split(projects, "\n")
@@ -155,22 +150,32 @@ func (g *GitlabOutput) Send(event *common.Event) {
 				ref = "main"
 			}
 
-			g.requests.Inc()
+			labels := make(map[string]string)
+			labels["event_channel"] = event.Channel
+			labels["event_type"] = event.Type
+			labels["gitlab_project_id"] = project
+			labels["gitlab_ref"] = ref
+			labels["output"] = g.Name()
+
+			requests := g.meter.Counter("gitlab", "requests", "Count of all gitlab requests", labels, "output")
+			requests.Inc()
 
 			opt := &gitlab.RunPipelineTriggerOptions{Ref: &ref, Token: &token, Variables: variables}
 			pipeline, response, err := g.client.PipelineTriggers.RunPipelineTrigger(id, opt)
+
+			errors := g.meter.Counter("gitlab", "errors", "Count of all gitlab errors", labels, "output")
 			if err != nil {
-				g.errors.Inc()
-				g.logger.SpanError(span, err)
+				errors.Inc()
+				g.logger.Error(err)
 				continue
 			}
 
 			if response.StatusCode < 200 || response.StatusCode >= 300 {
-				g.errors.Inc()
-				g.logger.SpanError(span, "Gitlab reposne: %s", response.Status)
+				errors.Inc()
+				g.logger.Error("Gitlab response: %s", response.Status)
 				continue
 			}
-			g.logger.SpanDebug(span, "Gitlab pipeline => %s", pipeline.WebURL)
+			g.logger.Debug("Gitlab pipeline => %s", pipeline.WebURL)
 		}
 	}()
 }
@@ -220,8 +225,6 @@ func NewGitlabOutput(wg *sync.WaitGroup,
 		variables: variables,
 		options:   options,
 		logger:    logger,
-		tracer:    observability.Traces(),
-		requests:  observability.Metrics().Counter("gitlab", "requests", "Count of all gitlab requests", map[string]string{}, "output"),
-		errors:    observability.Metrics().Counter("gitlab", "errors", "Count of all gitlab errors", map[string]string{}, "output"),
+		meter:     observability.Metrics(),
 	}
 }

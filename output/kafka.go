@@ -32,10 +32,8 @@ type KafkaOutput struct {
 	producer *sarama.AsyncProducer
 	message  *toolsRender.TextTemplate
 	options  KafkaOutputOptions
-	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	meter    sreCommon.Meter
 }
 
 func (k *KafkaOutput) Name() string {
@@ -53,23 +51,29 @@ func (k *KafkaOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := k.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		b, err := k.message.RenderObject(event)
 		if err != nil {
-			k.logger.SpanError(span, err)
+			k.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			k.logger.SpanDebug(span, "Kafka message is empty")
+			k.logger.Debug("Kafka message is empty")
 			return
 		}
 
-		k.requests.Inc()
-		k.logger.SpanDebug(span, "Kafka  message => %s", message)
+		labels := make(map[string]string)
+		labels["event_channel"] = event.Channel
+		labels["event_type"] = event.Type
+		labels["kafka_client_id"] = k.options.ClientID
+		labels["kafka_brokers"] = k.options.Brokers
+		labels["kafka_topic"] = k.options.Topic
+		labels["output"] = k.Name()
+
+		requests := k.meter.Counter("kafka", "requests", "Count of all kafka requests", labels, "output")
+		requests.Inc()
+		k.logger.Debug("Kafka  message => %s", message)
 
 		(*k.producer).Input() <- &sarama.ProducerMessage{
 			Topic: k.options.Topic,
@@ -77,7 +81,8 @@ func (k *KafkaOutput) Send(event *common.Event) {
 		}
 
 		for err = range (*k.producer).Errors() {
-			k.errors.Inc()
+			errors := k.meter.Counter("kafka", "errors", "Count of all kafka errors", labels, "output")
+			errors.Inc()
 		}
 	}()
 }
@@ -149,8 +154,6 @@ func NewKafkaOutput(wg *sync.WaitGroup, options KafkaOutputOptions, templateOpti
 		message:  message,
 		options:  options,
 		logger:   logger,
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("kafka", "requests", "Count of all kafka requests", map[string]string{}, "output"),
-		errors:   observability.Metrics().Counter("kafka", "errors", "Count of all kafka errors", map[string]string{}, "output"),
+		meter:    observability.Metrics(),
 	}
 }

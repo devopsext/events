@@ -21,10 +21,8 @@ type CollectorOutput struct {
 	options    CollectorOutputOptions
 	connection *net.UDPConn
 	message    *toolsRender.TextTemplate
-	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
-	requests   sreCommon.Counter
-	errors     sreCommon.Counter
+	meter      sreCommon.Meter
 }
 
 func (c *CollectorOutput) Name() string {
@@ -42,28 +40,34 @@ func (c *CollectorOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := c.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		b, err := c.message.RenderObject(event)
 		if err != nil {
-			c.logger.SpanError(span, err)
+			c.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			c.logger.Debug(span, "Collector message is empty")
+			c.logger.Debug("Collector message is empty")
 			return
 		}
 
-		c.requests.Inc()
-		c.logger.SpanDebug(span, "Collector message => %s", message)
+		labels := make(map[string]string)
+		labels["event_channel"] = event.Channel
+		labels["event_type"] = event.Type
+		labels["collector_address"] = c.options.Address
+		labels["output"] = c.Name()
+
+		requests := c.meter.Counter("collector", "requests", "Count of all collector requests", labels, "output")
+		requests.Inc()
+
+		c.logger.Debug("Collector message => %s", message)
 
 		_, err = c.connection.Write(b)
 		if err != nil {
-			c.errors.Inc()
-			c.logger.SpanError(span, err)
+			errors := c.meter.Counter("collector", "errors", "Count of all collector errors", labels, "output")
+			errors.Inc()
+			c.logger.Error(err)
 		}
 	}()
 }
@@ -122,9 +126,7 @@ func NewCollectorOutput(wg *sync.WaitGroup, options CollectorOutputOptions,
 		options:    options,
 		message:    message,
 		connection: connection,
-		tracer:     observability.Traces(),
 		logger:     logger,
-		requests:   observability.Metrics().Counter("collector", "requests", "Count of all collector requests", map[string]string{}, "output"),
-		errors:     observability.Metrics().Counter("collector", "errors", "Count of all collector errors", map[string]string{}, "output"),
+		meter:      observability.Metrics(),
 	}
 }

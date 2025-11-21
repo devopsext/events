@@ -26,12 +26,8 @@ type GrafanaOutput struct {
 	message        *toolsRender.TextTemplate
 	attributes     *toolsRender.TextTemplate
 	options        GrafanaOutputOptions
-	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
-	requests       sreCommon.Counter
-	errors         sreCommon.Counter
-	rateLimiterIn  sreCommon.Counter
-	rateLimiterOut sreCommon.Counter
+	meter          sreCommon.Meter
 	grafanaEventer *sreProvider.GrafanaEventer
 	rateLimiter    *rate.Limiter
 }
@@ -40,7 +36,7 @@ func (g *GrafanaOutput) Name() string {
 	return "Grafana"
 }
 
-func (g *GrafanaOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
+func (g *GrafanaOutput) getAttributes(o interface{}) (map[string]string, error) {
 
 	attrs := make(map[string]string)
 	if g.attributes == nil {
@@ -57,7 +53,7 @@ func (g *GrafanaOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) 
 		return attrs, nil
 	}
 
-	g.logger.SpanDebug(span, "Grafana raw attributes => %s", m)
+	g.logger.Debug("Grafana raw attributes => %s", m)
 
 	var object map[string]interface{}
 
@@ -85,49 +81,56 @@ func (g *GrafanaOutput) Send(event *common.Event) {
 			g.logger.Debug("Event is empty")
 			return
 		}
-
-		span := g.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			g.logger.SpanError(span, "Event data is empty")
+			g.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 			return
 		}
 
 		b, err := g.message.RenderObject(jsonObject)
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 			return
 		}
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			g.logger.SpanDebug(span, "Grafana message is empty")
+			g.logger.Debug("Grafana message is empty")
 			return
 		}
-		g.logger.SpanDebug(span, "Grafana message => %s", message)
+		g.logger.Debug("Grafana message => %s", message)
 
-		attributes, err := g.getAttributes(jsonObject, span)
+		attributes, err := g.getAttributes(jsonObject)
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 		}
-		g.logger.SpanDebug(span, "Grafana attributes => %s", attributes)
+		g.logger.Debug("Grafana attributes => %s", attributes)
 
-		g.rateLimiterIn.Inc()
+		labels := make(map[string]string)
+		labels["event_channel"] = event.Channel
+		labels["event_type"] = event.Type
+		labels["output"] = g.Name()
+
+		rateLimiterIn := g.meter.Counter("grafana", "rl_in", "Count of all grafana requests before waiting", labels, "output", "rate_limiter")
+		rateLimiterIn.Inc()
 		r := g.rateLimiter.Reserve()
 		// TODO increment another counter events_grafana_output_ratelimiter_wait_time_total by r.Delay*time.Millisecond
 		time.Sleep(r.Delay())
-		g.rateLimiterOut.Inc()
 
-		g.requests.Inc()
+		rateLimiterOut := g.meter.Counter("grafana", "rl_out", "Count of all grafana requests after waiting", labels, "output", "rate_limiter")
+		rateLimiterOut.Inc()
+
+		requests := g.meter.Counter("grafana", "requests", "Count of all grafana requests", labels, "output")
+		requests.Inc()
+
 		err = g.grafanaEventer.Interval(message, message, attributes, event.Time, event.Time)
 		if err != nil {
-			g.errors.Inc()
+			errors := g.meter.Counter("grafana", "errors", "Count of all grafana errors", labels, "output")
+			errors.Inc()
 		}
 	}()
 }
@@ -172,11 +175,7 @@ func NewGrafanaOutput(wg *sync.WaitGroup,
 		attributes:     attributes,
 		options:        options,
 		logger:         logger,
-		tracer:         observability.Traces(),
-		requests:       observability.Metrics().Counter("grafana", "requests", "Count of all grafana requests", map[string]string{}, "output", "grafana"),
-		errors:         observability.Metrics().Counter("grafana", "errors", "Count of all grafana errors", map[string]string{}, "output", "grafana"),
-		rateLimiterIn:  observability.Metrics().Counter("grafana", "rl_in", "Count of all grafana requests before waiting", map[string]string{}, "output", "grafana"),
-		rateLimiterOut: observability.Metrics().Counter("grafana", "rl_out", "Count of all grafana requests after waiting", map[string]string{}, "output", "grafana"),
+		meter:          observability.Metrics(),
 		grafanaEventer: grafanaEventer,
 	}
 }

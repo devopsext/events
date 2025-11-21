@@ -8,13 +8,12 @@ import (
 )
 
 type Event struct {
-	Time        time.Time              `json:"time"`
-	Channel     string                 `json:"channel"`
-	Type        string                 `json:"type"`
-	Data        interface{}            `json:"data"`
-	Via         map[string]interface{} `json:"via,omitempty"`
-	spanContext sreCommon.TracerSpanContext
-	logger      sreCommon.Logger
+	Time    time.Time              `json:"time"`
+	Channel string                 `json:"channel"`
+	Type    string                 `json:"type"`
+	Data    interface{}            `json:"data"`
+	Via     map[string]interface{} `json:"via,omitempty"`
+	logger  sreCommon.Logger
 }
 
 func (e *Event) JsonBytes() ([]byte, error) {
@@ -52,14 +51,6 @@ func (e *Event) JsonMap() (map[string]interface{}, error) {
 		return nil, err
 	}
 	return m, nil
-}
-
-func (e *Event) SetSpanContext(context sreCommon.TracerSpanContext) {
-	e.spanContext = context
-}
-
-func (e *Event) GetSpanContext() sreCommon.TracerSpanContext {
-	return e.spanContext
 }
 
 func (e *Event) SetLogger(logger sreCommon.Logger) {

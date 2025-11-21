@@ -41,10 +41,8 @@ type WorkchatOutput struct {
 	selector *toolsRender.TextTemplate
 	grafana  *render.GrafanaRender
 	options  WorkchatOutputOptions
-	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	meter    sreCommon.Meter
 }
 
 func (w *WorkchatOutput) Name() string {
@@ -78,17 +76,14 @@ func (w *WorkchatOutput) getThread(URL string) string {
 	return threadKey.(string)
 }
 
-func (w *WorkchatOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
+func (w *WorkchatOutput) post(URL, contentType string, body bytes.Buffer, message string) (response interface{}, err error) {
 
-	span := w.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
-
-	w.logger.SpanDebug(span, "Post to Workchat (%s) => %s", URL, message)
+	w.logger.Debug("Post to Workchat (%s) => %s", URL, message)
 	reader := bytes.NewReader(body.Bytes())
 
 	req, err := http.NewRequest("POST", URL, reader)
 	if err != nil {
-		w.logger.SpanError(span, err)
+		w.logger.Error(err)
 		return nil, err
 	}
 
@@ -96,7 +91,7 @@ func (w *WorkchatOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentT
 
 	resp, err := w.client.Do(req)
 	if err != nil {
-		w.logger.SpanError(span, err)
+		w.logger.Error(err)
 		return nil, err
 	}
 
@@ -104,32 +99,29 @@ func (w *WorkchatOutput) post(spanCtx sreCommon.TracerSpanContext, URL, contentT
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		w.logger.SpanError(span, err)
+		w.logger.Error(err)
 		return nil, err
 	}
 
-	w.logger.SpanDebug(span, "Response from Workchat => %s", string(b))
+	w.logger.Debug("Response from Workchat => %s", string(b))
 
 	var object interface{}
 
 	if err := json.Unmarshal(b, &object); err != nil {
-		w.logger.SpanError(span, err)
+		w.logger.Error(err)
 		return nil, err
 	}
 
 	return object, nil
 }
 
-func (w *WorkchatOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, message string) error {
-
-	span := w.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (w *WorkchatOutput) sendMessage(URL, message string) error {
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	defer func() {
 		if err := mw.Close(); err != nil {
-			w.logger.SpanWarn(span, "Failed to close writer")
+			w.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -146,12 +138,12 @@ func (w *WorkchatOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, URL, m
 		return err
 	}
 
-	_, err := w.post(span.GetContext(), URL, mw.FormDataContentType(), body, message)
+	_, err := w.post(URL, mw.FormDataContentType(), body, message)
 	return err
 }
 
-func (w *WorkchatOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, URL, message string, err error) error {
-	return w.sendMessage(spanCtx, URL, fmt.Sprintf("%s\n%s", message, err.Error()))
+func (w *WorkchatOutput) sendErrorMessage(URL, message string, err error) error {
+	return w.sendMessage(URL, fmt.Sprintf("%s\n%s", message, err.Error()))
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -167,16 +159,13 @@ func (w *WorkchatOutput) createFormFile(writer *multipart.Writer, fieldname, fil
 	return writer.CreatePart(h)
 }
 
-func (w *WorkchatOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, message, fileName string, photo []byte) error {
-
-	span := w.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (w *WorkchatOutput) sendPhoto(URL, message, fileName string, photo []byte) error {
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	defer func() {
 		if err := mw.Close(); err != nil {
-			w.logger.SpanWarn(span, "Failed to close writer")
+			w.logger.Warn("Failed to close writer")
 		}
 	}()
 
@@ -198,18 +187,15 @@ func (w *WorkchatOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, URL, mes
 		return err
 	}
 
-	_, err = w.post(span.GetContext(), URL, mw.FormDataContentType(), body, message)
+	_, err = w.post(URL, mw.FormDataContentType(), body, message)
 	if err != nil {
 		return err
 	}
 
-	return w.sendMessage(span.GetContext(), URL, message)
+	return w.sendMessage(URL, message)
 }
 
-func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, URL, message string, alert template.Alert) error {
-
-	span := w.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (w *WorkchatOutput) sendAlertmanagerImage(URL, message string, alert template.Alert) error {
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
@@ -258,16 +244,16 @@ func (w *WorkchatOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 	messageQuery := fmt.Sprintf("%s\n_%s_", message, query)
 
 	if w.grafana == nil {
-		return w.sendMessage(span.GetContext(), URL, messageQuery)
+		return w.sendMessage(URL, messageQuery)
 	}
 
-	photo, fileName, err := w.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
+	photo, fileName, err := w.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		w.sendErrorMessage(span.GetContext(), URL, messageQuery, err)
+		w.sendErrorMessage(URL, messageQuery, err)
 		return nil
 	}
 
-	return w.sendPhoto(span.GetContext(), URL, messageQuery, fileName, photo)
+	return w.sendPhoto(URL, messageQuery, fileName, photo)
 }
 
 func (w *WorkchatOutput) Send(event *common.Event) {
@@ -281,17 +267,14 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := w.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			w.logger.SpanError(span, "Event data is empty")
+			w.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			w.logger.SpanError(span, err)
+			w.logger.Error(err)
 			return
 		}
 
@@ -300,32 +283,37 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 
 			b, err := w.selector.RenderObject(jsonObject)
 			if err != nil {
-				w.logger.SpanDebug(span, err)
+				w.logger.Debug(err)
 			} else {
 				URLs = string(b)
 			}
 		}
 
 		if utils.IsEmpty(URLs) {
-			w.logger.SpanError(span, "Workchat URLs are not found")
+			w.logger.Error("Workchat URLs are not found")
 			return
 		}
 
 		b, err := w.message.RenderObject(jsonObject)
 		if err != nil {
-			w.logger.SpanError(span, err)
+			w.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			w.logger.SpanDebug(span, "Workchat message is empty")
+			w.logger.Debug("Workchat message is empty")
 			return
 		}
 
-		w.logger.SpanDebug(span, "Workchat message => %s", message)
+		w.logger.Debug("Workchat message => %s", message)
 
 		arr := strings.Split(URLs, "\n")
+
+		labels := make(map[string]string)
+		labels["event_channel"] = event.Channel
+		labels["event_type"] = event.Type
+		labels["output"] = w.Name()
 
 		for _, URL := range arr {
 
@@ -334,19 +322,24 @@ func (w *WorkchatOutput) Send(event *common.Event) {
 				continue
 			}
 
+			labels["workchat_url"] = URL
+			requests := w.meter.Counter("workchat", "requests", "Count of all workchar requests", labels, "output")
+
 			// thread := w.getThread(URL)
-			w.requests.Inc()
+			requests.Inc()
+
+			errors := w.meter.Counter("workchat", "errors", "Count of all workchar requests", labels, "output")
 
 			switch event.Type {
 			case "AlertmanagerEvent":
-				if err := w.sendAlertmanagerImage(span.GetContext(), URL, message, event.Data.(template.Alert)); err != nil {
-					w.errors.Inc()
-					w.sendErrorMessage(span.GetContext(), URL, message, err)
+				if err := w.sendAlertmanagerImage(URL, message, event.Data.(template.Alert)); err != nil {
+					errors.Inc()
+					w.sendErrorMessage(URL, message, err)
 				}
 			default:
-				err := w.sendMessage(span.GetContext(), URL, message)
+				err := w.sendMessage(URL, message)
 				if err != nil {
-					w.errors.Inc()
+					errors.Inc()
 				}
 			}
 		}
@@ -393,9 +386,7 @@ func NewWorkchatOutput(wg *sync.WaitGroup,
 		selector: selector,
 		grafana:  render.NewGrafanaRender(grafanaRenderOptions, observability),
 		options:  options,
-		tracer:   observability.Traces(),
 		logger:   logger,
-		requests: observability.Metrics().Counter("workchat", "requests", "Count of all workchar requests", map[string]string{}, "output"),
-		errors:   observability.Metrics().Counter("workchat", "errors", "Count of all workchar errors", map[string]string{}, "output"),
+		meter:    observability.Metrics(),
 	}
 }

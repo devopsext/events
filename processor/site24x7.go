@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,11 +14,9 @@ import (
 )
 
 type Site24x7Processor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type Site24x7Request struct {
@@ -52,7 +50,7 @@ func (p *Site24x7Processor) EventType() string {
 	return common.AsEventType(Site24x7ProcessorType())
 }
 
-func (p *Site24x7Processor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
+func (p *Site24x7Processor) send(channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
@@ -64,10 +62,7 @@ func (p *Site24x7Processor) send(span sreCommon.TracerSpan, channel string, o in
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
@@ -77,18 +72,30 @@ func (p *Site24x7Processor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("site24x7", "requests", "Count of all site24x7 processor requests", labels, "processor")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("site24x7", "requests", "Count of all site24x7 processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("site24x7", "errors", "Count of all site24x7 processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -98,19 +105,19 @@ func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc()
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var site24x7 Site24x7Request
 	if err := json.Unmarshal(body, &site24x7); err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		p.logger.Error(err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
@@ -118,12 +125,12 @@ func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	// 2022-03-18T01:51:19-0700"
 	t, err := time.Parse("2006-01-02T15:04:05-0700", site24x7.IncidentTimeISO)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		p.logger.Error(err)
 		http.Error(w, "Error incident time ISO format", http.StatusInternalServerError)
 		return err
 	}
-	p.send(span, channel, site24x7, &t)
+	p.send(channel, site24x7, &t)
 
 	response := &Site24x7Response{
 		Message: "OK",
@@ -131,15 +138,15 @@ func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -149,10 +156,8 @@ func (p *Site24x7Processor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 func NewSite24x7Processor(outputs *common.Outputs, observability *common.Observability) *Site24x7Processor {
 
 	return &Site24x7Processor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("site24x7", "requests", "Count of all site24x7 processor requests", map[string]string{}, "processor"),
-		errors:   observability.Metrics().Counter("site24x7", "errors", "Count of all site24x7 processor errors", map[string]string{}, "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

@@ -36,7 +36,6 @@ type GrafanaRender struct {
 	client  *http.Client
 	options GrafanaRenderOptions
 	logger  sreCommon.Logger
-	tracer  sreCommon.Tracer
 	counter sreCommon.Counter
 }
 
@@ -97,11 +96,7 @@ func (g *GrafanaRender) renderImage(imageURL string, apiKey string) ([]byte, err
 	return io.ReadAll(resp.Body)
 }
 
-func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
-	title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
-
-	span := g.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (g *GrafanaRender) GenerateDashboard(title string, metric string, operator string, value *float64, minutes *int, unit string) ([]byte, string, error) {
 
 	period := g.options.Period
 	if minutes != nil {
@@ -218,7 +213,7 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 
 	c, err := sdk.NewClient(g.options.URL, g.options.ApiKey, g.client)
 	if err != nil {
-		g.logger.SpanError(span, err)
+		g.logger.Error(err)
 		return nil, "", err
 	}
 	ctx := context.Background()
@@ -235,22 +230,22 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 
 	status, err := c.SetDashboard(ctx, *board, params)
 	if err != nil {
-		g.logger.SpanError(span, err)
+		g.logger.Error(err)
 		return nil, "", err
 	}
 
-	g.logger.SpanDebug(span, "%s => %s", *status.UID, *status.Slug)
+	g.logger.Debug("%s => %s", *status.UID, *status.Slug)
 
 	if len(board.Rows) == 1 && len(board.Rows[0].Panels) == 1 {
 
 		URL := fmt.Sprintf("/render/d-solo/%s/%s?orgId=%s&panelId=%d&from=%d&to=%d&width=%d&height=%d&tz=%s",
 			*status.UID, *status.Slug, g.options.Org, board.Rows[0].Panels[0].ID, from, to, g.options.ImageWidth, g.options.ImageHeight, board.Timezone)
 
-		g.logger.SpanDebug(span, "%s", URL)
+		g.logger.Debug("%s", URL)
 
 		bytes, err := g.renderImage(URL, g.options.ApiKey)
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 			return nil, "", err
 		}
 
@@ -258,7 +253,7 @@ func (g *GrafanaRender) GenerateDashboard(spanCtx sreCommon.TracerSpanContext,
 
 		_, err = c.DeleteDashboard(ctx, *status.Slug)
 		if err != nil {
-			g.logger.SpanError(span, err)
+			g.logger.Error(err)
 		}
 		return bytes, URL, nil
 	}
@@ -279,7 +274,6 @@ func NewGrafanaRender(options GrafanaRenderOptions, observability *common.Observ
 		client:  utils.NewHttpInsecureClient(options.Timeout),
 		options: options,
 		logger:  logger,
-		tracer:  observability.Traces(),
 		counter: observability.Metrics().Counter("grafana", "requests", "Count of all grafana outputs", map[string]string{}),
 	}
 }

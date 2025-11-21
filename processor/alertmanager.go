@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,11 +18,9 @@ import (
 )
 
 type AlertmanagerProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type AlertmanagerResponse struct {
@@ -43,7 +41,7 @@ func (p *AlertmanagerProcessor) prepareStatus(status string) string {
 	return title.String(lower.String(status))
 }
 
-func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, data *template.Data) {
+func (p *AlertmanagerProcessor) send(channel string, data *template.Data) {
 
 	for _, alert := range data.Alerts {
 
@@ -53,10 +51,8 @@ func (p *AlertmanagerProcessor) send(span sreCommon.TracerSpan, channel string, 
 			Data:    alert,
 		}
 		e.SetTime(alert.StartsAt.UTC())
-		if span != nil {
-			e.SetSpanContext(span.GetContext())
-			e.SetLogger(p.logger)
-		}
+		e.SetLogger(p.logger)
+
 		p.outputs.Send(e)
 	}
 }
@@ -67,18 +63,29 @@ func (p *AlertmanagerProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("alertmanager", "requests", "Count of all alertmanager processor requests", labels, "processor")
+	requests.Inc()
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("alertmanager", "requests", "Count of all alertmanager processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("alertmanager", "errors", "Count of all alertmanager processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -88,26 +95,26 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc()
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var response *AlertmanagerResponse
 	errorString := ""
 	data := template.Data{}
 	if err := json.Unmarshal(body, &data); err != nil {
-		p.logger.SpanError(span, "Can't decode body: %v", err)
+		p.logger.Error("Can't decode body: %v", err)
 		response = &AlertmanagerResponse{
 			Message: err.Error(),
 		}
 		errorString = response.Message
 	} else {
-		p.send(span, channel, &data)
+		p.send(channel, &data)
 		response = &AlertmanagerResponse{
 			Message: "OK",
 		}
@@ -115,23 +122,22 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if !utils.IsEmpty(errorString) {
-		p.errors.Inc()
-		err := errors.New(errorString)
-		p.logger.SpanError(span, errorString)
+		errors.Inc()
+		p.logger.Error(errorString)
 		http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
 		return err
 	}
@@ -141,10 +147,8 @@ func (p *AlertmanagerProcessor) HandleHttpRequest(w http.ResponseWriter, r *http
 func NewAlertmanagerProcessor(outputs *common.Outputs, observability *common.Observability) *AlertmanagerProcessor {
 
 	return &AlertmanagerProcessor{
-		outputs:  outputs,
-		tracer:   observability.Traces(),
-		logger:   observability.Logs(),
-		requests: observability.Metrics().Counter("alertmanager", "requests", "Count of all alertmanager processor requests", map[string]string{}, "processor"),
-		errors:   observability.Metrics().Counter("alertmanager", "errors", "Count of all alertmanager processor errors", map[string]string{}, "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

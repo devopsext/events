@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -28,11 +28,9 @@ import (
 )
 
 type K8sProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type K8sUser struct {
@@ -68,7 +66,7 @@ func (p *K8sProcessor) prepareOperation(operation admv1beta1.Operation) string {
 	return strings.Title(strings.ToLower(string(operation)))
 }
 
-func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}, patch interface{}) {
+func (p *K8sProcessor) send(channel string, ar *admv1beta1.AdmissionRequest, location string, o interface{}, patch interface{}) {
 
 	user := &K8sUser{Name: ar.UserInfo.Username, ID: ar.UserInfo.UID}
 	operation := p.prepareOperation(ar.Operation)
@@ -87,14 +85,11 @@ func (p *K8sProcessor) send(span sreCommon.TracerSpan, channel string, ar *admv1
 		},
 	}
 	e.SetTime(time.Now().UTC())
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
-func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNamespace(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *corev1.Namespace
 	var new *corev1.Namespace
@@ -102,7 +97,7 @@ func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel strin
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -111,7 +106,7 @@ func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel strin
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -122,10 +117,10 @@ func (p *K8sProcessor) processNamespace(span sreCommon.TracerSpan, channel strin
 	if len(res) > 0 {
 		name = new.Name
 	}
-	p.send(span, channel, ar, name, res, patch)
+	p.send(channel, ar, name, res, patch)
 }
 
-func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processNode(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *corev1.Node
 	var new *corev1.Node
@@ -133,7 +128,7 @@ func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -142,7 +137,7 @@ func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -153,10 +148,10 @@ func (p *K8sProcessor) processNode(span sreCommon.TracerSpan, channel string, ar
 	if len(res) > 0 {
 		name = new.Name
 	}
-	p.send(span, channel, ar, name, res, patch)
+	p.send(channel, ar, name, res, patch)
 }
 
-func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processReplicaSet(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *appsv1.ReplicaSet
 	var new *appsv1.ReplicaSet
@@ -164,7 +159,7 @@ func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel stri
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -173,7 +168,7 @@ func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel stri
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -186,10 +181,10 @@ func (p *K8sProcessor) processReplicaSet(span sreCommon.TracerSpan, channel stri
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processStatefulSet(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *appsv1.StatefulSet
 	var new *appsv1.StatefulSet
@@ -197,7 +192,7 @@ func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel str
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -206,7 +201,7 @@ func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel str
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -219,10 +214,10 @@ func (p *K8sProcessor) processStatefulSet(span sreCommon.TracerSpan, channel str
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDaemonSet(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *appsv1.DaemonSet
 	var new *appsv1.DaemonSet
@@ -230,7 +225,7 @@ func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel strin
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -239,7 +234,7 @@ func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel strin
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -252,10 +247,10 @@ func (p *K8sProcessor) processDaemonSet(span sreCommon.TracerSpan, channel strin
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processSecret(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *corev1.Secret
 	var new *corev1.Secret
@@ -263,7 +258,7 @@ func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, 
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -272,7 +267,7 @@ func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -285,10 +280,10 @@ func (p *K8sProcessor) processSecret(span sreCommon.TracerSpan, channel string, 
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processIngress(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *netv1.Ingress
 	var new *netv1.Ingress
@@ -296,7 +291,7 @@ func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string,
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -305,7 +300,7 @@ func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string,
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -318,10 +313,10 @@ func (p *K8sProcessor) processIngress(span sreCommon.TracerSpan, channel string,
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processJob(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *batchv1.Job
 	var new *batchv1.Job
@@ -329,7 +324,7 @@ func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar 
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -338,7 +333,7 @@ func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -351,10 +346,10 @@ func (p *K8sProcessor) processJob(span sreCommon.TracerSpan, channel string, ar 
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processCronJob(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *batchv1beta.CronJob
 	var new *batchv1beta.CronJob
@@ -362,7 +357,7 @@ func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string,
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -371,7 +366,7 @@ func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string,
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -384,10 +379,10 @@ func (p *K8sProcessor) processCronJob(span sreCommon.TracerSpan, channel string,
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processConfigMap(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *corev1.ConfigMap
 	var new *corev1.ConfigMap
@@ -395,7 +390,7 @@ func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel strin
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -404,7 +399,7 @@ func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel strin
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -417,10 +412,10 @@ func (p *K8sProcessor) processConfigMap(span sreCommon.TracerSpan, channel strin
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processRole(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *rbacv1.Role
 	var new *rbacv1.Role
@@ -428,7 +423,7 @@ func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -437,7 +432,7 @@ func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -450,10 +445,10 @@ func (p *K8sProcessor) processRole(span sreCommon.TracerSpan, channel string, ar
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processDeployment(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *appsv1.Deployment
 	var new *appsv1.Deployment
@@ -461,7 +456,7 @@ func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel stri
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -470,7 +465,7 @@ func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel stri
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -483,10 +478,10 @@ func (p *K8sProcessor) processDeployment(span sreCommon.TracerSpan, channel stri
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processService(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *corev1.Service
 	var new *corev1.Service
@@ -494,7 +489,7 @@ func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string,
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -503,7 +498,7 @@ func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string,
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -516,10 +511,10 @@ func (p *K8sProcessor) processService(span sreCommon.TracerSpan, channel string,
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processPod(channel string, ar *admv1beta1.AdmissionRequest) {
 
 	var old *corev1.Pod
 	var new *corev1.Pod
@@ -527,7 +522,7 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = *old
@@ -536,7 +531,7 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = *new
@@ -549,17 +544,17 @@ func (p *K8sProcessor) processPod(span sreCommon.TracerSpan, channel string, ar 
 		name = new.Name
 		namespace = new.Namespace
 	}
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
-func (p *K8sProcessor) processArgoApplication(span sreCommon.TracerSpan, channel string, ar *admv1beta1.AdmissionRequest) {
+func (p *K8sProcessor) processArgoApplication(channel string, ar *admv1beta1.AdmissionRequest) {
 	var old *argov1a.Application
 	var new *argov1a.Application
 	res := make(map[string]*argov1a.Application)
 
 	if ar.OldObject.Raw != nil {
 		if err := json.Unmarshal(ar.OldObject.Raw, &old); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal old object: %v", err)
+			p.logger.Error("Couldn't unmarshal old object: %v", err)
 		}
 		if old != nil {
 			res["old"] = old
@@ -568,7 +563,7 @@ func (p *K8sProcessor) processArgoApplication(span sreCommon.TracerSpan, channel
 
 	if ar.Object.Raw != nil {
 		if err := json.Unmarshal(ar.Object.Raw, &new); err != nil {
-			p.logger.SpanError(span, "Couldn't unmarshal new object: %v", err)
+			p.logger.Error("Couldn't unmarshal new object: %v", err)
 		}
 		if new != nil {
 			res["new"] = new
@@ -577,7 +572,7 @@ func (p *K8sProcessor) processArgoApplication(span sreCommon.TracerSpan, channel
 	patch, _ := jsondiff.CompareJSON(ar.OldObject.Raw, ar.Object.Raw)
 	name := new.Name
 	namespace := new.Spec.Destination.Namespace
-	p.send(span, channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
+	p.send(channel, ar, fmt.Sprintf("%s.%s", namespace, name), res, patch)
 }
 
 func (p *K8sProcessor) HandleEvent(e *common.Event) error {
@@ -600,18 +595,29 @@ func (p *K8sProcessor) HandleEvent(e *common.Event) error {
 	p.counter.Inc(userName, operation, e.Channel, namespace, kind)
 	*/
 
-	p.requests.Inc()
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("k8s", "requests", "Count of all k8s processor requests", labels, "processor")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("k8s", "requests", "Count of all k8s processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("k8s", "errors", "Count of all k8s processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -621,21 +627,21 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc()
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var admissionResponse *admv1beta1.AdmissionResponse
 	errorString := ""
 	ar := admv1beta1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		errorString = err.Error()
-		p.logger.SpanError(span, "Can't decode body: %v", err)
+		p.logger.Error("Can't decode body: %v", err)
 		admissionResponse = &admv1beta1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: errorString,
@@ -649,35 +655,35 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 		if !*req.DryRun {
 			switch req.Kind.Kind {
 			case "Namespace":
-				p.processNamespace(span, channel, req)
+				p.processNamespace(channel, req)
 			case "Node":
-				p.processNode(span, channel, req)
+				p.processNode(channel, req)
 			case "ReplicaSet":
-				p.processReplicaSet(span, channel, req)
+				p.processReplicaSet(channel, req)
 			case "StatefulSet":
-				p.processStatefulSet(span, channel, req)
+				p.processStatefulSet(channel, req)
 			case "DaemonSet":
-				p.processDaemonSet(span, channel, req)
+				p.processDaemonSet(channel, req)
 			case "Secret":
-				p.processSecret(span, channel, req)
+				p.processSecret(channel, req)
 			case "Ingress":
-				p.processIngress(span, channel, req)
+				p.processIngress(channel, req)
 			case "Job":
-				p.processJob(span, channel, req)
+				p.processJob(channel, req)
 			case "CronJob":
-				p.processCronJob(span, channel, req)
+				p.processCronJob(channel, req)
 			case "ConfigMap":
-				p.processConfigMap(span, channel, req)
+				p.processConfigMap(channel, req)
 			case "Role":
-				p.processRole(span, channel, req)
+				p.processRole(channel, req)
 			case "Deployment":
-				p.processDeployment(span, channel, req)
+				p.processDeployment(channel, req)
 			case "Service":
-				p.processService(span, channel, req)
+				p.processService(channel, req)
 			case "Pod":
-				p.processPod(span, channel, req)
+				p.processPod(channel, req)
 			case "Application":
-				p.processArgoApplication(span, channel, req)
+				p.processArgoApplication(channel, req)
 			}
 		}
 
@@ -697,23 +703,23 @@ func (p *K8sProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request)
 
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc()
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if !utils.IsEmpty(errorString) {
-		p.errors.Inc()
-		err := errors.New(errorString)
-		p.logger.SpanError(span, errorString)
+		errors.Inc()
+		err := errPkg.New(errorString)
+		p.logger.Error(errorString)
 		http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
 		return err
 	}
@@ -724,9 +730,6 @@ func NewK8sProcessor(outputs *common.Outputs, observability *common.Observabilit
 	return &K8sProcessor{
 		outputs: outputs,
 		logger:  observability.Logs(),
-		tracer:  observability.Traces(),
-		//	counter: observability.Metrics().Counter("requests", "Count of all k8s processor requests", []string{"user", "operation", "channel", "namespace", "kind"}, "k8s", "processor"),
-		requests: observability.Metrics().Counter("k8s", "requests", "Count of all k8s processor requests", map[string]string{}, "processor", "k8s"),
-		errors:   observability.Metrics().Counter("k8s", "errors", "Count of all k8s processor errors", map[string]string{}, "processor", "k8s"),
+		meter:   observability.Metrics(),
 	}
 }

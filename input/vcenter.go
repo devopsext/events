@@ -56,11 +56,8 @@ type VCenterInput struct {
 	client       *govmomi.Client
 	ctx          context.Context
 	processors   *common.Processors
-	tracer       sreCommon.Tracer
 	logger       sreCommon.Logger
 	meter        sreCommon.Meter
-	requests     sreCommon.Counter
-	errors       sreCommon.Counter
 	wg           waitgroup.WaitGroup
 	ceAttributes map[string]string // custom cloudevent context attributes added to events
 }
@@ -375,17 +372,13 @@ func NewVCenterInput(options VCenterInputOptions, processors *common.Processors,
 	ceAttributes := make(map[string]string)
 	ceAttributes[ceVSphereAPIKey] = client.ServiceContent.About.ApiVersion
 
-	meter := observability.Metrics()
 	return &VCenterInput{
 		options:      options,
 		client:       client,
 		ctx:          ctx,
 		processors:   processors,
-		tracer:       observability.Traces(),
 		logger:       observability.Logs(),
-		meter:        meter,
-		requests:     meter.Counter("vcenter", "requests", "Count of all vc input requests", map[string]string{}, "input"),
-		errors:       meter.Counter("vcenter", "errors", "Count of all vc input errors", map[string]string{}, "input"),
+		meter:        observability.Metrics(),
 		ceAttributes: ceAttributes,
 	}
 }
@@ -584,11 +577,19 @@ func (vc *VCenterInput) processEvents(vcBaseEvents []vctypes.BaseEvent) (*vcLast
 			vc.logger.Debug("VC processor is not found for %s", curevent.Type)
 			return nil, errInvalidProcessor
 		}
-		vc.requests.Inc()
+
+		labels := make(map[string]string)
+		labels["vcenter"] = vc.options.URL
+		labels["input"] = "vcenter"
+
+		requests := vc.meter.Counter("vcenter", "requests", "Count of all vc input requests", labels, "input")
+		requests.Inc()
+
 		err = p.HandleEvent(curevent)
 		if err != nil {
 			vc.logger.Debug("some problems with %v", err)
-			vc.errors.Inc()
+			errors := vc.meter.Counter("vcenter", "errors", "Count of all vc input errors", labels, "input")
+			errors.Inc()
 		}
 
 		last = &vcLastEvent{

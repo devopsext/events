@@ -11,11 +11,9 @@ import (
 const channel = "nomad"
 
 type NomadProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 func (p *NomadProcessor) HandleEvent(e *common.Event) error {
@@ -23,7 +21,14 @@ func (p *NomadProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc()
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("nomad", "requests", "Count of all nomad processor requests", labels, "processor")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
@@ -54,22 +59,6 @@ func NewNomadProcessor(outputs *common.Outputs, observability *common.Observabil
 	return &NomadProcessor{
 		outputs: outputs,
 		logger:  observability.Logs(),
-		tracer:  observability.Traces(),
-		requests: observability.Metrics().Counter(
-			"nomad",
-			"requests",
-			"Count of all nomad processor requests",
-			map[string]string{},
-			"processor",
-			"nomad",
-		),
-		errors: observability.Metrics().Counter(
-			"nomad",
-			"errors",
-			"Count of all nomad processor errors",
-			map[string]string{},
-			"processor",
-			"nomad",
-		),
+		meter:   observability.Metrics(),
 	}
 }
