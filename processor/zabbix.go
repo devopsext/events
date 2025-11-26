@@ -134,5 +134,6 @@ func NewZabbixProcessor(outputs *common.Outputs, observability *common.Observabi
 	return &ZabbixProcessor{
 		outputs: outputs,
 		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }
