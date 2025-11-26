@@ -14,27 +14,27 @@ import (
 )
 
 type DataDogOutputOptions struct {
+	Name               string
 	Message            string
 	AttributesSelector string
 }
 
 type DataDogOutput struct {
 	wg             *sync.WaitGroup
+	name           *toolsRender.TextTemplate
 	message        *toolsRender.TextTemplate
 	attributes     *toolsRender.TextTemplate
 	options        DataDogOutputOptions
-	tracer         sreCommon.Tracer
 	logger         sreCommon.Logger
-	requests       sreCommon.Counter
-	errors         sreCommon.Counter
+	meter          sreCommon.Meter
 	datadogEventer *sreProvider.DataDogEventer
 }
 
 func (d *DataDogOutput) Name() string {
-	return "DataDog"
+	return "Datadog"
 }
 
-func (d *DataDogOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
+func (d *DataDogOutput) getAttributes(o interface{}) (map[string]string, error) {
 
 	attrs := make(map[string]string)
 	if d.attributes == nil {
@@ -54,7 +54,7 @@ func (d *DataDogOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) 
 		return attrs, nil
 	}
 
-	d.logger.SpanDebug(span, "DataDog raw attributes => %s", m)
+	d.logger.Debug("DataDog raw attributes => %s", m)
 
 	var object map[string]interface{}
 
@@ -82,44 +82,60 @@ func (d *DataDogOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := d.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			d.logger.SpanError(span, "Event data is empty")
+			d.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			d.logger.SpanError(span, err)
+			d.logger.Error(err)
+			return
+		}
+
+		a, err := d.name.RenderObject(jsonObject)
+		if err != nil {
+			d.logger.Error(err)
+			return
+		}
+
+		name := strings.TrimSpace(string(a))
+		if utils.IsEmpty(a) {
+			d.logger.Debug("DataDog name is empty")
 			return
 		}
 
 		b, err := d.message.RenderObject(jsonObject)
 		if err != nil {
-			d.logger.SpanError(span, err)
+			d.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			d.logger.SpanDebug(span, "DataDog message is empty")
+			d.logger.Debug("DataDog message is empty")
 			return
 		}
 
-		d.requests.Inc()
-		d.logger.SpanDebug(span, "DataDog message => %s", message)
+		labels := make(map[string]string)
+		labels["event_channel"] = event.Channel
+		labels["event_type"] = event.Type
+		labels["output"] = d.Name()
 
-		attributes, err := d.getAttributes(jsonObject, span)
+		requests := d.meter.Counter("datadog", "requests", "Count of all datadog requests", labels, "output")
+		requests.Inc()
+		d.logger.Debug("DataDog message => %s%s", name, message)
+
+		attributes, err := d.getAttributes(jsonObject)
 		if err != nil {
-			d.logger.SpanError(span, err)
+			d.logger.Error(err)
 		}
-		d.logger.Debug("Message: %s, Attributes: %s, Time: %s", message, strings.Join(utils.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
+		d.logger.Debug("Name: %s, Message: %s, Attributes: %s, Time: %s", name, message, strings.Join(utils.MapToArray(attributes), ","), event.Time.Format(time.RFC822))
 
-		err = d.datadogEventer.At(message, attributes, event.Time)
+		err = d.datadogEventer.At(name, message, attributes, event.Time)
 		if err != nil {
-			d.errors.Inc()
+			errors := d.meter.Counter("datadog", "errors", "Count of all datadog errors", labels, "output")
+			errors.Inc()
 		}
 	}()
 }
@@ -133,6 +149,17 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 	logger := observability.Logs()
 	if datadogEventer == nil {
 		logger.Debug("DataDog eventer is not defined. Skipped")
+		return nil
+	}
+
+	nameOpts := toolsRender.TemplateOptions{
+		Name:       "datadog-name",
+		Content:    common.Content(options.Name),
+		TimeFormat: templateOptions.TimeFormat,
+	}
+	name, err := toolsRender.NewTextTemplate(nameOpts, observability)
+	if err != nil {
+		logger.Error(err)
 		return nil
 	}
 
@@ -159,13 +186,12 @@ func NewDataDogOutput(wg *sync.WaitGroup,
 
 	return &DataDogOutput{
 		wg:             wg,
+		name:           name,
 		message:        message,
 		attributes:     attributes,
 		options:        options,
 		logger:         logger,
-		tracer:         observability.Traces(),
-		requests:       observability.Metrics().Counter("requests", "Count of all datadog requests", []string{}, "datadog", "output"),
-		errors:         observability.Metrics().Counter("errors", "Count of all datadog errors", []string{}, "datadog", "output"),
+		meter:          observability.Metrics(),
 		datadogEventer: datadogEventer,
 	}
 }

@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,11 +14,9 @@ import (
 )
 
 type GoogleProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type GoogleResource struct {
@@ -94,7 +92,7 @@ func (p *GoogleProcessor) EventType() string {
 	return common.AsEventType(GoogleProcessorType())
 }
 
-func (p *GoogleProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
+func (p *GoogleProcessor) send(channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
@@ -106,10 +104,7 @@ func (p *GoogleProcessor) send(span sreCommon.TracerSpan, channel string, o inte
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
@@ -119,18 +114,30 @@ func (p *GoogleProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("google", "requests", "Count of all google processor requests", labels, "processor")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("google", "requests", "Count of all google processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("google", "errors", "Count of all google processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -140,28 +147,28 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var request GoogleRequest
 	if err := json.Unmarshal(body, &request); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		p.logger.Error(err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
 
 	if request.Incident.StartedAt > 0 {
 		t := time.UnixMilli(request.Incident.StartedAt)
-		p.send(span, channel, request, &t)
+		p.send(channel, request, &t)
 	} else {
-		p.send(span, channel, request, nil)
+		p.send(channel, request, nil)
 	}
 
 	response := &GoogleResponse{
@@ -170,15 +177,15 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -188,10 +195,8 @@ func (p *GoogleProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Reque
 func NewGoogleProcessor(outputs *common.Outputs, observability *common.Observability) *GoogleProcessor {
 
 	return &GoogleProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all google processor requests", []string{"channel"}, "google", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all google processor errors", []string{"channel"}, "google", "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

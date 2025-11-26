@@ -39,10 +39,8 @@ type TelegramOutput struct {
 	grafana     *render.GrafanaRender
 	options     TelegramOutputOptions
 	outputs     *common.Outputs
-	tracer      sreCommon.Tracer
 	logger      sreCommon.Logger
-	requests    sreCommon.Counter
-	errors      sreCommon.Counter
+	meter       sreCommon.Meter
 	rateLimiter *rate.Limiter
 }
 
@@ -60,10 +58,7 @@ func (t *TelegramOutput) getBotID(IDToken string) string {
 	return ""
 }
 
-func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string) ([]byte, error) {
-
-	span := t.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (t *TelegramOutput) sendMessage(IDToken, chatID, message string) ([]byte, error) {
 
 	if err := t.rateLimiter.Wait(context.TODO()); err != nil {
 		return nil, err
@@ -86,25 +81,22 @@ func (t *TelegramOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, IDToke
 	b, err := t.telegram.CustomSendMessage(telegramOpts, messageOpts)
 
 	if err != nil {
-		t.logger.SpanError(span, err)
-		t.logger.SpanDebug(span, message)
+		t.logger.Error(err)
+		t.logger.Debug(message)
 		return nil, err
 	}
 
-	t.logger.SpanDebug(span, "Response from Telegram => %s", string(b))
+	t.logger.Debug("Response from Telegram => %s", string(b))
 	return b, err
 }
 
-func (t *TelegramOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string, err error) error {
+func (t *TelegramOutput) sendErrorMessage(IDToken, chatID, message string, err error) error {
 
-	_, e := t.sendMessage(spanCtx, IDToken, chatID, fmt.Sprintf("%s\n%s", message, err.Error()))
+	_, e := t.sendMessage(IDToken, chatID, fmt.Sprintf("%s\n%s", message, err.Error()))
 	return e
 }
 
-func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message, fileName string, photo []byte) ([]byte, error) {
-
-	span := t.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (t *TelegramOutput) sendPhoto(IDToken, chatID, message, fileName string, photo []byte) ([]byte, error) {
 
 	telegramOpts := vendors.TelegramOptions{
 		IDToken:               IDToken,
@@ -125,10 +117,7 @@ func (t *TelegramOutput) sendPhoto(spanCtx sreCommon.TracerSpanContext, IDToken,
 	return t.telegram.CustomSendPhoto(telegramOpts, photoOpts)
 }
 
-func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, IDToken, chatID, message string, alert template.Alert) ([]byte, error) {
-
-	span := t.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (t *TelegramOutput) sendAlertmanagerImage(IDToken, chatID, message string, alert template.Alert) ([]byte, error) {
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
@@ -176,18 +165,18 @@ func (t *TelegramOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanConte
 
 	messageQuery := fmt.Sprintf("%s\n<i>%s</i>", message, query)
 	if t.grafana == nil {
-		return t.sendMessage(span.GetContext(), IDToken, chatID, messageQuery)
+		return t.sendMessage(IDToken, chatID, messageQuery)
 	}
 
-	image, fileName, err := t.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
+	image, fileName, err := t.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		t.sendErrorMessage(span.GetContext(), IDToken, chatID, messageQuery, err)
+		t.sendErrorMessage(IDToken, chatID, messageQuery, err)
 		return nil, nil
 	}
-	return t.sendPhoto(span.GetContext(), IDToken, chatID, messageQuery, fileName, image)
+	return t.sendPhoto(IDToken, chatID, messageQuery, fileName, image)
 }
 
-func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
+func (t *TelegramOutput) sendGlobally(event *common.Event, bytes []byte) {
 
 	if utils.IsEmpty(t.options.Forward) {
 		return
@@ -197,12 +186,9 @@ func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event
 		return
 	}
 
-	span := t.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
-
 	var obj interface{}
 	if err := json.Unmarshal(bytes, &obj); err != nil {
-		t.logger.SpanError(span, err)
+		t.logger.Error(err)
 		return
 	}
 
@@ -220,7 +206,6 @@ func (t *TelegramOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event
 		Via:     via,
 	}
 	e.SetLogger(t.logger)
-	e.SetSpanContext(span.GetContext())
 
 	t.outputs.SendForward(&e, []common.Output{t}, t.options.Forward)
 }
@@ -236,17 +221,14 @@ func (t *TelegramOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := t.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			t.logger.SpanError(span, "Event data is empty")
+			t.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			t.logger.SpanError(span, err)
+			t.logger.Error(err)
 			return
 		}
 
@@ -258,30 +240,30 @@ func (t *TelegramOutput) Send(event *common.Event) {
 		if t.selector != nil {
 			b, err := t.selector.RenderObject(jsonObject)
 			if err != nil {
-				t.logger.SpanDebug(span, err)
+				t.logger.Debug(err)
 			} else {
 				IDTokenChatIDs = strings.TrimSpace(string(b))
 			}
 		}
 
 		if utils.IsEmpty(IDTokenChatIDs) {
-			t.logger.SpanDebug(span, "Telegram ID token or chat ID are not found. Skipped")
+			t.logger.Debug("Telegram ID token or chat ID are not found. Skipped")
 			return
 		}
 
 		b, err := t.message.RenderObject(jsonObject)
 		if err != nil {
-			t.logger.SpanError(span, err)
+			t.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			t.logger.SpanDebug(span, "Telegram message is empty")
+			t.logger.Debug("Telegram message is empty")
 			return
 		}
 
-		t.logger.SpanDebug(span, "Telegram message => %s", message)
+		t.logger.Debug("Telegram message => %s", message)
 
 		list := strings.Split(IDTokenChatIDs, "\n")
 		for _, IDTokenChatID := range list {
@@ -296,27 +278,36 @@ func (t *TelegramOutput) Send(event *common.Event) {
 
 			IDToken := arr[0]
 			chatID := arr[1]
-			botID := t.getBotID(IDToken)
+			// botID := t.getBotID(IDToken)
 
-			t.requests.Inc(botID, chatID)
+			labels := make(map[string]string)
+			labels["event_channel"] = event.Channel
+			labels["event_type"] = event.Type
+			labels["telegram_chat_id"] = chatID
+			labels["output"] = t.Name()
+
+			requests := t.meter.Counter("telegram", "requests", "Count of all telegram requests", labels, "output")
+			requests.Inc()
+
+			errors := t.meter.Counter("telegram", "errors", "Count of all telegram errors", labels, "output")
 
 			switch event.Type {
 			case "AlertmanagerEvent":
 				// TODO: improve sendAlertmanagerImage to be compatible with telegram output
-				//bytes, err := t.sendAlertmanagerImage(span.GetContext(), IDToken, chatID, message, event.Data.(template.Alert))
-				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
+				//bytes, err := t.sendAlertmanagerImage(IDToken, chatID, message, event.Data.(template.Alert))
+				bytes, err := t.sendMessage(IDToken, chatID, message)
 				if err != nil {
-					t.errors.Inc(botID, chatID)
-					t.sendErrorMessage(span.GetContext(), IDToken, chatID, message, err)
+					errors.Inc()
+					t.sendErrorMessage(IDToken, chatID, message, err)
 				} else {
-					t.sendGlobally(span.GetContext(), event, bytes)
+					t.sendGlobally(event, bytes)
 				}
 			default:
-				bytes, err := t.sendMessage(span.GetContext(), IDToken, chatID, message)
+				bytes, err := t.sendMessage(IDToken, chatID, message)
 				if err != nil {
-					t.errors.Inc(botID, chatID)
+					errors.Inc()
 				} else {
-					t.sendGlobally(span.GetContext(), event, bytes)
+					t.sendGlobally(event, bytes)
 				}
 			}
 		}
@@ -369,8 +360,6 @@ func NewTelegramOutput(wg *sync.WaitGroup,
 		options:     options,
 		outputs:     outputs,
 		logger:      logger,
-		tracer:      observability.Traces(),
-		requests:    observability.Metrics().Counter("requests", "Count of all telegram requests", []string{"bot_id", "chat_id"}, "telegram", "output"),
-		errors:      observability.Metrics().Counter("errors", "Count of all telegram errors", []string{"bot_id", "chat_id"}, "telegram", "output"),
+		meter:       observability.Metrics(),
 	}
 }

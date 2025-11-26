@@ -2,11 +2,10 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/devopsext/events/common"
 	sreCommon "github.com/devopsext/sre/common"
@@ -15,11 +14,9 @@ import (
 )
 
 type CustomJsonProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type CustomJsonResponse struct {
@@ -40,11 +37,14 @@ func (p *CustomJsonProcessor) HandleEvent(e *common.Event) error {
 
 func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
 
-	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+	requests := p.meter.Counter("customjson", "requests", "Count of all customjson processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("customjson", "errors", "Count of all customjson processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -54,21 +54,21 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var response *CustomJsonResponse
 	errorString := ""
 	data := template.Data{}
 	if err := json.Unmarshal(body, &data); err != nil {
 		errorString = err.Error()
-		p.logger.SpanError(span, "Can't decode body: %v", err)
+		p.logger.Error("Can't decode body: %v", err)
 		response = &CustomJsonResponse{
 			Message: errorString,
 		}
@@ -81,23 +81,23 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if !utils.IsEmpty(errorString) {
-		p.errors.Inc(channel)
-		err := errors.New(errorString)
-		p.logger.SpanError(span, errorString)
+		errors.Inc()
+		err := errPkg.New(errorString)
+		p.logger.Error(errorString)
 		http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
 		return err
 	}
@@ -107,10 +107,8 @@ func (p *CustomJsonProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.R
 func NewCustomJsonProcessor(outputs *common.Outputs, observability *common.Observability) *CustomJsonProcessor {
 
 	return &CustomJsonProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all customjson processor requests", []string{"channel"}, "customjson", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all customjson processor errors", []string{"channel"}, "customjson", "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

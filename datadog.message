@@ -1,15 +1,45 @@
-{{- define "k8s-header"}}
-  {{- $t := timeFormat .time "02.01.06 15:04:05"}}
-  {{- printf "%s: %s / %s %s: %s by %s" (toUpper .data.operation) .data.kind .data.location .channel $t .data.user.name}}
+{{- define "k8s-object-counts"}}
+  {{- if eq .operation "Update"}}
+    {{- if ne .object.old.spec.replicas .object.new.spec.replicas}}
+      {{- printf "\nReplicas: %.0f => %.0f" .object.old.spec.replicas .object.new.spec.replicas}}
+    {{- end }}
+  {{- else if eq .operation "Create"}}
+    {{- printf "\nReplicas: %.0f" .object.new.spec.replicas}}
+  {{- else if eq .operation "Delete"}}
+    {{- printf "\nReplicas: %.0f" .object.old.spec.replicas}}
+  {{- end }}
+  {{template "k8s-pod" .}}
+{{- end}}
+{{- define "k8s-patch"}}
+  {{- $text := ""}}
+  {{- range .}}
+      {{- $value := ""}}
+    {{- if regexMatch "/spec/template/metadata/annotations.*restartedAt.*" .path}}
+      {{- $text = printf "%v restarted at %s\n" $text .value}}
+    {{- else if not (regexMatch "^(/meta|.*metadata|.*reconciledAt|.*/health/.*|/status/(summary|conditions|health|history|operationState|sync|resources/.*)|/operation|/spec/syncPolicy/automated|/spec/destination/).*" .path)}}
+      {{- if (regexMatch ".*/env/.*" .path)}}
+        {{- $value = "MASKED"}}
+      {{- else}}
+        {{- $value = .value}}
+      {{- end}}
+      {{- $text = printf "%s%s %s: %v\n" $text .op .path $value}}
+    {{- end}}
+  {{- end}}
+  {{- if gt (len $text) 0}}
+    {{printf "Changes:\n%s" $text}}
+  {{- end}}
 {{- end}}
 {{- define "k8s-namespace"}}{{- end}}
 {{- define "k8s-node"}}{{- end}}
-{{- define "k8s-replicaset"}}{{- end}}
-{{- define "k8s-statefulset"}}
-  {{- printf "\nReplicas => %.0f\nSelector => %s" .spec.replicas .spec.selector}}
-  {{- template "k8s-pod" .spec.template}}
+{{- define "k8s-replicaset"}}
+  {{template "k8s-object-counts" .}}
 {{- end}}
-{{- define "k8s-daemonset"}}{{- end}}
+{{- define "k8s-statefulset"}}
+  {{template "k8s-object-counts" .}}
+{{- end}}
+{{- define "k8s-daemonset"}}
+  {{template "k8s-object-counts" .}}
+{{- end}}
 {{- define "k8s-secret"}}{{- end}}
 {{- define "k8s-ingress"}}{{- end}}
 {{- define "k8s-cronjob"}}{{- end}}
@@ -17,22 +47,35 @@
 {{- define "k8s-configmap"}}{{- end}}
 {{- define "k8s-role"}}{{- end}}
 {{- define "k8s-deployment"}}
-  {{- printf "\nReplicas => %.0f\nSelector => %s" .spec.replicas .spec.selector}}
-  {{- template "k8s-pod" .spec.template}}
+  {{template "k8s-object-counts" .}}
 {{- end}}
 {{- define "k8s-service"}}
-  {{- printf "\n%s => %s" .spec.type .spec.clusterIP}}
-  {{- range .spec.ports}}
+  {{- printf "\n%s => %s" .object.new.spec.type .object.new.spec.clusterIP}}
+  {{- range .object.new.spec.ports}}
     {{- printf "\n%s %.0f => %.0f" .protocol .port .targetPort}}
   {{- end}}
   {{- printf "\nSelector => %s" .spec.selector}}
 {{- end}}
-{{- define "k8s-pod"}}
-  {{- range .spec.containers}}
-    {{- printf "\n%s => %s" .name .image}}
-    {{- range .ports}}
-      {{- printf " [%s: %.0f]" .protocol .containerPort}}
+{{- define "k8s-pod"}}{{- end}}
+{{- define "k8s-image"}}
+  {{- $oldImages := ""}}{{- $newImages := ""}}
+  {{- if regexMatch "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod" .data.kind}}
+    {{- range .data.object.old.spec.template.spec.containers}}
+      {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
     {{- end}}
+    {{- range .data.object.new.spec.template.spec.containers}}
+      {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+    {{- end}}
+  {{- else if eq .data.kind "Application"}}
+    {{- $oldImages = printf "%s: %s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+    {{- $newImages = printf "%s: %s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+  {{- end}}
+  {{- if and (ne $oldImages $newImages) (eq .data.operation "Update")}}
+    {{- printf "\nImages:\nOld:\n%sNew:\n%s" $oldImages $newImages}}
+  {{- else if eq .data.operation "Create"}}
+    {{- printf "\nImages:\n%s" $newImages}}
+  {{- else if eq .data.operation "Delete"}}
+    {{- printf "\nImages:\n%s" $oldImages}}
   {{- end}}
 {{- end}}
 {{- define "alertmanager-header"}}
@@ -49,32 +92,53 @@
   {{- else}}{{- printf "%s: %s@%s %s: %s by %s" (toUpper .data.object_kind) .data.project_name .data.ref .channel $t .data.user.username}}{{end}}
 {{- end}}
 {{- define "text"}}
+  {{- if eq .type "KubeEvent"}}
+    {{- printf "%s" .data.message}}
+  {{- end}}
   {{- if eq .type "K8sEvent"}}
-    {{- if and (not (.data.location | regexMatch "kube-system.ack-controlplane-healthcheck")) (not (.data.user.name | regexMatch "(system:serviceaccount:*|system:*)"))}}
-      {{- if .data.object}}
-        {{- if eq .data.kind "Namespace"}}{{template "k8s-header" .}}{{template "k8s-namespace" .data.object}}{{end}}
-        {{- if eq .data.kind "Node"}}{{template "k8s-header" .}}{{template "k8s-node" .data.object}}{{end}}
-        {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-header" .}}{{template "k8s-replicaset" .data.object}}{{end}}
-        {{- if eq .data.kind "StatefulSet"}}{{template "k8s-header" .}}{{template "k8s-statefulset" .data.object}}{{end}}
-        {{- if eq .data.kind "DaemonSet"}}{{template "k8s-header" .}}{{template "k8s-daemonset" .data.object}}{{end}}
-        {{- if eq .data.kind "Secret"}}{{template "k8s-header" .}}{{template "k8s-secret" .data.object}}{{end}}
-        {{- if eq .data.kind "Ingress"}}{{template "k8s-header" .}}{{template "k8s-ingress" .data.object}}{{end}}
-        {{- if eq .data.kind "CronJob"}}{{template "k8s-header" .}}{{template "k8s-cronjob" .data.object}}{{end}}
-        {{- if eq .data.kind "Job"}}{{template "k8s-header" .}}{{template "k8s-job" .data.object}}{{end}}
-        {{- if eq .data.kind "ConfigMap"}}{{template "k8s-header" .}}{{template "k8s-configmap" .data.object}}{{end}}
-        {{- if eq .data.kind "Role"}}{{template "k8s-header" .}}{{template "k8s-role" .data.object}}{{end}}
-        {{- if eq .data.kind "Deployment"}}{{template "k8s-header" .}}{{template "k8s-deployment" .data.object}}{{end}}
-        {{- if eq .data.kind "Service"}}{{template "k8s-header" .}}{{template "k8s-service" .data.object}}{{end}}
-        {{- if eq .data.kind "Pod"}}{{template "k8s-header" .}}{{template "k8s-pod" .data.object}}{{end}}
-      {{- else}}{{template "k8s-header" .}}{{end}}
+    {{- $pass := false}}
+    {{- $text := ""}}
+    {{- if and (eq .data.operation "Update") (regexMatch "(system|eks|kube-admin).*" .data.user.name)}}
+        {{- if (regexMatch "(Deployment|DaemonSet|StatefulSet|Node|Ingress)" .data.kind )}}{{- $pass = false}}{{- else}}{{- $pass = true}}{{- end}}
+    {{- else}}{{- $pass = true}}
+    {{- end}}
+    {{- if .data.object}}
+      {{- if eq .data.kind "Namespace"}}{{template "k8s-namespace" .data}}{{end}}
+      {{- if eq .data.kind "ReplicaSet"}}{{template "k8s-replicaset" .data}}{{end}}
+      {{- if eq .data.kind "Secret"}}{{template "k8s-secret" .data}}{{end}}
+      {{- if eq .data.kind "CronJob"}}{{template "k8s-cronjob" .data}}{{end}}
+      {{- if eq .data.kind "Job"}}{{template "k8s-job" .data}}{{end}}
+      {{- if eq .data.kind "ConfigMap"}}{{template "k8s-configmap" .data}}{{end}}
+      {{- if eq .data.kind "Role"}}{{template "k8s-role" .data}}{{end}}
+      {{- if eq .data.kind "Service"}}{{template "k8s-service" .data}}{{end}}
+      {{- if eq .data.kind "Pod"}}{{template "k8s-pod" .data}}{{end}}
+      {{- if eq .data.kind "Ingress"}}{{template "k8s-ingress" .data}}{{end}}
+      {{- if eq .data.kind "DaemonSet"}}{{template "k8s-daemonset" .data}}{{end}}
+      {{- if eq .data.kind "Deployment"}}{{template "k8s-deployment" .data |}}{{end}}
+      {{- if eq .data.kind "StatefulSet"}}{{template "k8s-statefulset" .data}}{{end}}
+      {{- if eq .data.kind "Node"}}{{template "k8s-node" .data}}{{end}}
+      {{template "k8s-image" .}}
+      {{- if or (eq .data.operation "Update") (eq .data.operation "Release")}}
+        {{template "k8s-patch" .data.patch}}
+      {{- end}}
+    {{- end}}
+    {{- if (gt (len $text) 0)}}
+      {{printf "%s" $text}}
     {{- end}}
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
     {{template "alertmanager-header" .}}{{template "alertmanager-body" .data}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
-    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}
-    {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{- template "gitlab-header" .}}{{- end}}
+    {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
+    {{- if .data.builds}}
+      {{- range .data.builds}}
+        {{- if and .runner (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+      {{- end}}
+    {{- else}}
+      {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+    {{- end}}
+    {{- if $ok}}{{template "gitlab-header" .}}{{- end}}
   {{- end}}
 {{- end}}
 {{- define "datadog-message"}}{{template "text" .}}{{- end}}

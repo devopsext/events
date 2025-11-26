@@ -2,6 +2,7 @@ package processor
 
 import (
 	"errors"
+	errPkg "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,11 +15,9 @@ import (
 )
 
 type VCenterProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type VCenterResponse struct {
@@ -37,7 +36,7 @@ func (p *VCenterProcessor) prepareStatus(status string) string {
 	return strings.Title(strings.ToLower(status))
 }
 
-func (p *VCenterProcessor) send(span sreCommon.TracerSpan, channel string, data string) {
+func (p *VCenterProcessor) send(channel string, data string) {
 
 	for _, alert := range data {
 
@@ -47,16 +46,13 @@ func (p *VCenterProcessor) send(span sreCommon.TracerSpan, channel string, data 
 			Data:    alert,
 		}
 		//e.SetTime(alert..UTC())
-		if span != nil {
-			e.SetSpanContext(span.GetContext())
-			e.SetLogger(p.logger)
-		}
+		e.SetLogger(p.logger)
 		p.outputs.Send(e)
 	}
 }
 
-var ErrorEventNotImpemented = errors.New("vcenter event not implemented yet")
-var ErrorEventDefinitelySkip = errors.New("vcenter event for trash only")
+var ErrorEventNotImpemented = errPkg.New("vcenter event not implemented yet")
+var ErrorEventDefinitelySkip = errPkg.New("vcenter event for trash only")
 
 type vcenterEvent struct {
 	Subject            string
@@ -396,8 +392,17 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 
 func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("vcenter", "requests", "Count of all vcenter processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("vcenter", "errors", "Count of all vcenter processor errors", labels, "processor")
+
 	if e == nil {
-		p.errors.Inc("vcenter: Event is not defined")
+		errors.Inc()
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
@@ -405,13 +410,13 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 	jsonString := e.Data.(string)
 	subject, err := jsonparser.GetString([]byte(jsonString), "subject")
 	if err != nil {
-		p.errors.Inc("vcenter: No Subject")
+		errors.Inc()
 		return err
 	}
 
 	chainId, err := jsonparser.GetInt([]byte(jsonString), "data", "ChainId")
 	if err != nil {
-		p.errors.Inc("vcenter: No ChainId")
+		errors.Inc()
 		return err
 	}
 
@@ -425,12 +430,11 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 		ChainId: strconv.FormatInt(chainId, 10),
 	}
 
-	p.requests.Inc(vce.Subject)
 	err = vce.parse([]byte(jsonString))
 
 	if err != ErrorEventDefinitelySkip {
 		if err != nil {
-			p.errors.Inc("vcenter: Cannot parse")
+			errors.Inc()
 			p.logger.Debug(err)
 			return err
 		}
@@ -452,10 +456,8 @@ func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
 func NewVCenterProcessor(outputs *common.Outputs, observability *common.Observability) *VCenterProcessor {
 
 	return &VCenterProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all vcenter processor requests", []string{"channel"}, "vcenter", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all vcenter processor errors", []string{"error"}, "vcenter", "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

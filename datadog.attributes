@@ -31,15 +31,64 @@
   {{- end}}
 {{- end}}
 {{- define "text"}}
+  {{- if eq .type "KubeEvent"}}
+    {{- $type := .data.type}}
+    {{- if or (regexMatch .data.reason "(NodeNotReady|Evicted|FailedScheduling|BackOff|EvictionThresholdMet)") (and (eq .data.reason "Failed") (or  (regexMatch .data.message "^Failed to pull image.*") (regexMatch .data.message "^Failed to start container.*")))}}
+      {{- $type = "Error"}}
+    {{- end}}  
+    {{printf "{\"alert_type\":\"%s\",\"aggregation_key\":\"%s\",\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"location\":\"%s\",\"reason\":\"%s\"}" (toLower $type) (index (regexFindSubmatch "([a-zA-Z-]+)-kube" .channel) 1 ) .type .data.location .data.reason}}
+  {{- end}}
   {{- if eq .type "K8sEvent"}}
-    {{printf "{\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\"}" .type .data.kind .data.location}}
+    {{- $severity := ""}}
+    {{- $op := .data.operation}}
+
+    {{- if eq .data.operation "Delete"}}
+      {{- $severity = "warning"}}
+    {{- else if eq .data.operation "Update"}}
+      {{- $oldImages := ""}}{{- $newImages := ""}}
+          
+      {{- if regexMatch "StatefulSet|Deployment|DaemonSet|ReplicaSet|Pod" .data.kind}}
+        {{- range .data.object.old.spec.template.spec.containers}}
+          {{- $oldImages = printf "%s%s => %s\n" $oldImages .name .image}}
+        {{- end}}
+        {{- range .data.object.new.spec.template.spec.containers}}
+          {{- $newImages = printf "%s%s => %s\n" $newImages .name .image}}
+        {{- end}}
+      {{- else if eq .data.kind "Application"}}
+        {{- $oldImages = printf "%s:%s\n" .data.object.old.spec.source.helm.valuesObject.image.repository .data.object.old.spec.source.helm.valuesObject.image.tag }}
+        {{- $newImages = printf "%s:%s\n" .data.object.new.spec.source.helm.valuesObject.image.repository .data.object.new.spec.source.helm.valuesObject.image.tag }}
+      {{- end}}
+
+      {{- if ne $oldImages $newImages}}
+        {{- $op = "Release"}}
+        {{- $severity = "warning"}}
+      {{- end}}
+
+      {{- if ne .data.object.old.spec.replicas .data.object.new.spec.replicas}}
+        {{- if ne $op "Release"}}
+          {{- $op = "Scale"}}
+        {{- end}}
+      {{- end}}
+    {{- else }}
+      {{- $severity = "info"}}
+    {{- end}}
+
+    {{printf "{\"alert_type\":\"%s\",\"aggregation_key\":\"%s\",\"type\":\"%s\",\"source_type_name\":\"kubernetes\",\"kind\":\"%s\",\"location\":\"%s\",\"operation\":\"%s\"}" $severity .channel .type .data.kind .data.location $op}}
+  
   {{- end}}
   {{- if eq .type "AlertmanagerEvent"}}
     {{printf "{\"type\":\"%s\",\"source_type_name\":\"%s\",\"alert\":\"%s\"}" .type .channel .data.labels.alertname}}
   {{- end}}
   {{- if eq .type "GitlabEvent"}}
     {{- $match := getEnv "EVENTS_GITLAB_RUNNERS"}}{{$ok := false}}
-    {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}
+    {{- if .data.builds}}
+      {{- range .data.builds}}
+        {{- if and .runner (.runner.description | regexMatch $match) (not (empty .finished_at))}}{{$ok = true}}{{end}}
+      {{- end}}
+    {{- else}}
+      {{- if and .data.runner (.data.runner.description | regexMatch $match) (not (empty .data.build_duration))}}{{$ok = true}}{{end}}
+    {{- end}}
+    {{- if $ok}}
         {
             "source_type_name":"gitlab",
             {{- if .data.project}}{{printf "\"namespace\":\"%s\",\"project\":\"%s\"" .data.project.namespace .data.project.name}}

@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -43,11 +43,9 @@ type WinEventResponse struct {
 }
 
 type WinEventProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 func WinEventProcessorType() string {
@@ -59,14 +57,25 @@ func (p *WinEventProcessor) EventType() string {
 }
 
 func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("winevent", "requests", "Count of all winevent processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("winevent", "errors", "Count of all winevent processor errors", labels, "processor")
+
 	if e == nil {
+		errors.Inc()
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
 	if js, err := e.JsonBytes(); err == nil {
 		var PubSubEvents WinEventPubsubRequest
 		if err := json.Unmarshal(js, &PubSubEvents); err != nil {
-			p.errors.Inc(e.Channel)
+			errors.Inc()
 			p.logger.Error("Failed while unmarshalling: %s", err)
 			return err
 		}
@@ -79,7 +88,7 @@ func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
 			}
 			t := time.UnixMilli(event.Timestamp * 1000)
 			newEvent.SetTime(t.UTC())
-			p.requests.Inc(e.Channel)
+			requests.Inc()
 			p.outputs.Send(newEvent)
 		}
 	}
@@ -88,11 +97,16 @@ func (p *WinEventProcessor) HandleEvent(e *common.Event) error {
 
 func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("winevent", "requests", "Count of all winevent processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("winevent", "errors", "Count of all winevent processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -102,24 +116,24 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var WinEvents WinEventOriginalRequest
 	if err := json.Unmarshal(body, &WinEvents); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		p.logger.Error(err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
 	for _, event := range WinEvents.Events {
 		t := time.UnixMilli(event.Timestamp)
-		p.send(span, channel, event, &t)
+		p.send(channel, event, &t)
 	}
 
 	response := &WinEventResponse{
@@ -128,22 +142,22 @@ func (p *WinEventProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Req
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 	return nil
 }
 
-func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, event interface{}, t *time.Time) {
+func (p *WinEventProcessor) send(channel string, event interface{}, t *time.Time) {
 	e := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
@@ -154,20 +168,15 @@ func (p *WinEventProcessor) send(span sreCommon.TracerSpan, channel string, even
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
 func NewWinEventProcessor(outputs *common.Outputs, observability *common.Observability) *WinEventProcessor {
 
 	return &WinEventProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all WinEvent processor requests", []string{"channel"}, "WinEvent", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all WinEvent processor errors", []string{"channel"}, "WinEvent", "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

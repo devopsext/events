@@ -13,27 +13,28 @@ import (
 )
 
 type NewRelicOutputOptions struct {
+	Name               string
 	Message            string
 	AttributesSelector string
 }
 
 type NewRelicOutput struct {
 	wg              *sync.WaitGroup
+	name            *toolsRender.TextTemplate
 	message         *toolsRender.TextTemplate
 	attributes      *toolsRender.TextTemplate
 	options         NewRelicOutputOptions
-	tracer          sreCommon.Tracer
 	logger          sreCommon.Logger
-	requests        sreCommon.Counter
-	errors          sreCommon.Counter
+	meter           sreCommon.Meter
 	newrelicEventer *sreProvider.NewRelicEventer
+	newrelicOptions *sreProvider.NewRelicOptions
 }
 
 func (n *NewRelicOutput) Name() string {
 	return "NewRelic"
 }
 
-func (n *NewRelicOutput) getAttributes(o interface{}, span sreCommon.TracerSpan) (map[string]string, error) {
+func (n *NewRelicOutput) getAttributes(o interface{}) (map[string]string, error) {
 
 	attrs := make(map[string]string)
 	if n.attributes == nil {
@@ -50,7 +51,7 @@ func (n *NewRelicOutput) getAttributes(o interface{}, span sreCommon.TracerSpan)
 		return attrs, nil
 	}
 
-	n.logger.SpanDebug(span, "NewRelic raw attributes => %s", m)
+	n.logger.Debug("NewRelic raw attributes => %s", m)
 
 	var object map[string]interface{}
 
@@ -78,43 +79,49 @@ func (r *NewRelicOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := r.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			r.logger.SpanError(span, "Event data is empty")
+			r.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			r.logger.SpanError(span, err)
+			r.logger.Error(err)
 			return
 		}
 
 		b, err := r.message.RenderObject(jsonObject)
 		if err != nil {
-			r.logger.SpanError(span, err)
+			r.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			r.logger.SpanDebug(span, "NewRelic message is empty")
+			r.logger.Debug("NewRelic message is empty")
 			return
 		}
 
-		r.requests.Inc()
-		r.logger.SpanDebug(span, "NewRelic message => %s", message)
+		labels := make(map[string]string)
+		labels["event_channel"] = event.Channel
+		labels["event_type"] = event.Type
+		labels["newrelic_environment"] = r.newrelicOptions.Environment
+		labels["newrelic_service_name"] = r.newrelicOptions.ServiceName
+		labels["output"] = r.Name()
 
-		attributes, err := r.getAttributes(jsonObject, span)
+		requests := r.meter.Counter("newrelic", "requests", "Count of all newrelic requests", labels, "output")
+		requests.Inc()
+		r.logger.Debug("NewRelic message => %s", message)
+
+		attributes, err := r.getAttributes(jsonObject)
 		if err != nil {
-			r.logger.SpanError(span, err)
+			r.logger.Error(err)
 		}
 
-		err = r.newrelicEventer.At(message, attributes, event.Time)
+		err = r.newrelicEventer.At(message, "", attributes, event.Time)
 		if err != nil {
-			r.errors.Inc()
+			errors := r.meter.Counter("newrelic", "errors", "Count of all newrelic errors", labels, "output")
+			errors.Inc()
 		}
 	}()
 }
@@ -158,9 +165,7 @@ func NewNewRelicOutput(wg *sync.WaitGroup,
 		attributes:      attributes,
 		options:         options,
 		logger:          logger,
-		tracer:          observability.Traces(),
-		requests:        observability.Metrics().Counter("requests", "Count of all newrelic requests", []string{}, "newrelic", "output"),
-		errors:          observability.Metrics().Counter("errors", "Count of all newrelic errors", []string{}, "newrelic", "output"),
+		meter:           observability.Metrics(),
 		newrelicEventer: newrelicEventer,
 	}
 }

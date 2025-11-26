@@ -25,10 +25,8 @@ type PubSubInput struct {
 	ctx        context.Context
 	processors *common.Processors
 	eventer    sreCommon.Eventer
-	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
-	requests   sreCommon.Counter
-	errors     sreCommon.Counter
+	meter      sreCommon.Meter
 }
 
 func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -41,32 +39,33 @@ func (ps *PubSubInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 		ps.logger.Info("PubSub input is up. Listening...")
 
 		err := sub.Receive(ps.ctx, func(ctx context.Context, m *pubsub.Message) {
-			span := ps.tracer.StartSpan()
-			defer m.Ack()
-			defer span.Finish()
 
-			ps.requests.Inc(ps.options.Subscription)
-			ps.logger.SpanDebug(span, string(m.Data))
+			labels := make(map[string]string)
+			labels["subscription"] = sub.String()
+			labels["input"] = "pubsub"
+
+			requests := ps.meter.Counter("pubsub", "requests", "Count of all pubsub input requests", labels, "input")
+			errors := ps.meter.Counter("pubsub", "errors", "Count of all pubsub input errors", labels, "input")
+
+			requests.Inc()
 
 			var event common.Event
 			if err := json.Unmarshal(m.Data, &event); err != nil {
-				ps.errors.Inc(ps.options.Subscription)
-				ps.logger.SpanError(span, err)
+				errors.Inc()
 				return
 			}
 
 			p := ps.processors.Find(event.Type)
 			if p == nil {
-				ps.logger.SpanDebug(span, "PubSub processor is not found for %s", event.Type)
+				ps.logger.Debug("PubSub processor is not found for %s", event.Type)
 				return
 			}
 
 			event.SetLogger(ps.logger)
-			event.SetSpanContext(span.GetContext())
 
 			err := p.HandleEvent(&event)
 			if err != nil {
-				ps.errors.Inc(ps.options.Subscription)
+				errors.Inc()
 			}
 		})
 
@@ -97,17 +96,13 @@ func NewPubSubInput(options PubSubInputOptions, processors *common.Processors, o
 		return nil
 	}
 
-	meter := observability.Metrics()
-
 	return &PubSubInput{
 		options:    options,
 		client:     client,
 		ctx:        ctx,
 		processors: processors,
 		eventer:    observability.Events(),
-		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		requests:   meter.Counter("requests", "Count of all pubsub input requests", []string{"subscription"}, "pubsub", "input"),
-		errors:     meter.Counter("errors", "Count of all pubsub input errors", []string{"subscription"}, "pubsub", "input"),
+		meter:      observability.Metrics(),
 	}
 }

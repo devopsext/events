@@ -2,13 +2,14 @@ package input
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/devopsext/events/common"
 	"github.com/devopsext/events/processor"
 	sreCommon "github.com/devopsext/sre/common"
 	"github.com/devopsext/utils"
 	nomad "github.com/hashicorp/nomad/api"
-	"sync"
-	"time"
 )
 
 type NomadInputOptions struct {
@@ -23,10 +24,10 @@ type NomadInput struct {
 	ctx        context.Context
 	processors *common.Processors
 	eventer    sreCommon.Eventer
-	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
-	requests   sreCommon.Counter
-	errors     sreCommon.Counter
+	meter      sreCommon.Meter
+	// requests   sreCommon.Counter
+	// errors     sreCommon.Counter
 }
 
 func (n *NomadInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
@@ -107,17 +108,16 @@ func NewNomadInput(options NomadInputOptions, processors *common.Processors, obs
 		return nil
 	}
 
-	meter := observability.Metrics()
-
 	return &NomadInput{
 		options:    options,
 		client:     client,
 		processors: processors,
 		ctx:        context.Background(),
 		eventer:    observability.Events(),
-		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		requests:   meter.Counter("requests", "Count of all nomad input requests", []string{"subscription"}, "nomad", "input"),
-		errors:     meter.Counter("errors", "Count of all nomad input errors", []string{"subscription"}, "nomad", "input"),
+		meter:      observability.Metrics(),
+		// this is not used anywhere - counters never increase! Check back later when Nomad is added back
+		// requests: meter.Counter("nomad", "requests", "Count of all nomad input requests", map[string]string{}, "input", "nomad"),
+		// errors:   meter.Counter("nomad", "errors", "Count of all nomad input errors", map[string]string{}, "input", "nomad"),
 	}
 }

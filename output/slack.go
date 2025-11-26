@@ -43,10 +43,8 @@ type SlackOutput struct {
 	grafana  *render.GrafanaRender
 	options  SlackOutputOptions
 	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
 	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	meter    sreCommon.Meter
 }
 
 func (s *SlackOutput) Name() string {
@@ -67,30 +65,28 @@ func waitDDImage(url string, timeout int) bool {
 	return false
 }
 
-func (s *SlackOutput) sendMessage(spanCtx sreCommon.TracerSpanContext, msg vendors.SlackMessageOptions) ([]byte, error) {
-	span := s.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (s *SlackOutput) sendMessage(msg vendors.SlackMessageOptions) ([]byte, error) {
 
 	s.logger.Debug("%+v", msg)
 
 	message := strings.TrimSpace(msg.Text)
 	if utils.IsEmpty(message) {
 		err := errors.New("no slack message")
-		s.logger.SpanDebug(span, err.Error())
+		s.logger.Debug(err.Error())
 		return nil, err
 	}
 
 	b, err := s.slack.SendMessage(msg)
 	if err != nil {
-		s.logger.SpanError(span, err)
+		s.logger.Error(err)
 		return nil, err
 	}
 
-	s.logger.SpanDebug(span, "Response from Slack => %s", string(b))
+	s.logger.Debug("Response from Slack => %s", string(b))
 	return b, nil
 }
 
-func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, channel string, err error) error {
+func (s *SlackOutput) sendErrorMessage(channel string, err error) error {
 	fileOpts := vendors.SlackFileOptions{
 		Channel: channel,
 		Title:   "Error",
@@ -103,9 +99,7 @@ func (s *SlackOutput) sendErrorMessage(spanCtx sreCommon.TracerSpanContext, chan
 	return e
 }
 
-func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, channel, message, fileName, title string, image []byte) ([]byte, error) {
-	span := s.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (s *SlackOutput) sendImage(channel, message, fileName, title string, image []byte) ([]byte, error) {
 
 	fileOpts := vendors.SlackFileOptions{
 		Channel: channel,
@@ -118,9 +112,7 @@ func (s *SlackOutput) sendImage(spanCtx sreCommon.TracerSpanContext, channel, me
 	return s.slack.SendFile(fileOpts)
 }
 
-func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext, channel, message string, alert template.Alert) ([]byte, error) {
-	span := s.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
+func (s *SlackOutput) sendAlertmanagerImage(channel, message string, alert template.Alert) ([]byte, error) {
 
 	u, err := url.Parse(alert.GeneratorURL)
 	if err != nil {
@@ -171,18 +163,18 @@ func (s *SlackOutput) sendAlertmanagerImage(spanCtx sreCommon.TracerSpanContext,
 			Title:   query,
 			Text:    message,
 		}
-		return s.sendMessage(span.GetContext(), msgOptions)
+		return s.sendMessage(msgOptions)
 	}
 
-	image, fileName, err := s.grafana.GenerateDashboard(span.GetContext(), caption, metric, operator, value, minutes, unit)
+	image, fileName, err := s.grafana.GenerateDashboard(caption, metric, operator, value, minutes, unit)
 	if err != nil {
-		s.sendErrorMessage(span.GetContext(), channel, err)
+		s.sendErrorMessage(channel, err)
 		return nil, nil
 	}
-	return s.sendImage(span.GetContext(), channel, message, fileName, query, image)
+	return s.sendImage(channel, message, fileName, query, image)
 }
 
-func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *common.Event, bytes []byte) {
+func (s *SlackOutput) sendGlobally(event *common.Event, bytes []byte) {
 	if utils.IsEmpty(s.options.Forward) {
 		return
 	}
@@ -192,12 +184,9 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 		return
 	}
 
-	span := s.tracer.StartChildSpan(spanCtx)
-	defer span.Finish()
-
 	var obj interface{}
 	if err := json.Unmarshal(bytes, &obj); err != nil {
-		s.logger.SpanError(span, err)
+		s.logger.Error(err)
 		return
 	}
 
@@ -215,7 +204,6 @@ func (s *SlackOutput) sendGlobally(spanCtx sreCommon.TracerSpanContext, event *c
 		Via:     via,
 	}
 	e.SetLogger(s.logger)
-	e.SetSpanContext(span.GetContext())
 
 	s.outputs.SendForward(&e, []common.Output{s}, s.options.Forward)
 }
@@ -230,11 +218,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := s.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			s.logger.SpanError(span, "Event data is empty")
+			s.logger.Error("Event data is empty")
 			return
 		}
 
@@ -245,7 +230,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 		jsonMap, err := event.JsonMap()
 		if err != nil {
-			s.logger.SpanError(span, err)
+			s.logger.Error(err)
 			return
 		}
 
@@ -254,7 +239,7 @@ func (s *SlackOutput) Send(event *common.Event) {
 		if s.selector != nil {
 			b, err := s.selector.RenderObject(jsonMap)
 			if err != nil {
-				s.logger.SpanDebug(span, err)
+				s.logger.Debug(err)
 			} else {
 				chans = strings.Split(string(b), "\n")
 			}
@@ -263,28 +248,42 @@ func (s *SlackOutput) Send(event *common.Event) {
 		}
 
 		if len(chans) == 0 {
-			s.logger.SpanError(span, fmt.Sprintf("slack no channels for %s", event.Type))
+			s.logger.Error(fmt.Sprintf("slack no channels for %s", event.Type))
 			return
 		}
 
 		b, err := s.message.RenderObject(jsonMap)
 		if err != nil {
-			s.logger.SpanError(span, err)
+			s.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			s.logger.SpanDebug(span, "Slack message is empty")
+			s.logger.Debug("Slack message is empty")
 			return
 		}
 
-		s.logger.SpanDebug(span, "Slack message => %s", message)
+		s.logger.Debug("Slack message => %s", message)
 
 		for _, ch := range chans {
+
+			if len(ch) == 0 {
+				continue
+			}
+
 			ch = strings.TrimSpace(ch)
 
-			s.requests.Inc(ch)
+			labels := make(map[string]string)
+			labels["event_channel"] = event.Channel
+			labels["event_type"] = event.Type
+			labels["slack_channel_id"] = ch
+			labels["output"] = s.Name()
+
+			requests := s.meter.Counter("slack", "requests", "Count of all slack requests", labels, "output")
+			requests.Inc()
+
+			errors := s.meter.Counter("slack", "errors", "Count of all slack errors", labels, "output")
 
 			switch event.Type {
 			case "AlertmanagerEvent":
@@ -293,11 +292,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 					Title:   "AlertmanagerEvent",
 					Text:    message,
 				}
-				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
+				bytes, err := s.sendMessage(msgOptions)
 				if err != nil {
-					s.errors.Inc(ch)
+					errors.Inc()
 				} else {
-					s.sendGlobally(span.GetContext(), event, bytes)
+					s.sendGlobally(event, bytes)
 				}
 			case "DataDogEvent":
 				var slackMsg struct {
@@ -311,8 +310,8 @@ func (s *SlackOutput) Send(event *common.Event) {
 
 				err = json.Unmarshal([]byte(message), &slackMsg)
 				if err != nil {
-					s.errors.Inc(ch)
-					s.logger.SpanError(span, err)
+					errors.Inc()
+					s.logger.Error(err)
 					return
 				}
 
@@ -325,11 +324,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 					Blocks:      slackMsg.Blocks,
 				}
 
-				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
+				bytes, err := s.sendMessage(msgOptions)
 				if err != nil {
-					s.errors.Inc(ch)
+					errors.Inc()
 				} else {
-					s.sendGlobally(span.GetContext(), event, bytes)
+					s.sendGlobally(event, bytes)
 				}
 			case "ZabbixEvent":
 				jData, err := json.Marshal(event.Data)
@@ -360,11 +359,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 					Attachments: attachment,
 				}
 
-				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
+				bytes, err := s.sendMessage(msgOptions)
 				if err != nil {
-					s.errors.Inc(ch)
+					errors.Inc()
 				} else {
-					s.sendGlobally(span.GetContext(), event, bytes)
+					s.sendGlobally(event, bytes)
 				}
 			default:
 				msgOptions := vendors.SlackMessageOptions{
@@ -372,11 +371,11 @@ func (s *SlackOutput) Send(event *common.Event) {
 					Title:   "",
 					Text:    message,
 				}
-				bytes, err := s.sendMessage(span.GetContext(), msgOptions)
+				bytes, err := s.sendMessage(msgOptions)
 				if err != nil {
-					s.errors.Inc(ch)
+					errors.Inc()
 				} else {
-					s.sendGlobally(span.GetContext(), event, bytes)
+					s.sendGlobally(event, bytes)
 				}
 			}
 		}
@@ -434,8 +433,6 @@ func NewSlackOutput(wg *sync.WaitGroup,
 		options:  options,
 		outputs:  outputs,
 		logger:   logger,
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all slack requests", []string{"channel"}, "slack", "output"),
-		errors:   observability.Metrics().Counter("errors", "Count of all slack errors", []string{"channel"}, "slack", "output"),
+		meter:    observability.Metrics(),
 	}
 }

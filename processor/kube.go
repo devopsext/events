@@ -2,23 +2,22 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
-	"github.com/devopsext/events/common"
-	sreCommon "github.com/devopsext/sre/common"
 	"io"
-	"k8s.io/api/core/v1"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/devopsext/events/common"
+	sreCommon "github.com/devopsext/sre/common"
+	v1 "k8s.io/api/core/v1"
 )
 
 type KubeProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type KubeData struct {
@@ -42,7 +41,7 @@ type EnhancedEvent struct {
 	InvolvedObject EnhancedObjectReference `json:"involvedObject"`
 }
 
-func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *EnhancedEvent) error {
+func (p *KubeProcessor) send(channel string, e *EnhancedEvent) error {
 	ce := &common.Event{
 		Channel: channel,
 		Type:    p.EventType(),
@@ -56,29 +55,32 @@ func (p *KubeProcessor) send(span sreCommon.TracerSpan, channel string, e *Enhan
 		},
 	}
 	ce.SetTime(time.Now().UTC())
-	if span != nil {
-		ce.SetSpanContext(span.GetContext())
-		ce.SetLogger(p.logger)
-	}
+	ce.SetLogger(p.logger)
 	p.outputs.Send(ce)
 	return nil
 }
 
 func (p *KubeProcessor) processEvent(
 	w http.ResponseWriter,
-	span sreCommon.TracerSpan,
 	channel string,
 	e *EnhancedEvent,
 ) error {
-	if err := p.send(span, channel, e); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't send event: %v", err)
+
+	labels := make(map[string]string)
+	labels["event_channel"] = channel
+	labels["processor"] = p.EventType()
+
+	errors := p.meter.Counter("kube", "errors", "Count of all kube processor requests", labels, "processor")
+
+	if err := p.send(channel, e); err != nil {
+		errors.Inc()
+		p.logger.Error("Can't send event: %v", err)
 		http.Error(w, fmt.Sprintf("couldn't send event: %v", err), http.StatusInternalServerError)
 		return err
 	}
 	if _, err := w.Write([]byte("OK")); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -86,11 +88,16 @@ func (p *KubeProcessor) processEvent(
 }
 
 func (p *KubeProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("kube", "requests", "Count of all kube processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("kube", "errors", "Count of all kube processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -100,23 +107,23 @@ func (p *KubeProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var e *EnhancedEvent
 	if err := json.Unmarshal(body, &e); err == nil {
-		return p.processEvent(w, span, channel, e)
+		return p.processEvent(w, channel, e)
 	}
 	errorString := fmt.Sprintf("Could not parse body as EnhancedEvent: %s", body)
-	p.errors.Inc(channel)
-	err := errors.New(errorString)
-	p.logger.SpanError(span, errorString)
+	errors.Inc()
+	err := errPkg.New(errorString)
+	p.logger.Error(errorString)
 	http.Error(w, fmt.Sprint(errorString), http.StatusInternalServerError)
 	return err
 }
@@ -178,20 +185,6 @@ func NewKubeProcessor(outputs *common.Outputs, observability *common.Observabili
 	return &KubeProcessor{
 		outputs: outputs,
 		logger:  observability.Logs(),
-		tracer:  observability.Traces(),
-		requests: observability.Metrics().Counter(
-			"requests",
-			"Count of all kube processor requests",
-			[]string{"channel"},
-			"kube",
-			"processor",
-		),
-		errors: observability.Metrics().Counter(
-			"errors",
-			"Count of all kube processor errors",
-			[]string{"channel"},
-			"kube",
-			"processor",
-		),
+		meter:   observability.Metrics(),
 	}
 }

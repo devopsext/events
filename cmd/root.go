@@ -174,16 +174,19 @@ var workchatOutputOptions = output.WorkchatOutputOptions{
 }
 
 var newrelicOutputOptions = output.NewRelicOutputOptions{
+	Name:               envGet("NEWRELIC_OUT_MESSAGE", "").(string),
 	Message:            envGet("NEWRELIC_OUT_MESSAGE", "").(string),
 	AttributesSelector: envGet("NEWRELIC_OUT_ATTRIBUTES_SELECTOR", "").(string),
 }
 
 var datadogOutputOptions = output.DataDogOutputOptions{
+	Name:               envGet("DATADOG_OUT_NAME", "").(string),
 	Message:            envGet("DATADOG_OUT_MESSAGE", "").(string),
 	AttributesSelector: envGet("DATADOG_OUT_ATTRIBUTES_SELECTOR", "").(string),
 }
 
 var grafanaOutputOptions = output.GrafanaOutputOptions{
+	Name:               envGet("GRAFANA_OUT_MESSAGE", "").(string),
 	Message:            envGet("GRAFANA_OUT_MESSAGE", "").(string),
 	AttributesSelector: envGet("GRAFANA_OUT_ATTRIBUTES_SELECTOR", "").(string),
 }
@@ -253,25 +256,6 @@ var datadogMeterOptions = sreProvider.DataDogMeterOptions{
 
 var datadogEventerOptions = sreProvider.DataDogEventerOptions{
 	Site: envGet("DATADOG_EVENTER_SITE", "").(string),
-}
-
-var opentelemetryOptions = sreProvider.OpentelemetryOptions{
-	ServiceName: envGet("OPENTELEMETRY_SERVICE_NAME", appName).(string),
-	Environment: envGet("OPENTELEMETRY_ENVIRONMENT", "none").(string),
-	Attributes:  envGet("OPENTELEMETRY_ATTRIBUTES", "").(string),
-	Debug:       envGet("OPENTELEMETRY_DEBUG", false).(bool),
-}
-
-var opentelemetryTracerOptions = sreProvider.OpentelemetryTracerOptions{
-	AgentHost: envGet("OPENTELEMETRY_TRACER_HOST", "").(string),
-	AgentPort: envGet("OPENTELEMETRY_TRACER_PORT", 4317).(int),
-}
-
-var opentelemetryMeterOptions = sreProvider.OpentelemetryMeterOptions{
-	AgentHost:     envGet("OPENTELEMETRY_METER_HOST", "").(string),
-	AgentPort:     envGet("OPENTELEMETRY_METER_PORT", 4317).(int),
-	Prefix:        envGet("OPENTELEMETRY_METER_PREFIX", appName).(string),
-	CollectPeriod: int64(envGet("OPENTELEMETRY_METER_COLLECT_PERIOD", 1000).(int)),
 }
 
 var newrelicOptions = sreProvider.NewRelicOptions{
@@ -389,16 +373,6 @@ func Execute() {
 				metrics.Register(datadogMetricer)
 			}
 
-			opentelemetryMeterOptions.Version = version
-			opentelemetryMeterOptions.ServiceName = opentelemetryOptions.ServiceName
-			opentelemetryMeterOptions.Environment = opentelemetryOptions.Environment
-			opentelemetryMeterOptions.Attributes = opentelemetryOptions.Attributes
-			opentelemetryMeterOptions.Debug = opentelemetryOptions.Debug
-			opentelemetryMeter := sreProvider.NewOpentelemetryMeter(opentelemetryMeterOptions, logs, stdout)
-			if utils.Contains(rootOptions.Metrics, "opentelemetry") && opentelemetryMeter != nil {
-				metrics.Register(opentelemetryMeter)
-			}
-
 			newrelicMeterOptions.Version = version
 			newrelicMeterOptions.ApiKey = newrelicOptions.ApiKey
 			newrelicMeterOptions.ServiceName = newrelicOptions.ServiceName
@@ -429,16 +403,6 @@ func Execute() {
 				if utils.Contains(rootOptions.Traces, "datadog") {
 					traces.Register(datadogTracer)
 				}
-			}
-
-			opentelemetryTracerOptions.Version = version
-			opentelemetryTracerOptions.ServiceName = opentelemetryOptions.ServiceName
-			opentelemetryTracerOptions.Environment = opentelemetryOptions.Environment
-			opentelemetryTracerOptions.Attributes = opentelemetryOptions.Attributes
-			opentelemetryTracerOptions.Debug = opentelemetryOptions.Debug
-			opentelemtryTracer := sreProvider.NewOpentelemetryTracer(opentelemetryTracerOptions, logs, stdout)
-			if utils.Contains(rootOptions.Traces, "opentelemetry") && opentelemtryTracer != nil {
-				traces.Register(opentelemtryTracer)
 			}
 
 			newrelicTracerOptions.Version = version
@@ -675,18 +639,9 @@ func Execute() {
 	flags.IntVar(&datadogMeterOptions.AgentPort, "datadog-meter-agent-port", datadogMeterOptions.AgentPort, "Datadog meter agent port")
 	flags.StringVar(&datadogMeterOptions.Prefix, "datadog-meter-prefix", datadogMeterOptions.Prefix, "DataDog meter prefix")
 	flags.StringVar(&datadogEventerOptions.Site, "datadog-eventer-site", datadogEventerOptions.Site, "DataDog eventer site")
+	flags.StringVar(&datadogOutputOptions.Name, "datadog-out-name", datadogOutputOptions.Name, "DataDog name template")
 	flags.StringVar(&datadogOutputOptions.Message, "datadog-out-message", datadogOutputOptions.Message, "DataDog message template")
 	flags.StringVar(&datadogOutputOptions.AttributesSelector, "datadog-out-attributes-selector", datadogOutputOptions.AttributesSelector, "DataDog attributes selector template")
-
-	flags.StringVar(&opentelemetryOptions.ServiceName, "opentelemetry-service-name", opentelemetryOptions.ServiceName, "Opentelemetry service name")
-	flags.StringVar(&opentelemetryOptions.Environment, "opentelemetry-environment", opentelemetryOptions.Environment, "Opentelemetry environment")
-	flags.StringVar(&opentelemetryOptions.Attributes, "opentelemetry-attributes", opentelemetryOptions.Attributes, "Opentelemetry attributes")
-	flags.BoolVar(&opentelemetryOptions.Debug, "opentelemetry-debug", opentelemetryOptions.Debug, "Opentelemetry debug")
-	flags.StringVar(&opentelemetryTracerOptions.AgentHost, "opentelemetry-tracer-agent-host", opentelemetryTracerOptions.AgentHost, "Opentelemetry tracer agent host")
-	flags.IntVar(&opentelemetryTracerOptions.AgentPort, "opentelemetry-tracer-agent-port", opentelemetryTracerOptions.AgentPort, "Opentelemetry tracer agent port")
-	flags.StringVar(&opentelemetryMeterOptions.AgentHost, "opentelemetry-meter-agent-host", opentelemetryMeterOptions.AgentHost, "Opentelemetry meter agent host")
-	flags.IntVar(&opentelemetryMeterOptions.AgentPort, "opentelemetry-meter-agent-port", opentelemetryMeterOptions.AgentPort, "Opentelemetry meter agent port")
-	flags.StringVar(&opentelemetryMeterOptions.Prefix, "opentelemetry-meter-prefix", opentelemetryMeterOptions.Prefix, "Opentelemetry meter prefix")
 
 	flags.StringVar(&newrelicOptions.ApiKey, "newrelic-api-key", newrelicOptions.ApiKey, "NewRelic API key")
 	flags.StringVar(&newrelicOptions.ServiceName, "newrelic-service-name", newrelicOptions.ServiceName, "NewRelic service name")
@@ -710,6 +665,7 @@ func Execute() {
 	flags.StringVar(&grafanaOptions.Tags, "grafana-tags", grafanaOptions.Tags, "Grafana tags")
 	flags.StringVar(&grafanaEventerOptions.Endpoint, "grafana-eventer-endpoint", grafanaEventerOptions.Endpoint, "Grafana eventer endpoint")
 	flags.IntVar(&grafanaEventerOptions.Duration, "grafana-eventer-duration", grafanaEventerOptions.Duration, "Grafana eventer duration")
+	flags.StringVar(&grafanaOutputOptions.Name, "grafana-out-name", grafanaOutputOptions.Name, "Grafana name template")
 	flags.StringVar(&grafanaOutputOptions.Message, "grafana-out-message", grafanaOutputOptions.Message, "Grafana message template")
 	flags.StringVar(&grafanaOutputOptions.AttributesSelector, "grafana-out-attributes-selector", grafanaOutputOptions.AttributesSelector, "Grafana attributes selector template")
 

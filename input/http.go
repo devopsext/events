@@ -48,23 +48,11 @@ type HttpInputOptions struct {
 type HttpInput struct {
 	options    HttpInputOptions
 	processors *common.Processors
-	tracer     sreCommon.Tracer
 	logger     sreCommon.Logger
 	meter      sreCommon.Meter
-	requests   sreCommon.Counter
-	errors     sreCommon.Counter
 }
 
 type HttpProcessHandleFunc = func(w http.ResponseWriter, r *http.Request)
-
-func (h *HttpInput) startSpanFromRequest(r *http.Request) sreCommon.TracerSpan {
-
-	traceID := r.Header.Get(h.options.HeaderTraceID)
-	if utils.IsEmpty(traceID) {
-		return h.tracer.StartSpan()
-	}
-	return h.tracer.StartSpanWithTraceID(traceID, "")
-}
 
 func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProcessor) {
 
@@ -73,17 +61,19 @@ func (h *HttpInput) processURL(url string, mux *http.ServeMux, p common.HttpProc
 
 		mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
 
+			labels := make(map[string]string)
 			path := r.URL.Path
 
-			span := h.startSpanFromRequest(r)
-			span.SetCarrier(r.Header)
-			span.SetTag("path", path)
-			defer span.Finish()
+			labels["path"] = path
+			labels["input"] = "http"
+			requests := h.meter.Counter("http", "requests", "Count of all http input requests", labels, "input")
 
-			h.requests.Inc(path)
+			requests.Inc()
+
 			err := p.HandleHttpRequest(w, r)
 			if err != nil {
-				h.errors.Inc(path)
+				errors := h.meter.Counter("http", "errors", "Count of all http input errors", labels, "input")
+				errors.Inc()
 			}
 		})
 	}
@@ -234,14 +224,10 @@ func (h *HttpInput) getProcessors(_ *common.Processors, _ *common.Outputs) map[s
 
 func NewHttpInput(options HttpInputOptions, processors *common.Processors, observability *common.Observability) *HttpInput {
 
-	meter := observability.Metrics()
 	return &HttpInput{
 		options:    options,
 		processors: processors,
-		tracer:     observability.Traces(),
 		logger:     observability.Logs(),
-		meter:      meter,
-		requests:   meter.Counter("requests", "Count of all http input requests", []string{"url"}, "http", "input"),
-		errors:     meter.Counter("errors", "Count of all http input errors", []string{"url"}, "http", "input"),
+		meter:      observability.Metrics(),
 	}
 }

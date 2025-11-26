@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	errPkg "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,11 +14,9 @@ import (
 )
 
 type DataDogProcessor struct {
-	outputs  *common.Outputs
-	tracer   sreCommon.Tracer
-	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
+	outputs *common.Outputs
+	logger  sreCommon.Logger
+	meter   sreCommon.Meter
 }
 
 type DataDogEvent struct {
@@ -87,7 +85,7 @@ func (p *DataDogProcessor) EventType() string {
 	return common.AsEventType(DataDogProcessorType())
 }
 
-func (p *DataDogProcessor) send(span sreCommon.TracerSpan, channel string, o interface{}, t *time.Time) {
+func (p *DataDogProcessor) send(channel string, o interface{}, t *time.Time) {
 
 	e := &common.Event{
 		Channel: channel,
@@ -99,10 +97,7 @@ func (p *DataDogProcessor) send(span sreCommon.TracerSpan, channel string, o int
 	} else {
 		e.SetTime(time.Now().UTC())
 	}
-	if span != nil {
-		e.SetSpanContext(span.GetContext())
-		e.SetLogger(p.logger)
-	}
+	e.SetLogger(p.logger)
 	p.outputs.Send(e)
 }
 
@@ -112,18 +107,30 @@ func (p *DataDogProcessor) HandleEvent(e *common.Event) error {
 		p.logger.Debug("Event is not defined")
 		return nil
 	}
-	p.requests.Inc(e.Channel)
+
+	labels := make(map[string]string)
+	labels["event_channel"] = e.Channel
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("datadog", "requests", "Count of all datadog processor requests", labels, "processor", "datadog")
+	requests.Inc()
+
 	p.outputs.Send(e)
 	return nil
 }
 
 func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Request) error {
 
-	span := p.tracer.StartChildSpan(r.Header)
-	defer span.Finish()
-
 	channel := strings.TrimLeft(r.URL.Path, "/")
-	p.requests.Inc(channel)
+
+	labels := make(map[string]string)
+	labels["path"] = r.URL.Path
+	labels["processor"] = p.EventType()
+
+	requests := p.meter.Counter("datadog", "requests", "Count of all datadog processor requests", labels, "processor")
+	requests.Inc()
+
+	errors := p.meter.Counter("datadog", "errors", "Count of all datadog processor errors", labels, "processor")
 
 	var body []byte
 	if r.Body != nil {
@@ -133,25 +140,25 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 	}
 
 	if len(body) == 0 {
-		p.errors.Inc(channel)
-		err := errors.New("empty body")
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		err := errPkg.New("empty body")
+		p.logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return err
 	}
 
-	p.logger.SpanDebug(span, "Body => %s", body)
+	p.logger.Debug("Body => %s", body)
 
 	var datadog DataDogRequest
 	if err := json.Unmarshal(body, &datadog); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, err)
+		errors.Inc()
+		p.logger.Error(err)
 		http.Error(w, "Error unmarshaling message", http.StatusInternalServerError)
 		return err
 	}
 
 	t := time.UnixMilli(datadog.LastUpdated)
-	p.send(span, channel, datadog, &t)
+	p.send(channel, datadog, &t)
 
 	response := &DataDogResponse{
 		Message: "OK",
@@ -159,15 +166,15 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 
 	resp, err := json.Marshal(response)
 	if err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't encode response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't encode response: %v", err)
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 		return err
 	}
 
 	if _, err := w.Write(resp); err != nil {
-		p.errors.Inc(channel)
-		p.logger.SpanError(span, "Can't write response: %v", err)
+		errors.Inc()
+		p.logger.Error("Can't write response: %v", err)
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 		return err
 	}
@@ -177,10 +184,8 @@ func (p *DataDogProcessor) HandleHttpRequest(w http.ResponseWriter, r *http.Requ
 func NewDataDogProcessor(outputs *common.Outputs, observability *common.Observability) *DataDogProcessor {
 
 	return &DataDogProcessor{
-		outputs:  outputs,
-		logger:   observability.Logs(),
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all datadog processor requests", []string{"channel"}, "datadog", "processor"),
-		errors:   observability.Metrics().Counter("errors", "Count of all datadog processor errors", []string{"channel"}, "datadog", "processor"),
+		outputs: outputs,
+		logger:  observability.Logs(),
+		meter:   observability.Metrics(),
 	}
 }

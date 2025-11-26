@@ -10,7 +10,6 @@ import (
 type RancherProcessor struct {
 	outputs *common.Outputs
 	logger  sreCommon.Logger
-	tracer  sreCommon.Tracer
 	meter   sreCommon.Meter
 }
 
@@ -34,7 +33,6 @@ func NewRancherProcessor(outputs *common.Outputs, observability *common.Observab
 	return &RancherProcessor{
 		outputs: outputs,
 		logger:  observability.Logs(),
-		tracer:  observability.Traces(),
 		meter:   observability.Metrics(),
 	}
 }

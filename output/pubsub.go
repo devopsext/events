@@ -28,10 +28,8 @@ type PubSubOutput struct {
 	message  *toolsRender.TextTemplate
 	selector *toolsRender.TextTemplate
 	options  PubSubOutputOptions
-	tracer   sreCommon.Tracer
+	meter    sreCommon.Meter
 	logger   sreCommon.Logger
-	requests sreCommon.Counter
-	errors   sreCommon.Counter
 }
 
 func (ps *PubSubOutput) Name() string {
@@ -49,17 +47,14 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 			return
 		}
 
-		span := ps.tracer.StartFollowSpan(event.GetSpanContext())
-		defer span.Finish()
-
 		if event.Data == nil {
-			ps.logger.SpanError(span, "Event data is empty")
+			ps.logger.Error("Event data is empty")
 			return
 		}
 
 		jsonObject, err := event.JsonObject()
 		if err != nil {
-			ps.logger.SpanError(span, err)
+			ps.logger.Error(err)
 			return
 		}
 
@@ -67,30 +62,30 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 		if ps.selector != nil {
 			b, err := ps.selector.RenderObject(jsonObject)
 			if err != nil {
-				ps.logger.SpanDebug(span, err)
+				ps.logger.Debug(err)
 			} else {
 				topics = string(b)
 			}
 		}
 
 		if utils.IsEmpty(topics) {
-			ps.logger.SpanError(span, "PubSub topics are not found")
+			ps.logger.Error("PubSub topics are not found")
 			return
 		}
 
 		b, err := ps.message.RenderObject(jsonObject)
 		if err != nil {
-			ps.logger.SpanError(span, err)
+			ps.logger.Error(err)
 			return
 		}
 
 		message := strings.TrimSpace(string(b))
 		if utils.IsEmpty(message) {
-			ps.logger.SpanDebug(span, "PubSub message is empty")
+			ps.logger.Debug("PubSub message is empty")
 			return
 		}
 
-		ps.logger.SpanDebug(span, "PubSub message => %s", message)
+		ps.logger.Debug("PubSub message => %s", message)
 
 		arr := strings.Split(topics, "\n")
 		for _, topic := range arr {
@@ -99,16 +94,25 @@ func (ps *PubSubOutput) Send(event *common.Event) {
 				continue
 			}
 
-			ps.requests.Inc(topic)
+			labels := make(map[string]string)
+			labels["event_channel"] = event.Channel
+			labels["event_type"] = event.Type
+			labels["pubsub_project_id"] = ps.options.ProjectID
+			labels["pubsub_topic"] = ps.options.TopicSelector
+			labels["output"] = ps.Name()
+
+			requests := ps.meter.Counter("pubsub", "requests", "Count of all pubsub requests", labels, "output")
+			requests.Inc()
 
 			t := ps.client.Topic(topic)
 			serverID, err := t.Publish(ps.ctx, &pubsub.Message{Data: []byte(message)}).Get(ps.ctx)
 			if err != nil {
-				ps.errors.Inc(topic)
-				ps.logger.SpanError(span, err)
+				errors := ps.meter.Counter("pubsub", "errors", "Count of all pubsub errors", labels, "output")
+				errors.Inc()
+				ps.logger.Error(err)
 				continue
 			}
-			ps.logger.SpanDebug(span, "PubSub server ID => %s", serverID)
+			ps.logger.Debug("PubSub server ID => %s", serverID)
 		}
 	}()
 }
@@ -166,8 +170,6 @@ func NewPubSubOutput(wg *sync.WaitGroup,
 		selector: selector,
 		options:  options,
 		logger:   logger,
-		tracer:   observability.Traces(),
-		requests: observability.Metrics().Counter("requests", "Count of all pubsub requests", []string{"topic"}, "pubsub", "output"),
-		errors:   observability.Metrics().Counter("errors", "Count of all pubsub errors", []string{"topic"}, "pubsub", "output"),
+		meter:    observability.Metrics(),
 	}
 }
