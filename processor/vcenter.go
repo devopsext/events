@@ -1,10 +1,8 @@
 package processor
 
 import (
-	"errors"
 	errPkg "errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -122,14 +120,21 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"UserLoginSessionEvent":
 		return ErrorEventDefinitelySkip
 
+	// Nothing to fill here, but useful
+	case
+		"BadUsernameSessionEvent":
+		return nil
+
 	//esx
-	case "esx.problem.vmfs.heartbeat.recovered",
+	case
+		"esx.problem.net.vmnic.linkstate.down",
 		"esx.audit.vmfs.sesparse.bloomfilter.disabled",
 		"esx.clear.scsi.device.io.latency.improved",
-		"esx.problem.clock.correction.adjtime.lostsync",
-		"esx.problem.clock.correction.adjtime.sync",
 		"esx.problem.visorfs.ramdisk.full",
-		"esx.problem.vmfs.heartbeat.timedout":
+		"esx.problem.vmfs.heartbeat.timedout",
+		"esx.problem.storage.connectivity.lost",
+		"esx.problem.storage.redundancy.degraded",
+		"esx.problem.storage.redundancy.lost":
 		vce.DestClusterName, _ = jsonparser.GetString(jsonByte, "data", "Datacenter", "Name")
 		vce.DestLocation, _ = jsonparser.GetString(jsonByte, "data", "ComputeResource", "Name")
 		vce.DestDatacenterName, _ = jsonparser.GetString(jsonByte, "data", "Datacenter", "Datacenter", "Value")
@@ -146,7 +151,9 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		}, "data", "Arguments")
 		return nil
 	//Vm
-	case "VmPoweredOffEvent",
+	case
+		"com.vmware.vc.vm.VmStateRevertedToSnapshot",
+		"VmPoweredOffEvent",
 		"VmAcquiredTicketEvent",
 		"VmBeingClonedEvent",
 		"VmBeingCreatedEvent",
@@ -269,13 +276,32 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		vce.DestLocation, _ = jsonparser.GetString(jsonByte, "data", "ComputeResource", "Name")
 		vce.DestESXiHostName, _ = jsonparser.GetString(jsonByte, "data", "Host", "Name")
 		return nil
+
+	//Tag operations
+	case "com.vmware.cis.tagging.attach":
+
+		jsonparser.ArrayEach(jsonByte, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			key, _ := jsonparser.GetString(value, "Key")
+			switch key {
+			case "Tag":
+				vce.Argument1, _ = jsonparser.GetString(value, "Value")
+			case "Object":
+				vce.EntityName, _ = jsonparser.GetString(value, "Value")
+			}
+		}, "data", "Arguments")
+		return nil
 	}
 
 	// skip events and return only Debug record
 	switch vce.Subject {
-	case "NoAccessUserEvent",
+	case
+		"esx.audit.vmfs.volume.umounted",
+		"com.vmware.vc.sms.EsxiVasaClientCertificateRegisterSuccess",
+		"HostIsolationIpPingFailedEvent",
+		"DrsSoftRuleViolationEvent",
+		"NoAccessUserEvent",
 		"VmRenamedEvent",
-		"BadUsernameSessionEvent",
+		// "BadUsernameSessionEvent",
 		"CustomFieldValueChangedEvent",
 		"CustomizationStartedEvent",
 		"CustomizationSucceeded",
@@ -305,7 +331,6 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"com.vmware.vc.vm.TemplateConvertedToVmEvent",
 		"com.vmware.vc.vm.VmConvertedToTemplateEvent",
 		"com.vmware.vc.vm.VmHotMigratingWithEncryptionEvent",
-		"com.vmware.vc.vm.VmStateRevertedToSnapshot",
 		"com.vmware.vc.vmam.VmAppHealthMonitoringStateChangedEvent",
 		"com.vmware.vc.vmam.VmDasAppHeartbeatFailedEvent",
 		"com.vmware.vcIntegrity.ScanStart",
@@ -340,7 +365,6 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"esx.clear.net.dvport.redundancy.restored",
 		"esx.clear.net.redundancy.restored",
 		"esx.clear.net.vmnic.linkstate.up",
-		"esx.problem.net.vmnic.linkstate.down",
 		"AlarmClearedEvent",
 		"DVPortgroupCreatedEvent",
 		"DatastoreDestroyedEvent",
@@ -367,10 +391,10 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 		"esx.clear.storage.apd.exit",
 		"esx.clear.storage.redundancy.restored",
 		"esx.clear.vmfs.nfs.server.restored",
-		"esx.problem.storage.connectivity.lost",
-		"esx.problem.storage.redundancy.degraded",
-		"esx.problem.storage.redundancy.lost",
 		"esx.problem.vmsyslogd.remote.failure",
+		"esx.problem.vmfs.heartbeat.recovered",
+		"esx.problem.clock.correction.adjtime.lostsync",
+		"esx.problem.clock.correction.adjtime.sync",
 		"MigrationResourceErrorEvent",
 		"GeneralUserEvent":
 
@@ -380,14 +404,14 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 	}
 
 	// not implemented event
-	if _, err := os.Stat("test/vcenter/new/" + vce.Subject + ".json"); errors.Is(err, os.ErrNotExist) {
-		f, _ := os.OpenFile("test/vcenter/new/"+vce.Subject+".json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-		defer f.Close()
-		fmt.Fprintf(f, "%s", jsonByte)
-		fmt.Println("new event:\t" + vce.Subject)
-	}
+	// if _, err := os.Stat("test/vcenter/new/" + vce.Subject + ".json"); errors.Is(err, os.ErrNotExist) {
+	// 	f, _ := os.OpenFile("test/vcenter/new/"+vce.Subject+".json", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	// 	defer f.Close()
+	// 	fmt.Fprintf(f, "%s", jsonByte)
+	// 	fmt.Println("new event:\t" + vce.Subject)
+	// }
 	err = fmt.Errorf("%w", ErrorEventNotImpemented)
-	return fmt.Errorf("%s %w", vce.Subject, err)
+	return fmt.Errorf("%s %s %w", vce.Subject, jsonByte, err)
 }
 
 func (p *VCenterProcessor) HandleEvent(e *common.Event) error {
