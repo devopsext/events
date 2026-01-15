@@ -295,6 +295,7 @@ func (vce *vcenterEvent) parse(jsonByte []byte) error {
 	// skip events and return only Debug record
 	switch vce.Subject {
 	case
+		"com.vmware.vc.RestrictedAccess",
 		"esx.audit.vmfs.volume.umounted",
 		"com.vmware.vc.sms.EsxiVasaClientCertificateRegisterSuccess",
 		"HostIsolationIpPingFailedEvent",
