@@ -16,6 +16,7 @@ type NomadInputOptions struct {
 	Address string
 	Token   string
 	Topics  []string
+	Regions []string
 }
 
 type NomadInput struct {
@@ -26,70 +27,84 @@ type NomadInput struct {
 	eventer    sreCommon.Eventer
 	logger     sreCommon.Logger
 	meter      sreCommon.Meter
-	// requests   sreCommon.Counter
-	// errors     sreCommon.Counter
 }
 
 func (n *NomadInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) {
-		defer wg.Done()
 
-		p := n.processors.Find("NomadEvent").(*processor.NomadProcessor)
-		if p == nil {
-			n.logger.Debug("Nomad processor is not found for NomadEvent")
-			return
-		}
+	q := &nomad.QueryOptions{}
+	regions, _ := n.client.Regions().List()
 
-		n.logger.Info("Start nomad input...")
+	for _, region := range regions {
 
-		topics := make(map[nomad.Topic][]string)
-		for _, topic := range n.options.Topics {
-			topics[nomad.Topic(topic)] = []string{"*"}
-		}
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			defer wg.Done()
 
-		q := &nomad.QueryOptions{}
-
-		stream := n.client.EventStream()
-
-		for {
-			eventCh, err := stream.Stream(n.ctx, topics, 0, q)
-			if err != nil {
-				n.logger.Error(err)
-				time.Sleep(5 * time.Second)
-				continue
+			p := n.processors.Find("NomadEvent").(*processor.NomadProcessor)
+			if p == nil {
+				n.logger.Debug("Nomad processor is not found for NomadEvent")
+				return
 			}
 
-			chanOk := true
+			n.logger.Info("Start nomad input for %s region %s", n.options.Address, region)
+
+			topics := make(map[nomad.Topic][]string)
+			for _, topic := range n.options.Topics {
+				topics[nomad.Topic(topic)] = []string{"*"}
+			}
+
+			q.Region = region
+			stream := n.client.EventStream()
+
 			for {
-				select {
-				case es, ok := <-eventCh:
-					if !ok {
-						n.logger.Error("Stream channel closed, restarting")
-						chanOk = false
-						time.Sleep(2 * time.Second)
-						break
-					}
-					if es.Err != nil {
-						n.logger.Error("Stream channel return error '%v', restarting", es.Err)
-						chanOk = false
-						time.Sleep(2 * time.Second)
-						break
-					}
-					for _, ne := range es.Events {
-						err := p.ProcessEvent(ne)
-						if err != nil {
-							n.logger.Error(err)
+				// Use absurdly high index num to query only last events (no backlog)
+				eventCh, err := stream.Stream(n.ctx, topics, 9999999999, q)
+				if err != nil {
+					n.logger.Error(err)
+					time.Sleep(5 * time.Second)
+					continue
+				}
+
+				chanOk := true
+				for {
+					select {
+					case es, ok := <-eventCh:
+						if !ok {
+							n.logger.Error("Stream channel closed, restarting")
+							chanOk = false
+							time.Sleep(2 * time.Second)
+							break
+						}
+						if es.Err != nil {
+							n.logger.Error("Stream channel return error '%v', restarting", es.Err)
+							chanOk = false
+							time.Sleep(2 * time.Second)
+							break
+						}
+						for _, ne := range es.Events {
+							labels := make(map[string]string)
+							labels["nomad"] = n.options.Address
+							labels["input"] = "nomad"
+							labels["region"] = region
+
+							requests := n.meter.Counter("nomad", "requests", "Count of all nomad input requests", labels, "input")
+							errors := n.meter.Counter("nomad", "errors", "Count of all nomad input errors", labels, "input")
+							requests.Inc()
+							err := p.ProcessEvent(ne)
+							if err != nil {
+								n.logger.Error(err)
+								errors.Inc()
+							}
 						}
 					}
+					if !chanOk {
+						break
+					}
 				}
-				if !chanOk {
-					break
-				}
+				n.logger.Debug("Restart nomad input...")
 			}
-			n.logger.Debug("Restart nomad input...")
-		}
-	}(wg)
+		}(wg)
+	}
 }
 
 func NewNomadInput(options NomadInputOptions, processors *common.Processors, observability *common.Observability) *NomadInput {
@@ -116,8 +131,5 @@ func NewNomadInput(options NomadInputOptions, processors *common.Processors, obs
 		eventer:    observability.Events(),
 		logger:     observability.Logs(),
 		meter:      observability.Metrics(),
-		// this is not used anywhere - counters never increase! Check back later when Nomad is added back
-		// requests: meter.Counter("nomad", "requests", "Count of all nomad input requests", map[string]string{}, "input", "nomad"),
-		// errors:   meter.Counter("nomad", "errors", "Count of all nomad input errors", map[string]string{}, "input", "nomad"),
 	}
 }

@@ -103,7 +103,8 @@ var pubsubInputOptions = input.PubSubInputOptions{
 var nomadInputOptions = input.NomadInputOptions{
 	Address: envGet("NOMAD_ADDRESS", "").(string),
 	Token:   envGet("NOMAD_TOKEN", "").(string),
-	Topics:  strings.Split(envGet("NOMAD_TOPICS", "Deployment,Evaluation,Job,Node").(string), ","), //Deployment,Evaluation,Allocation,Job,Node"
+	Regions: strings.Split(envGet("NOMAD_REGIONS", "").(string), ","),
+	Topics:  strings.Split(envGet("NOMAD_TOPICS", "Deployment,Evaluation,Job,Allocation,Service").(string), ","), //Deployment,Evaluation,Allocation,Job,Node"
 }
 
 var vcInputOptions = input.VCenterInputOptions{
