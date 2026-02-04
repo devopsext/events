@@ -16,7 +16,6 @@ type NomadInputOptions struct {
 	Address string
 	Token   string
 	Topics  []string
-	Regions []string
 }
 
 type NomadInput struct {
