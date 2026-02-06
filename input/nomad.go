@@ -31,7 +31,11 @@ type NomadInput struct {
 func (n *NomadInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 	q := &nomad.QueryOptions{}
-	regions, _ := n.client.Regions().List()
+	regions, err := n.client.Regions().List()
+	if err != nil {
+		n.logger.Error(err)
+		return
+	}
 
 	for _, region := range regions {
 
@@ -57,6 +61,7 @@ func (n *NomadInput) Start(wg *sync.WaitGroup, outputs *common.Outputs) {
 
 			for {
 				// Use absurdly high index num to query only last events (no backlog)
+				// math.MaxUint64 doesn't work, MaxUint32 does work, but its lesser number
 				eventCh, err := stream.Stream(n.ctx, topics, 9999999999, q)
 				if err != nil {
 					n.logger.Error(err)
