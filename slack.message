@@ -274,16 +274,45 @@
 {{- end}}
 
 {{- define "vcenter"}}
+  {{- $text := ""}}
+  {{- $print := "false"}}
+  {{- /* If subject is present and not empty */}}
   {{- if and .data.Subject (ne .data.Subject "")}}
-    {{- printf "VCenterEvent event %s\n" .data.Subject }}
+    {{- $text = printf "%s*%s %s* %s\n" $text .type .data.Subject .data.CreatedTime }}
   {{- else}}
     {{- if and .data.DebugSubject (ne .data.DebugSubject " ")}}
-      {{- printf "VCenterEvent event %s\n" .data.DebugSubject}}
+      {{- /* printf "*VCenterEvent %s*\n" .data.DebugSubject */}}
     {{- else}}
-      {{- printf "VCenterEvent event unknown\n"}}
+      {{- $print = "true"}}
+      {{- $text = printf "%s*%s unknown* %s\n" $text .type .data.CreatedTime}}
     {{- end}}
   {{- end}}
-  {{- printf "%s" .data.RAWString}}
+
+  {{- if gt (len $text) 0}}
+    {{- if and (eq .data.Subject "AlarmStatusChangedEvent") (regexMatch "(Yellow to Red|Red to Yellow)" .data.Message) (not (regexMatch "(Virtual machine CPU usage)" .data.Message))}}
+      {{- $text = printf "%s\nLocation: %v/%v/%v/%v\nMessage:%s" $text .data.DestClusterName .data.DestLocation .data.DestESXiHostName .data.VmName .data.Message}}
+    {{- else}}
+      {{- $text = printf "%s\nMessage:%s" $text .data.Message}}
+    {{- end}}
+
+    {{- if eq .data.Subject "TaskEvent"}}
+    {{- else if eq .data.Subject "VmReconfiguredEvent"}}
+    {{- else if eq .data.Subject "com.vmware.vc.sdrs.ClearDatastoreInMultipleDatacentersEvent"}}
+    {{- else if eq .data.Subject "com.vmware.vc.sdrs.StorageDrsNewRecommendationPendingEvent"}}
+    {{- else if eq .data.Subject "com.vmware.vc.sdrs.ConfiguredStorageDrsOnPodEvent"}}
+    {{- else if eq .data.Subject "HostSyncFailedEvent"}}
+    {{- else if eq .data.Subject "VmMacChangedEvent"}}
+    {{- else if eq .data.Subject "AlarmStatusChangedEvent"}}
+    {{- else if eq .data.Subject "com.vmware.cis.tagging.attach"}}
+    {{- else}}
+      {{- $print = "true"}}
+    {{- end}}
+
+    {{- if eq $print "true"}}
+      {{- printf "%s" $text}}
+    {{- end}}
+
+  {{- end}} {{- /* if and (gt (len $text) 0) */}}
 {{- end}}
 
 {{- define "cloudflare"}}

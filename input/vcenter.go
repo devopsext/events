@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -183,7 +182,7 @@ func initCheckpoint(_ context.Context, fullPath string) (*checkpoint, error) {
 		return nil, errors.Wrap(err, "could not marshal checkpoint to JSON object")
 	}
 
-	err = ioutil.WriteFile(fullPath, jsonBytes, 0600)
+	err = os.WriteFile(fullPath, jsonBytes, 0600)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not write checkpoint file")
 	}
@@ -193,7 +192,7 @@ func initCheckpoint(_ context.Context, fullPath string) (*checkpoint, error) {
 // lastCheckpoint returns the last checkpoint for the given file
 func lastCheckpoint(_ context.Context, file io.Reader) (*checkpoint, error) {
 	var cp checkpoint
-	jsonBytes, err := ioutil.ReadAll(file)
+	jsonBytes, err := io.ReadAll(file)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not read checkpoint file")
 	}

@@ -124,7 +124,8 @@ func (d *DataDogOutput) Send(event *common.Event) {
 
 		requests := d.meter.Counter("datadog", "requests", "Count of all datadog requests", labels, "output")
 		requests.Inc()
-		d.logger.Debug("DataDog message => %s%s", name, message)
+		d.logger.Debug("DataDog name => %s", name)
+		d.logger.Debug("DataDog message => %s", message)
 
 		attributes, err := d.getAttributes(jsonObject)
 		if err != nil {
